@@ -1,0 +1,572 @@
+"""
+Medical NLP Extractor
+=====================
+
+EDUCATIONAL PURPOSE - NATURAL LANGUAGE PROCESSING CONCEPTS:
+
+This module demonstrates fundamental NLP techniques for medical text analysis:
+
+1. TOKENIZATION:
+   Breaking text into meaningful units (words, sentences).
+   Medical text requires special handling for abbreviations (CT, mm, GGO).
+
+2. PART-OF-SPEECH (POS) TAGGING:
+   Identifying word types (noun, verb, adjective).
+   Helps find descriptive terms about nodules.
+
+3. NAMED ENTITY RECOGNITION (NER):
+   Identifying medical entities (diseases, anatomy, measurements).
+   scispaCy provides biomedical-trained NER models.
+
+4. PATTERN MATCHING (REGEX):
+   Extracting structured information using regular expressions.
+   Essential for measurements, staging, and specific terminology.
+
+5. DEPENDENCY PARSING:
+   Understanding grammatical relationships between words.
+   Helps connect modifiers to the entities they describe.
+
+NLP PIPELINE:
+    Raw Text → Tokenization → POS Tagging → NER → Pattern Extraction → Structured Output
+
+scispaCy MODELS:
+- en_core_sci_sm: General biomedical NLP
+- en_ner_bc5cdr_md: Disease/Chemical NER
+- en_ner_bionlp13cg_md: Cancer genetics NER
+"""
+
+import re
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ExtractedEntity:
+    """
+    Represents an extracted entity from text.
+    
+    EDUCATIONAL NOTE:
+    Named Entity Recognition (NER) identifies spans of text
+    that represent specific concepts. Each entity has:
+    - Text: The actual words
+    - Label: The entity type (DISEASE, MEASUREMENT, etc.)
+    - Span: Character positions in original text
+    """
+    text: str
+    label: str
+    start: int
+    end: int
+    confidence: float = 1.0
+    
+    def __str__(self) -> str:
+        return f"{self.text} [{self.label}]"
+
+
+@dataclass
+class ExtractionResult:
+    """
+    Complete extraction result from a pathology report.
+    
+    Contains all extracted information organized by category,
+    plus the raw entities and tokens for further analysis.
+    """
+    # Extracted measurements
+    size_mm: Optional[float] = None
+    
+    # Morphological features
+    texture: Optional[str] = None  # solid, ground-glass, part-solid
+    margin: Optional[str] = None   # well-defined, spiculated, etc.
+    spiculation: Optional[str] = None
+    lobulation: Optional[str] = None
+    calcification: Optional[str] = None
+    
+    # Location
+    location: Optional[str] = None  # right upper lobe, etc.
+    
+    # Clinical assessment
+    malignancy_assessment: Optional[str] = None
+    lung_rads_category: Optional[str] = None
+    recommendation: Optional[str] = None
+    
+    # Raw extraction data
+    entities: List[ExtractedEntity] = field(default_factory=list)
+    measurements: List[Dict[str, Any]] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "size_mm": self.size_mm,
+            "texture": self.texture,
+            "margin": self.margin,
+            "spiculation": self.spiculation,
+            "lobulation": self.lobulation,
+            "calcification": self.calcification,
+            "location": self.location,
+            "malignancy_assessment": self.malignancy_assessment,
+            "lung_rads_category": self.lung_rads_category,
+            "recommendation": self.recommendation,
+            "entities": [{"text": e.text, "label": e.label} for e in self.entities],
+            "measurements": self.measurements
+        }
+
+
+class MedicalNLPExtractor:
+    """
+    NLP-based extractor for medical radiology reports.
+    
+    EDUCATIONAL PURPOSE - NLP PIPELINE DEMONSTRATION:
+    
+    This class implements a complete NLP pipeline:
+    
+    1. PREPROCESSING:
+       - Lowercasing (optional, preserves acronyms)
+       - Sentence segmentation
+       
+    2. TOKENIZATION:
+       - spaCy's rule-based tokenizer
+       - Handles medical abbreviations
+       
+    3. POS TAGGING:
+       - Identifies nouns (nodule, mass), adjectives (solid, spiculated)
+       
+    4. NER:
+       - scispaCy's trained models for biomedical entities
+       - Custom patterns for radiology-specific terms
+       
+    5. PATTERN MATCHING:
+       - Regex for measurements (15 mm, 1.5 cm)
+       - Templates for Lung-RADS categories
+       - Keywords for clinical impressions
+       
+    Usage:
+        extractor = MedicalNLPExtractor()
+        result = extractor.extract(report_text)
+    """
+    
+    # Regex patterns for extraction
+    # EDUCATIONAL NOTE: Regex is a powerful tool for structured extraction
+    
+    # Size patterns: "15 mm", "1.5 cm", "15mm", etc.
+    SIZE_PATTERNS = [
+        r'(\d+\.?\d*)\s*(mm|millimeter)',
+        r'(\d+\.?\d*)\s*(cm|centimeter)',
+        r'(\d+\.?\d*)\s*x\s*\d+\.?\d*\s*(mm|cm)',  # dimensions
+    ]
+    
+    # Location patterns
+    LOCATION_PATTERNS = [
+        r'(right|left)\s+(upper|middle|lower)\s+lobe',
+        r'(right|left)\s+lung',
+        r'(upper|middle|lower)\s+lobe',
+        r'lingula',
+        r'lung\s+apex',
+        r'lung\s+base',
+        r'perihilar',
+        r'subpleural',
+    ]
+    
+    # Texture keywords
+    TEXTURE_KEYWORDS = {
+        'solid': ['solid', 'dense', 'high attenuation'],
+        'ground_glass': ['ground-glass', 'ground glass', 'ggo', 'hazy', 'non-solid'],
+        'part_solid': ['part-solid', 'part solid', 'subsolid', 'mixed'],
+    }
+    
+    # Margin keywords
+    MARGIN_KEYWORDS = {
+        'well_defined': ['well-defined', 'well defined', 'sharp', 'smooth', 'circumscribed'],
+        'poorly_defined': ['poorly-defined', 'poorly defined', 'indistinct', 'ill-defined'],
+        'spiculated': ['spiculated', 'spiculation', 'corona radiata', 'stellate'],
+        'lobulated': ['lobulated', 'lobulation', 'scalloped'],
+    }
+    
+    # Calcification patterns
+    CALCIFICATION_KEYWORDS = {
+        'popcorn': ['popcorn', 'popcorn calcification'],
+        'laminated': ['laminated', 'laminated calcification'],
+        'central': ['central calcification', 'centrally calcified'],
+        'eccentric': ['eccentric', 'non-central', 'peripheral calcification'],
+        'absent': ['no calcification', 'without calcification', 'non-calcified'],
+    }
+    
+    # Malignancy assessment keywords
+    MALIGNANCY_KEYWORDS = {
+        'highly_suspicious': ['highly suspicious', 'highly concerning', 'strongly suggests malignancy'],
+        'moderately_suspicious': ['moderately suspicious', 'concerning', 'suspicious'],
+        'indeterminate': ['indeterminate', 'uncertain', 'cannot exclude'],
+        'probably_benign': ['probably benign', 'likely benign', 'low suspicion'],
+        'benign': ['benign', 'highly unlikely', 'no concern'],
+    }
+    
+    # Lung-RADS patterns
+    LUNG_RADS_PATTERN = r'lung[-\s]?rads\s*(?:category)?\s*:?\s*(\d[a-z]?)'
+    
+    def __init__(self, use_scispacy: bool = True):
+        """
+        Initialize the NLP extractor.
+        
+        Args:
+            use_scispacy: If True, try to load scispaCy model
+        """
+        self.nlp = None
+        self.use_scispacy = use_scispacy
+        
+        if use_scispacy:
+            self._load_spacy_model()
+    
+    def _load_spacy_model(self) -> None:
+        """
+        Load spaCy/scispaCy model for NLP processing.
+        
+        EDUCATIONAL NOTE:
+        scispaCy provides biomedical-trained models:
+        - en_core_sci_sm: Small, efficient, general biomedical
+        - en_ner_bc5cdr_md: Trained on BC5CDR corpus (diseases/chemicals)
+        """
+        try:
+            import spacy
+            
+            # Try scispaCy models in order of preference
+            model_names = [
+                'en_core_sci_sm',      # General biomedical
+                'en_ner_bc5cdr_md',    # Disease/Chemical NER
+                'en_core_web_sm',      # Fallback to general English
+            ]
+            
+            for model_name in model_names:
+                try:
+                    self.nlp = spacy.load(model_name)
+                    print(f"[NLPExtractor] Loaded spaCy model: {model_name}")
+                    return
+                except OSError:
+                    continue
+            
+            print("[NLPExtractor] No spaCy model found. Using regex-only extraction.")
+            print("To install: pip install scispacy && pip install en_core_sci_sm")
+            
+        except ImportError:
+            print("[NLPExtractor] spaCy not installed. Using regex-only extraction.")
+    
+    def extract(self, text: str) -> ExtractionResult:
+        """
+        Extract structured information from radiology report text.
+        
+        EDUCATIONAL NOTE - NLP PIPELINE:
+        This method demonstrates the complete NLP pipeline:
+        1. Text normalization
+        2. SpaCy processing (tokenization, POS, NER)
+        3. Pattern matching (regex)
+        4. Feature aggregation
+        
+        Args:
+            text: Raw pathology report text
+            
+        Returns:
+            ExtractionResult with all extracted information
+        """
+        result = ExtractionResult()
+        
+        # Normalize text (preserve case for NER, use lowercase for patterns)
+        text_lower = text.lower()
+        
+        # 1. Extract using spaCy if available
+        if self.nlp:
+            result = self._extract_with_spacy(text, result)
+        
+        # 2. Extract size measurements
+        result = self._extract_size(text_lower, result)
+        
+        # 3. Extract location
+        result = self._extract_location(text_lower, result)
+        
+        # 4. Extract texture
+        result = self._extract_texture(text_lower, result)
+        
+        # 5. Extract margin characteristics
+        result = self._extract_margins(text_lower, result)
+        
+        # 6. Extract calcification
+        result = self._extract_calcification(text_lower, result)
+        
+        # 7. Extract malignancy assessment
+        result = self._extract_malignancy(text_lower, result)
+        
+        # 8. Extract Lung-RADS category
+        result = self._extract_lung_rads(text_lower, result)
+        
+        return result
+    
+    def _extract_with_spacy(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Use spaCy for tokenization, POS tagging, and NER.
+        
+        EDUCATIONAL NOTE:
+        spaCy processes text through a pipeline:
+        - Tokenizer: Splits into tokens
+        - Tagger: Assigns POS tags
+        - NER: Identifies named entities
+        - Parser: Builds dependency tree
+        """
+        doc = self.nlp(text)
+        
+        # Extract named entities
+        for ent in doc.ents:
+            result.entities.append(ExtractedEntity(
+                text=ent.text,
+                label=ent.label_,
+                start=ent.start_char,
+                end=ent.end_char
+            ))
+        
+        # EDUCATIONAL: Print POS analysis for demonstration
+        # This shows the grammatical structure of the text
+        # Uncomment for debugging:
+        # for token in doc:
+        #     if token.pos_ in ['NOUN', 'ADJ']:
+        #         print(f"  {token.text}: {token.pos_} ({token.dep_})")
+        
+        return result
+    
+    def _extract_size(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Extract nodule size from text.
+        
+        EDUCATIONAL NOTE - REGEX PATTERNS:
+        We use multiple patterns to catch different formats:
+        - "15 mm" or "15mm"
+        - "1.5 cm" (convert to mm)
+        - "15 x 12 mm" (dimensions)
+        """
+        for pattern in self.SIZE_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                unit = match.group(2).lower()
+                
+                # Convert cm to mm
+                if 'cm' in unit or 'centimeter' in unit:
+                    value *= 10
+                
+                result.size_mm = value
+                result.measurements.append({
+                    "value": value,
+                    "unit": "mm",
+                    "raw": match.group(0)
+                })
+                break
+        
+        return result
+    
+    def _extract_location(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """Extract anatomical location."""
+        for pattern in self.LOCATION_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                result.location = match.group(0).strip()
+                break
+        
+        return result
+    
+    def _extract_texture(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Extract nodule texture (solid, ground-glass, part-solid).
+        
+        EDUCATIONAL NOTE - KEYWORD MATCHING:
+        Medical terminology often has multiple ways to express
+        the same concept. We group synonyms together.
+        """
+        for texture_type, keywords in self.TEXTURE_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in text:
+                    result.texture = texture_type
+                    return result
+        
+        return result
+    
+    def _extract_margins(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """Extract margin characteristics (well-defined, spiculated, etc.)."""
+        for margin_type, keywords in self.MARGIN_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in text:
+                    if margin_type == 'spiculated':
+                        result.spiculation = 'present'
+                        result.margin = 'spiculated'
+                    elif margin_type == 'lobulated':
+                        result.lobulation = 'present'
+                        if not result.margin:
+                            result.margin = 'lobulated'
+                    else:
+                        result.margin = margin_type
+                    return result
+        
+        return result
+    
+    def _extract_calcification(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """Extract calcification pattern."""
+        for calc_type, keywords in self.CALCIFICATION_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in text:
+                    result.calcification = calc_type
+                    return result
+        
+        return result
+    
+    def _extract_malignancy(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Extract malignancy assessment from impression.
+        
+        EDUCATIONAL NOTE:
+        Clinical impressions use specific terminology that maps
+        to malignancy likelihood. We use keyword matching to
+        classify the overall assessment.
+        """
+        for assessment, keywords in self.MALIGNANCY_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in text:
+                    result.malignancy_assessment = assessment
+                    return result
+        
+        return result
+    
+    def _extract_lung_rads(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """Extract Lung-RADS category if mentioned."""
+        match = re.search(self.LUNG_RADS_PATTERN, text, re.IGNORECASE)
+        if match:
+            result.lung_rads_category = match.group(1).upper()
+        
+        return result
+    
+    def tokenize(self, text: str) -> List[str]:
+        """
+        Tokenize text into words.
+        
+        EDUCATIONAL NOTE:
+        Tokenization is the first step in NLP. For medical text,
+        we need to handle:
+        - Abbreviations (CT, mm, GGO)
+        - Hyphenated terms (well-defined, ground-glass)
+        - Numbers with units (15mm)
+        """
+        if self.nlp:
+            doc = self.nlp(text)
+            return [token.text for token in doc]
+        else:
+            # Simple whitespace tokenization as fallback
+            return text.split()
+    
+    def get_sentences(self, text: str) -> List[str]:
+        """Split text into sentences."""
+        if self.nlp:
+            doc = self.nlp(text)
+            return [sent.text for sent in doc.sents]
+        else:
+            # Simple sentence splitting
+            return re.split(r'[.!?]+', text)
+    
+    def get_noun_phrases(self, text: str) -> List[str]:
+        """
+        Extract noun phrases from text.
+        
+        EDUCATIONAL NOTE:
+        Noun phrases often contain the key medical concepts:
+        "solid nodule", "right upper lobe", "marked spiculation"
+        """
+        if self.nlp:
+            doc = self.nlp(text)
+            return [chunk.text for chunk in doc.noun_chunks]
+        return []
+    
+    def analyze_structure(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze text structure for educational purposes.
+        
+        Returns detailed information about tokens, POS tags,
+        entities, and dependencies.
+        """
+        if not self.nlp:
+            return {"error": "spaCy not loaded"}
+        
+        doc = self.nlp(text)
+        
+        return {
+            "tokens": [
+                {
+                    "text": token.text,
+                    "lemma": token.lemma_,
+                    "pos": token.pos_,
+                    "tag": token.tag_,
+                    "dep": token.dep_,
+                    "head": token.head.text
+                }
+                for token in doc
+            ],
+            "entities": [
+                {"text": ent.text, "label": ent.label_}
+                for ent in doc.ents
+            ],
+            "noun_chunks": [chunk.text for chunk in doc.noun_chunks],
+            "sentences": [sent.text for sent in doc.sents]
+        }
+
+
+# Convenience function
+def extract_from_report(text: str) -> Dict[str, Any]:
+    """
+    Extract structured information from a radiology report.
+    
+    Args:
+        text: Raw report text
+        
+    Returns:
+        Dictionary with extracted features
+    """
+    extractor = MedicalNLPExtractor()
+    result = extractor.extract(text)
+    return result.to_dict()
+
+
+if __name__ == "__main__":
+    # Demo usage
+    print("=== Medical NLP Extractor Demo ===\n")
+    
+    # Sample report
+    sample_report = """
+    CHEST CT - PULMONARY NODULE EVALUATION
+    
+    FINDINGS:
+    A 15.2 mm solid pulmonary nodule is identified in the right upper lobe.
+    The nodule demonstrates marked spiculation with poorly defined margins.
+    No internal calcification is identified.
+    
+    IMPRESSION:
+    Large solid nodule in the right upper lobe. Features are highly suspicious
+    for malignancy. Estimated Lung-RADS Category: 4B.
+    
+    RECOMMENDATION:
+    PET-CT strongly recommended. Consider CT-guided biopsy.
+    """
+    
+    extractor = MedicalNLPExtractor()
+    result = extractor.extract(sample_report)
+    
+    print("Extracted Information:")
+    print(f"  Size: {result.size_mm} mm")
+    print(f"  Location: {result.location}")
+    print(f"  Texture: {result.texture}")
+    print(f"  Margin: {result.margin}")
+    print(f"  Spiculation: {result.spiculation}")
+    print(f"  Calcification: {result.calcification}")
+    print(f"  Malignancy: {result.malignancy_assessment}")
+    print(f"  Lung-RADS: {result.lung_rads_category}")
+    
+    print("\n--- Entities ---")
+    for entity in result.entities:
+        print(f"  {entity}")
+    
+    print("\n--- Tokenization Demo ---")
+    tokens = extractor.tokenize("A 15.2mm solid nodule with spiculated margins.")
+    print(f"  Tokens: {tokens[:10]}...")
+    
+    print("\n--- Noun Phrases ---")
+    phrases = extractor.get_noun_phrases(sample_report)
+    print(f"  {phrases[:5]}...")

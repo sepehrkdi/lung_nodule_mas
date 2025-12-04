@@ -1,0 +1,66 @@
+# Multi-Agent System for Lung Nodule Classification
+# ==================================================
+# 
+# Install with: pip install -r requirements.txt
+#
+# Note: Some packages require additional setup:
+# - SWI-Prolog must be installed system-wide for pyswip
+# - scispaCy models need separate download (see below)
+# - XMPP server required for SPADE (see README for Prosody setup)
+
+# ===========================================
+# SPADE-BDI Multi-Agent Framework
+# ===========================================
+# SPADE: Smart Python Agent Development Environment
+# Provides proper BDI agent architecture with AgentSpeak interpreter
+spade>=3.3.0
+spade-bdi>=0.3.0
+
+# XMPP support (required by SPADE)
+aioxmpp>=0.13.0
+
+# ===========================================
+# Core ML Frameworks
+# ===========================================
+torch>=2.0.0
+torchvision>=0.15.0
+
+# ===========================================
+# NLP Libraries
+# ===========================================
+spacy>=3.5.0
+scispacy>=0.5.0
+# After installing, download scispaCy model:
+# pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
+
+# ===========================================
+# Prolog Integration (Symbolic AI)
+# ===========================================
+# Requires SWI-Prolog: sudo apt-get install swi-prolog
+pyswip>=0.3.0
+
+# ===========================================
+# Medical Imaging Dataset
+# ===========================================
+pylidc>=0.2.3
+# Note: LIDC-IDRI data requires separate download from TCIA
+# See data/prepare_dataset.py for instructions
+
+# ===========================================
+# Image Processing
+# ===========================================
+numpy>=1.24.0
+pillow>=9.0.0
+
+# ===========================================
+# Evaluation & Visualization
+# ===========================================
+scikit-learn>=1.2.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# ===========================================
+# Utilities
+# ===========================================
+tqdm>=4.65.0
+asyncio-compat>=0.1.0
