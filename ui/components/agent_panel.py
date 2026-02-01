@@ -239,11 +239,14 @@ def render_agent_panel(
     completed_count = len(completed_agents)
     total_count = len(ALL_AGENTS)
     
+    # Clamp progress to valid range [0.0, 1.0]
+    progress_value = min(completed_count / total_count, 1.0) if total_count > 0 else 0.0
+    
     progress_col1, progress_col2 = st.columns([3, 1])
     with progress_col1:
-        st.progress(completed_count / total_count)
+        st.progress(progress_value)
     with progress_col2:
-        st.write(f"**{completed_count}/{total_count}** agents")
+        st.write(f"**{min(completed_count, total_count)}/{total_count}** agents")
     
     st.markdown("---")
     
