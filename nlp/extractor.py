@@ -39,6 +39,15 @@ import re
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 
+# Import new NLP modules
+try:
+    from nlp.report_parser import ReportParser, ParsedReport
+    from nlp.negation_detector import NegExDetector, Certainty, EntityCertainty
+    HAS_NLP_EXTENSIONS = True
+except ImportError:
+    HAS_NLP_EXTENSIONS = False
+    print("[NLPExtractor] NLP extensions not available. Using basic extraction.")
+
 
 @dataclass
 class ExtractedEntity:
@@ -92,6 +101,16 @@ class ExtractionResult:
     entities: List[ExtractedEntity] = field(default_factory=list)
     measurements: List[Dict[str, Any]] = field(default_factory=list)
     
+    # NEW: Negation/Uncertainty detection
+    certainty: str = "affirmed"  # "affirmed", "negated", "uncertain"
+    
+    # NEW: Multiplicity detection
+    multiplicity: bool = False
+    nodule_count: Optional[int] = None
+    
+    # NEW: Section-based scores
+    section_scores: Dict[str, float] = field(default_factory=dict)
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -105,6 +124,12 @@ class ExtractionResult:
             "malignancy_assessment": self.malignancy_assessment,
             "lung_rads_category": self.lung_rads_category,
             "recommendation": self.recommendation,
+            # NEW fields
+            "certainty": self.certainty,
+            "multiplicity": self.multiplicity,
+            "nodule_count": self.nodule_count,
+            "section_scores": self.section_scores,
+            # Entities and measurements
             "entities": [{"text": e.text, "label": e.label} for e in self.entities],
             "measurements": self.measurements
         }
@@ -201,6 +226,38 @@ class MedicalNLPExtractor:
     # Lung-RADS patterns
     LUNG_RADS_PATTERN = r'lung[-\s]?rads\s*(?:category)?\s*:?\s*(\d[a-z]?)'
     
+    # NEW: Multiplicity patterns
+    MULTIPLICITY_PATTERNS = [
+        r'multiple\s+nodules?',
+        r'several\s+nodules?',
+        r'bilateral\s+nodules?',
+        r'numerous\s+nodules?',
+        r'diffuse\s+nodules?',
+        r'\d+\s+nodules',  # "3 nodules"
+        r'nodules\s+are\s+present',
+        r'scattered\s+nodules?',
+    ]
+    
+    # NEW: Medical abbreviation dictionary
+    ABBREVIATIONS = {
+        'RUL': 'right upper lobe',
+        'RML': 'right middle lobe',
+        'RLL': 'right lower lobe',
+        'LUL': 'left upper lobe',
+        'LLL': 'left lower lobe',
+        'GGO': 'ground-glass opacity',
+        'GGN': 'ground-glass nodule',
+        'CT': 'computed tomography',
+        'CXR': 'chest x-ray',
+        'PET': 'positron emission tomography',
+        'LDCT': 'low-dose computed tomography',
+        'SPN': 'solitary pulmonary nodule',
+        'LAD': 'lymphadenopathy',
+        'PA': 'posteroanterior',
+        'AP': 'anteroposterior',
+        'LN': 'lymph node',
+    }
+    
     def __init__(self, use_scispacy: bool = True):
         """
         Initialize the NLP extractor.
@@ -210,6 +267,14 @@ class MedicalNLPExtractor:
         """
         self.nlp = None
         self.use_scispacy = use_scispacy
+        
+        # NEW: Initialize section parser and negation detector
+        if HAS_NLP_EXTENSIONS:
+            self.report_parser = ReportParser()
+            self.negation_detector = NegExDetector()
+        else:
+            self.report_parser = None
+            self.negation_detector = None
         
         if use_scispacy:
             self._load_spacy_model()
@@ -293,6 +358,15 @@ class MedicalNLPExtractor:
         
         # 8. Extract Lung-RADS category
         result = self._extract_lung_rads(text_lower, result)
+        
+        # 9. NEW: Parse sections and compute section scores
+        result = self._extract_sections(text, result)
+        
+        # 10. NEW: Detect multiplicity
+        result = self._extract_multiplicity(text_lower, result)
+        
+        # 11. NEW: Detect negation/uncertainty for main nodule mention
+        result = self._detect_certainty(text, result)
         
         return result
     
@@ -435,6 +509,121 @@ class MedicalNLPExtractor:
             result.lung_rads_category = match.group(1).upper()
         
         return result
+    
+    # =========================================================================
+    # NEW METHODS: Section parsing, Multiplicity, Negation/Uncertainty
+    # =========================================================================
+    
+    def _extract_sections(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Parse report into sections and compute section-weighted scores.
+        
+        EDUCATIONAL NOTE:
+        Radiology reports have distinct sections (FINDINGS, IMPRESSION).
+        The IMPRESSION carries more diagnostic weight as it represents
+        the radiologist's synthesis of observations.
+        """
+        if not self.report_parser:
+            return result
+        
+        parsed = self.report_parser.parse(text)
+        
+        # Store section-based scoring info
+        for section_name, section_data in parsed.sections.items():
+            result.section_scores[section_name] = section_data.weight
+        
+        return result
+    
+    def _extract_multiplicity(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Detect if multiple nodules are mentioned.
+        
+        EDUCATIONAL NOTE:
+        Multiplicity is clinically significant:
+        - "Multiple nodules" may indicate metastatic disease
+        - "Bilateral nodules" affects staging and treatment
+        """
+        for pattern in self.MULTIPLICITY_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                result.multiplicity = True
+                
+                # Try to extract count if mentioned
+                count_match = re.search(r'(\d+)\s+nodules?', text, re.IGNORECASE)
+                if count_match:
+                    result.nodule_count = int(count_match.group(1))
+                
+                return result
+        
+        return result
+    
+    def _detect_certainty(self, text: str, result: ExtractionResult) -> ExtractionResult:
+        """
+        Detect negation and uncertainty for nodule mentions.
+        
+        EDUCATIONAL NOTE:
+        This uses NegEx-style detection (Chapman et al., 2001):
+        - "No nodule" → NEGATED
+        - "Possible nodule" → UNCERTAIN
+        - "12mm nodule" → AFFIRMED
+        
+        Critical for accurate information extraction!
+        """
+        if not self.negation_detector:
+            return result
+        
+        # Find nodule mentions in text
+        nodule_patterns = [
+            r'\bnodule\b',
+            r'\bnodules\b',
+            r'\bmass\b',
+            r'\blesion\b',
+            r'\bopacity\b',
+        ]
+        
+        entities = []
+        for pattern in nodule_patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                entities.append((match.group(), match.start(), match.end()))
+        
+        if not entities:
+            return result
+        
+        # Detect certainty for each entity
+        certainty_results = self.negation_detector.detect(text, entities)
+        
+        # Determine overall certainty (take most uncertain/negative)
+        has_negated = any(r.certainty.value == "negated" for r in certainty_results)
+        has_uncertain = any(r.certainty.value == "uncertain" for r in certainty_results)
+        has_affirmed = any(r.certainty.value == "affirmed" for r in certainty_results)
+        
+        # Priority: if any affirmed mention exists, report is affirmed
+        # unless ALL mentions are negated
+        if has_negated and not has_affirmed:
+            result.certainty = "negated"
+        elif has_uncertain and not has_affirmed:
+            result.certainty = "uncertain"
+        else:
+            result.certainty = "affirmed"
+        
+        return result
+    
+    def expand_abbreviations(self, text: str) -> str:
+        """
+        Expand medical abbreviations in text.
+        
+        EDUCATIONAL NOTE:
+        Radiology reports use many abbreviations:
+        - RUL = Right Upper Lobe
+        - GGO = Ground-Glass Opacity
+        Expansion improves downstream NLP processing.
+        """
+        expanded = text
+        for abbrev, full in self.ABBREVIATIONS.items():
+            # Match abbreviation as whole word
+            pattern = r'\b' + re.escape(abbrev) + r'\b'
+            expanded = re.sub(pattern, f"{abbrev} ({full})", expanded)
+        return expanded
     
     def tokenize(self, text: str) -> List[str]:
         """

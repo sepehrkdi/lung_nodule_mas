@@ -32,7 +32,7 @@ WHY DIFFERENT APPROACHES?
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Union
 import numpy as np
 
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
@@ -61,6 +61,11 @@ class RadiologistBase(MedicalAgentBase):
             asl_file = get_asl_path("radiologist")
         super().__init__(name=name, asl_file=asl_file)
         self._model_loaded = False
+    
+    def _register_actions(self) -> None:
+        """Register internal actions for ASL plans."""
+        self.internal_actions["classify_image"] = self._classify
+
         
     @abstractmethod
     def _classify(self, image: np.ndarray) -> Tuple[float, int]:
@@ -146,6 +151,12 @@ class RadiologistDenseNet(RadiologistBase):
     layer receives inputs from all preceding layers. This helps with
     feature reuse and gradient flow.
     
+    OPERATING POINTS:
+    Different thresholds simulate distinct expert styles:
+    - Conservative (0.6): High specificity, fewer false positives
+    - Balanced (0.5): Standard operating point
+    - Sensitive (0.4): High recall, fewer missed nodules
+    
     Architecture: 121 layers, ~8M parameters
     Input: 224x224 RGB
     """
@@ -154,9 +165,40 @@ class RadiologistDenseNet(RadiologistBase):
     APPROACH = "densenet121"
     WEIGHT = 1.0
     
-    def __init__(self, name: str = "radiologist_densenet"):
+    # NEW: Operating point threshold (affects probability-to-class conversion)
+    THRESHOLD = 0.5  # Balanced by default
+    
+    def __init__(self, name: str = "radiologist_densenet", threshold: float = 0.5):
         super().__init__(name=name)
         self._model = None
+        self.THRESHOLD = threshold
+    
+    @classmethod
+    def conservative(cls, name: str = "radiologist_conservative"):
+        """
+        Create conservative radiologist with high specificity.
+        Threshold = 0.6 (requires higher probability for positive classification)
+        """
+        instance = cls(name=name, threshold=0.6)
+        instance.APPROACH = "densenet121_conservative"
+        return instance
+    
+    @classmethod
+    def balanced(cls, name: str = "radiologist_balanced"):
+        """Create balanced radiologist with standard threshold."""
+        instance = cls(name=name, threshold=0.5)
+        instance.APPROACH = "densenet121_balanced"
+        return instance
+    
+    @classmethod
+    def sensitive(cls, name: str = "radiologist_sensitive"):
+        """
+        Create sensitive radiologist with high recall.
+        Threshold = 0.4 (lower threshold catches more potential cases)
+        """
+        instance = cls(name=name, threshold=0.4)
+        instance.APPROACH = "densenet121_sensitive"
+        return instance
         
     def _load_model(self):
         """Lazy load DenseNet121."""
@@ -462,8 +504,17 @@ class RadiologistRules(RadiologistBase):
             "std_intensity": std
         }
     
-    def _apply_rules(self, size_mm: float, texture: str) -> float:
+    def _apply_rules(self, size_mm: float, texture: Union[str, int]) -> float:
         """Apply Lung-RADS rules to get probability."""
+        if isinstance(texture, int):
+            # Map LIDC texture score (1-5) to string
+            if texture <= 2:
+                texture = "ground_glass"
+            elif texture == 3:
+                texture = "part_solid"
+            else:
+                texture = "solid"
+                
         texture = texture.replace("-", "_").lower()
         
         for min_s, max_s, tex, prob in self.SIZE_RISK_RULES:
@@ -542,11 +593,35 @@ def create_radiologist_rules(name: str = "radiologist_rules"):
     return RadiologistRules(name=name)
 
 def create_all_radiologists():
-    """Create all three radiologist agents."""
+    """Create all three radiologist agents (original architecture-diverse)."""
     return [
         RadiologistDenseNet(name="radiologist_densenet"),
         RadiologistResNet(name="radiologist_resnet"),
         RadiologistRules(name="radiologist_rules")
+    ]
+
+def create_calibrated_radiologists():
+    """
+    Create ensemble of 3 radiologists with different operating points.
+    
+    This simulates clinical inter-reader variability:
+    - R1 (Conservative): High specificity, threshold=0.6
+      "Overcaller" - would rather watch and wait
+    - R2 (Balanced): Standard threshold=0.5
+      "By the book" - follows guidelines precisely  
+    - R3 (Sensitive): High recall, threshold=0.4
+      "Aggressive" - catches more potential cases
+    
+    All use the same DenseNet121 model, differing only in
+    decision threshold (simulating expert judgment variation).
+    
+    Returns:
+        List of 3 RadiologistDenseNet agents with different thresholds
+    """
+    return [
+        RadiologistDenseNet.conservative(),
+        RadiologistDenseNet.balanced(),
+        RadiologistDenseNet.sensitive()
     ]
 
 

@@ -60,6 +60,11 @@ class PathologistBase(MedicalAgentBase):
         if asl_file is None:
             asl_file = get_asl_path("pathologist")
         super().__init__(name=name, asl_file=asl_file)
+    
+    def _register_actions(self) -> None:
+        """Register internal actions for ASL plans."""
+        self.internal_actions["analyze_report"] = self._analyze_report
+
         
     @abstractmethod
     def _analyze_report(self, report: str) -> Dict[str, Any]:
@@ -607,22 +612,332 @@ class PathologistSpacy(PathologistBase):
 
 
 # =============================================================================
+# CONTEXT SPECIALIST PATHOLOGIST (Pathologist-3)
+# =============================================================================
+
+class PathologistContext(PathologistBase):
+    """
+    Pathologist-3: Context specialist for negation and uncertainty detection.
+    
+    EDUCATIONAL PURPOSE - CLINICAL NLP CONTEXT ANALYSIS:
+    
+    This agent focuses on understanding the CERTAINTY of statements:
+    - "No nodule" → NEGATED (entity is explicitly denied)
+    - "Possible nodule" → UNCERTAIN (hedged language)
+    - "12mm nodule" → AFFIRMED (positively stated)
+    
+    Uses NegEx-style algorithm (Chapman et al., 2001) with extensions
+    for uncertainty detection (Harkema et al., 2009 - ConText).
+    
+    The certainty labels produced by this agent are critical for the
+    Oncologist's conflict resolution, as negated/uncertain findings
+    should be weighted differently than affirmed findings.
+    
+    Approach:
+    1. Parse report into sections (FINDINGS, IMPRESSION)
+    2. Find medical entity mentions (nodule, mass, etc.)
+    3. Apply NegEx trigger/scope rules
+    4. Assign certainty labels per entity
+    5. Compute overall report certainty
+    """
+    
+    AGENT_TYPE = "pathologist"
+    APPROACH = "context"
+    WEIGHT = 0.9  # Higher weight for certainty assessment
+    
+    # Entity patterns to analyze
+    ENTITY_PATTERNS = [
+        r'\bnodule\b',
+        r'\bnodules\b',
+        r'\bmass\b',
+        r'\bmasses\b',
+        r'\blesion\b',
+        r'\blesions\b',
+        r'\bopacity\b',
+        r'\bopacities\b',
+        r'\btumor\b',
+        r'\bneoplasm\b',
+        r'\bcarcinoma\b',
+        r'\bmalignancy\b',
+    ]
+    
+    def __init__(self, name: str = "pathologist_context"):
+        super().__init__(name=name)
+        self._negex_detector = None
+        self._report_parser = None
+        self._load_nlp_extensions()
+    
+    def _load_nlp_extensions(self):
+        """Load NLP extension modules."""
+        try:
+            from nlp.negation_detector import NegExDetector
+            from nlp.report_parser import ReportParser
+            self._negex_detector = NegExDetector()
+            self._report_parser = ReportParser()
+            logger.info(f"[{self.name}] Loaded NegEx detector and ReportParser")
+        except ImportError as e:
+            logger.warning(f"[{self.name}] NLP extensions not available: {e}")
+            self._negex_detector = None
+            self._report_parser = None
+    
+    def _analyze_report(self, report: str) -> Dict[str, Any]:
+        """
+        Analyze report for negation and uncertainty.
+        
+        Returns:
+            Dict with certainty analysis per entity and overall assessment.
+        """
+        if not self._negex_detector:
+            return self._fallback_analysis(report)
+        
+        findings = {
+            "entity_certainties": [],
+            "overall_certainty": "affirmed",
+            "negated_count": 0,
+            "uncertain_count": 0,
+            "affirmed_count": 0,
+            "section_analysis": {},
+            "approach": "context"
+        }
+        
+        # Parse into sections
+        if self._report_parser:
+            parsed = self._report_parser.parse(report)
+            for section_name, section_data in parsed.sections.items():
+                section_entities = self._analyze_section(section_data.text, section_name)
+                findings["section_analysis"][section_name] = {
+                    "weight": section_data.weight,
+                    "entities": section_entities
+                }
+                # Add to overall counts
+                for ent in section_entities:
+                    findings["entity_certainties"].append(ent)
+                    if ent["certainty"] == "negated":
+                        findings["negated_count"] += 1
+                    elif ent["certainty"] == "uncertain":
+                        findings["uncertain_count"] += 1
+                    else:
+                        findings["affirmed_count"] += 1
+        else:
+            # Fallback: analyze full text
+            entities = self._find_entities(report)
+            certainties = self._negex_detector.detect(report, entities)
+            
+            for cert in certainties:
+                cert_dict = cert.to_dict()
+                findings["entity_certainties"].append(cert_dict)
+                if cert_dict["certainty"] == "negated":
+                    findings["negated_count"] += 1
+                elif cert_dict["certainty"] == "uncertain":
+                    findings["uncertain_count"] += 1
+                else:
+                    findings["affirmed_count"] += 1
+        
+        # Determine overall certainty
+        findings["overall_certainty"] = self._determine_overall_certainty(findings)
+        
+        # Extract basic features for malignancy estimation
+        findings["size_mm"] = self._extract_size(report)
+        findings["texture"] = self._extract_texture(report)
+        findings["location"] = self._extract_location(report)
+        
+        logger.info(
+            f"[{self.name}] Context analysis: "
+            f"affirmed={findings['affirmed_count']}, "
+            f"negated={findings['negated_count']}, "
+            f"uncertain={findings['uncertain_count']}, "
+            f"overall={findings['overall_certainty']}"
+        )
+        
+        return findings
+    
+    def _analyze_section(self, text: str, section_name: str) -> List[Dict]:
+        """Analyze entities within a specific section."""
+        entities = self._find_entities(text)
+        if not entities:
+            return []
+        
+        certainties = self._negex_detector.detect(text, entities)
+        return [
+            {**cert.to_dict(), "section": section_name}
+            for cert in certainties
+        ]
+    
+    def _find_entities(self, text: str) -> List[tuple]:
+        """Find medical entity mentions in text."""
+        import re
+        entities = []
+        for pattern in self.ENTITY_PATTERNS:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                entities.append((match.group(), match.start(), match.end()))
+        return entities
+    
+    def _determine_overall_certainty(self, findings: Dict) -> str:
+        """
+        Determine overall report certainty.
+        
+        Logic:
+        - If ANY affirmed nodule mention exists → affirmed
+        - If ALL mentions are negated → negated
+        - If no affirmed but some uncertain → uncertain
+        """
+        affirmed = findings["affirmed_count"]
+        negated = findings["negated_count"]
+        uncertain = findings["uncertain_count"]
+        
+        if affirmed > 0:
+            return "affirmed"
+        elif negated > 0 and uncertain == 0:
+            return "negated"
+        elif uncertain > 0:
+            return "uncertain"
+        else:
+            return "affirmed"  # Default if no entities found
+    
+    def _extract_size(self, text: str) -> float:
+        """Extract nodule size."""
+        import re
+        match = re.search(r'(\d+(?:\.\d+)?)\s*(?:mm|millimeter)', text, re.I)
+        if match:
+            return float(match.group(1))
+        match = re.search(r'(\d+(?:\.\d+)?)\s*(?:cm|centimeter)', text, re.I)
+        if match:
+            return float(match.group(1)) * 10
+        return 10.0
+    
+    def _extract_texture(self, text: str) -> str:
+        """Extract texture."""
+        text_lower = text.lower()
+        if "ground" in text_lower and "glass" in text_lower:
+            return "ground_glass"
+        elif "part" in text_lower and "solid" in text_lower:
+            return "part_solid"
+        elif "calcif" in text_lower:
+            return "calcified"
+        return "solid"
+    
+    def _extract_location(self, text: str) -> str:
+        """Extract location."""
+        import re
+        text_lower = text.lower()
+        patterns = {
+            "right_upper_lobe": r"right\s+upper|rul",
+            "right_middle_lobe": r"right\s+middle|rml",
+            "right_lower_lobe": r"right\s+lower|rll",
+            "left_upper_lobe": r"left\s+upper|lul",
+            "left_lower_lobe": r"left\s+lower|lll",
+        }
+        for loc, pattern in patterns.items():
+            if re.search(pattern, text_lower):
+                return loc
+        return "unspecified"
+    
+    def _fallback_analysis(self, report: str) -> Dict[str, Any]:
+        """Fallback when NLP extensions not available."""
+        import re
+        
+        report_lower = report.lower()
+        
+        # Simple negation check
+        negation_patterns = [
+            r'\bno\s+(?:evidence\s+of\s+)?(?:nodule|mass|lesion)',
+            r'\bwithout\s+(?:nodule|mass|lesion)',
+            r'\bnegative\s+for\s+(?:nodule|mass)',
+        ]
+        
+        uncertainty_patterns = [
+            r'\bpossible\s+(?:nodule|mass)',
+            r'\bcannot\s+exclude\s+(?:nodule|mass)',
+            r'\bquestionable\s+(?:nodule|mass)',
+        ]
+        
+        is_negated = any(re.search(p, report_lower) for p in negation_patterns)
+        is_uncertain = any(re.search(p, report_lower) for p in uncertainty_patterns)
+        
+        overall = "negated" if is_negated else ("uncertain" if is_uncertain else "affirmed")
+        
+        return {
+            "entity_certainties": [],
+            "overall_certainty": overall,
+            "negated_count": 1 if is_negated else 0,
+            "uncertain_count": 1 if is_uncertain else 0,
+            "affirmed_count": 0 if (is_negated or is_uncertain) else 1,
+            "size_mm": self._extract_size(report),
+            "texture": self._extract_texture(report),
+            "location": self._extract_location(report),
+            "approach": "context_fallback"
+        }
+    
+    def _estimate_malignancy(self, findings: Dict[str, Any]) -> float:
+        """
+        Estimate malignancy with certainty-aware adjustments.
+        
+        Key insight: Negated/uncertain findings should reduce confidence.
+        """
+        # Start with base probability based on size/texture
+        base_prob = super()._estimate_malignancy(findings)
+        
+        # Adjust based on certainty
+        overall = findings.get("overall_certainty", "affirmed")
+        
+        if overall == "negated":
+            # Report says NO nodule - very low malignancy probability
+            return 0.1
+        elif overall == "uncertain":
+            # Hedged language - reduce confidence, move toward 0.5
+            return 0.3 + (base_prob - 0.5) * 0.5
+        else:
+            return base_prob
+    
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process request with extra certainty information.
+        """
+        result = await super().process_request(request)
+        
+        # Add certainty info to response
+        findings = result.get("findings", {})
+        result["certainty_analysis"] = {
+            "overall_certainty": findings.get("overall_certainty", "affirmed"),
+            "negated_count": findings.get("negated_count", 0),
+            "uncertain_count": findings.get("uncertain_count", 0),
+            "affirmed_count": findings.get("affirmed_count", 0),
+            "entity_certainties": findings.get("entity_certainties", [])
+        }
+        
+        return result
+
+
+# =============================================================================
 # FACTORY FUNCTIONS
 # =============================================================================
 
 def create_pathologist_regex(name: str = "pathologist_regex"):
-    """Create regex-based pathologist agent."""
+    """Create regex-based pathologist agent (Pathologist-1)."""
     return PathologistRegex(name=name)
 
 def create_pathologist_spacy(name: str = "pathologist_spacy"):
-    """Create spaCy NER pathologist agent."""
+    """Create spaCy NER pathologist agent (Pathologist-2)."""
     return PathologistSpacy(name=name)
 
+def create_pathologist_context(name: str = "pathologist_context"):
+    """Create context specialist pathologist agent (Pathologist-3)."""
+    return PathologistContext(name=name)
+
 def create_all_pathologists():
-    """Create both pathologist agents."""
+    """
+    Create all three pathologist agents.
+    
+    Returns:
+        List with:
+        - Pathologist-1 (Regex): High-precision pattern matching
+        - Pathologist-2 (spaCy): Statistical NLP with terminology mapping
+        - Pathologist-3 (Context): Negation/uncertainty specialist
+    """
     return [
         PathologistRegex(name="pathologist_regex"),
-        PathologistSpacy(name="pathologist_spacy")
+        PathologistSpacy(name="pathologist_spacy"),
+        PathologistContext(name="pathologist_context")
     ]
 
 

@@ -502,6 +502,312 @@ def evaluate_results(results: List[Any]) -> Dict[str, Any]:
     predictions = [r.predicted_class for r in results]
     probabilities = [r.malignancy_probability for r in results]
     
+    return metrics
+
+
+# =============================================================================
+# NLP-SPECIFIC EVALUATION METRICS
+# =============================================================================
+
+@dataclass
+class EntityMatch:
+    """Represents a match between predicted and gold entity."""
+    predicted_text: str
+    predicted_start: int
+    predicted_end: int
+    gold_text: str
+    gold_start: int
+    gold_end: int
+    match_type: str  # "exact", "partial", "no_match"
+    
+    
+class NLPMetrics:
+    """
+    Evaluation metrics for NLP entity extraction.
+    
+    EDUCATIONAL PURPOSE:
+    
+    Entity extraction evaluation requires special handling:
+    1. Entity boundaries may not match exactly
+    2. Partial credit for overlapping spans
+    3. Multiple entities per document
+    
+    Metrics:
+    - Entity-level Precision/Recall/F1
+    - Token-level Precision/Recall/F1
+    - Cohen's Kappa for certainty label agreement
+    """
+    
+    def __init__(self, partial_credit: float = 0.5):
+        """
+        Initialize NLP metrics.
+        
+        Args:
+            partial_credit: Credit for partial span matches (0-1)
+        """
+        self.partial_credit = partial_credit
+    
+    def entity_evaluation(
+        self,
+        predicted_entities: List[Tuple[str, int, int]],
+        gold_entities: List[Tuple[str, int, int]],
+        allow_partial: bool = True
+    ) -> Dict[str, float]:
+        """
+        Evaluate entity extraction at entity level.
+        
+        Args:
+            predicted_entities: List of (text, start, end) tuples
+            gold_entities: List of (text, start, end) tuples
+            allow_partial: If True, give partial credit for overlapping spans
+            
+        Returns:
+            Dict with precision, recall, f1
+        """
+        if not gold_entities:
+            return {"precision": 1.0 if not predicted_entities else 0.0,
+                    "recall": 1.0, "f1": 1.0 if not predicted_entities else 0.0}
+        
+        if not predicted_entities:
+            return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
+        
+        # Match predictions to gold
+        matched_gold = set()
+        true_positives = 0.0
+        
+        for pred_text, pred_start, pred_end in predicted_entities:
+            best_match_score = 0.0
+            best_gold_idx = None
+            
+            for i, (gold_text, gold_start, gold_end) in enumerate(gold_entities):
+                if i in matched_gold:
+                    continue
+                
+                # Check for overlap
+                overlap_start = max(pred_start, gold_start)
+                overlap_end = min(pred_end, gold_end)
+                overlap_len = max(0, overlap_end - overlap_start)
+                
+                if overlap_len > 0:
+                    # Exact match
+                    if pred_start == gold_start and pred_end == gold_end:
+                        match_score = 1.0
+                    # Partial match
+                    elif allow_partial:
+                        union_len = max(pred_end, gold_end) - min(pred_start, gold_start)
+                        match_score = (overlap_len / union_len) * self.partial_credit
+                    else:
+                        match_score = 0.0
+                    
+                    if match_score > best_match_score:
+                        best_match_score = match_score
+                        best_gold_idx = i
+            
+            if best_gold_idx is not None:
+                matched_gold.add(best_gold_idx)
+                true_positives += best_match_score
+        
+        precision = true_positives / len(predicted_entities)
+        recall = true_positives / len(gold_entities)
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        
+        return {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "true_positives": true_positives,
+            "false_positives": len(predicted_entities) - true_positives,
+            "false_negatives": len(gold_entities) - len(matched_gold)
+        }
+    
+    def cohens_kappa(
+        self,
+        labels1: List[str],
+        labels2: List[str]
+    ) -> float:
+        """
+        Calculate Cohen's Kappa for inter-annotator agreement.
+        
+        EDUCATIONAL NOTE:
+        Cohen's Kappa measures agreement beyond chance:
+        - κ = 1: Perfect agreement
+        - κ = 0: Agreement expected by chance
+        - κ < 0: Less agreement than chance
+        
+        Interpretation:
+        - κ > 0.8: Excellent agreement
+        - 0.6 < κ < 0.8: Substantial
+        - 0.4 < κ < 0.6: Moderate
+        - κ < 0.4: Fair to poor
+        
+        Args:
+            labels1: Labels from annotator 1
+            labels2: Labels from annotator 2
+            
+        Returns:
+            Cohen's Kappa coefficient
+        """
+        if len(labels1) != len(labels2):
+            raise ValueError("Label lists must have same length")
+        
+        if len(labels1) == 0:
+            return 1.0  # Perfect agreement on nothing
+        
+        # Get all unique labels
+        all_labels = list(set(labels1) | set(labels2))
+        n = len(labels1)
+        
+        # Build confusion matrix
+        matrix = {}
+        for l in all_labels:
+            matrix[l] = {l2: 0 for l2 in all_labels}
+        
+        for l1, l2 in zip(labels1, labels2):
+            matrix[l1][l2] += 1
+        
+        # Calculate observed agreement (P_o)
+        p_observed = sum(matrix[l][l] for l in all_labels) / n
+        
+        # Calculate expected agreement (P_e)
+        p_expected = 0.0
+        for l in all_labels:
+            # Proportion labeled l by annotator 1
+            p1 = sum(matrix[l].values()) / n
+            # Proportion labeled l by annotator 2
+            p2 = sum(matrix[l2][l] for l2 in all_labels) / n
+            p_expected += p1 * p2
+        
+        # Kappa = (P_o - P_e) / (1 - P_e)
+        if p_expected == 1.0:
+            return 1.0
+        
+        kappa = (p_observed - p_expected) / (1.0 - p_expected)
+        return kappa
+    
+    def certainty_evaluation(
+        self,
+        predicted_certainties: List[str],
+        gold_certainties: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Evaluate certainty label assignment (affirmed/negated/uncertain).
+        
+        Args:
+            predicted_certainties: Predicted certainty labels
+            gold_certainties: Gold standard certainty labels
+            
+        Returns:
+            Dict with accuracy, per-class metrics, and Cohen's Kappa
+        """
+        if len(predicted_certainties) != len(gold_certainties):
+            raise ValueError("Lists must have same length")
+        
+        if len(predicted_certainties) == 0:
+            return {"accuracy": 0.0, "kappa": 0.0, "per_class": {}}
+        
+        # Overall accuracy
+        correct = sum(1 for p, g in zip(predicted_certainties, gold_certainties) if p == g)
+        accuracy = correct / len(predicted_certainties)
+        
+        # Cohen's Kappa
+        kappa = self.cohens_kappa(predicted_certainties, gold_certainties)
+        
+        # Per-class metrics
+        classes = ["affirmed", "negated", "uncertain"]
+        per_class = {}
+        
+        for cls in classes:
+            tp = sum(1 for p, g in zip(predicted_certainties, gold_certainties) 
+                    if p == cls and g == cls)
+            fp = sum(1 for p, g in zip(predicted_certainties, gold_certainties) 
+                    if p == cls and g != cls)
+            fn = sum(1 for p, g in zip(predicted_certainties, gold_certainties) 
+                    if p != cls and g == cls)
+            
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+            
+            per_class[cls] = {
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "support": sum(1 for g in gold_certainties if g == cls)
+            }
+        
+        return {
+            "accuracy": accuracy,
+            "kappa": kappa,
+            "kappa_interpretation": self._interpret_kappa(kappa),
+            "per_class": per_class
+        }
+    
+    def _interpret_kappa(self, kappa: float) -> str:
+        """Interpret Kappa value."""
+        if kappa >= 0.8:
+            return "excellent"
+        elif kappa >= 0.6:
+            return "substantial"
+        elif kappa >= 0.4:
+            return "moderate"
+        elif kappa >= 0.2:
+            return "fair"
+        else:
+            return "poor"
+    
+    def generate_nlp_report(self, results: Dict[str, Any]) -> str:
+        """Generate human-readable NLP evaluation report."""
+        lines = [
+            "=" * 60,
+            "NLP EVALUATION REPORT",
+            "=" * 60,
+            ""
+        ]
+        
+        if "entity_metrics" in results:
+            em = results["entity_metrics"]
+            lines.extend([
+                "ENTITY EXTRACTION:",
+                f"  Precision: {em.get('precision', 0):.3f}",
+                f"  Recall:    {em.get('recall', 0):.3f}",
+                f"  F1 Score:  {em.get('f1', 0):.3f}",
+                ""
+            ])
+        
+        if "certainty_metrics" in results:
+            cm = results["certainty_metrics"]
+            lines.extend([
+                "CERTAINTY DETECTION:",
+                f"  Accuracy:  {cm.get('accuracy', 0):.3f}",
+                f"  Kappa:     {cm.get('kappa', 0):.3f} ({cm.get('kappa_interpretation', 'N/A')})",
+                ""
+            ])
+            
+            if "per_class" in cm:
+                lines.append("  Per-Class F1:")
+                for cls, metrics in cm["per_class"].items():
+                    lines.append(f"    {cls:12}: {metrics['f1']:.3f} (n={metrics['support']})")
+        
+        lines.append("\n" + "=" * 60)
+        return "\n".join(lines)
+
+
+def evaluate_results(results: List[Any]) -> Dict[str, Any]:
+    """
+    Evaluate a list of ProcessingResult objects.
+    
+    Args:
+        results: List of ProcessingResult from main.py
+        
+    Returns:
+        Evaluation metrics dictionary
+    """
+    evaluator = EvaluationMetrics()
+    
+    ground_truth = [r.ground_truth for r in results]
+    predictions = [r.predicted_class for r in results]
+    probabilities = [r.malignancy_probability for r in results]
+    
     metrics = evaluator.evaluate(ground_truth, predictions, probabilities)
     
     # Print report

@@ -54,7 +54,7 @@ import numpy as np
 from agents.radiologist_variants import (
     RadiologistDenseNet,
     RadiologistResNet,
-    RadiologistRuleBased,
+    RadiologistRules,
     create_all_radiologists,
 )
 from agents.pathologist_variants import (
@@ -291,7 +291,7 @@ class MultiAgentOrchestrator:
         return [
             RadiologistDenseNet("radiologist_densenet"),
             RadiologistResNet("radiologist_resnet"),
-            RadiologistRuleBased("radiologist_rulebased"),
+            RadiologistRules("radiologist_rulebased"),
         ]
     
     def _create_pathologists(self) -> List:

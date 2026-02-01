@@ -20,7 +20,7 @@ EDUCATIONAL PURPOSE:
 - Report Generation: Structured to natural language conversion
 """
 
-from .openi_loader import OpenILoader, LIDCLoader  # LIDCLoader is alias
+from .lidc_loader import LIDCLoader
 from .report_generator import ReportGenerator
 
-__all__ = ['OpenILoader', 'LIDCLoader', 'ReportGenerator']
+__all__ = ['LIDCLoader', 'ReportGenerator']

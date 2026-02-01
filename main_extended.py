@@ -188,18 +188,22 @@ class ExtendedMAS:
             try:
                 from data.lidc_loader import LIDCLoader
                 loader = LIDCLoader()
-                nodules = loader.load_all_nodules(max_nodules=50)
                 
                 from data.report_generator import ReportGenerator
                 report_gen = ReportGenerator()
                 
-                for n in nodules:
+                count = 0
+                for nodule_id, image, features in loader.load_all():
+                    if count >= 50:
+                        break
+                        
                     self.cases.append({
-                        "nodule_id": n["nodule_id"],
-                        "features": n["features"],
-                        "ground_truth": n["malignancy"],
-                        "report": report_gen.generate_report(n["features"])
+                        "nodule_id": nodule_id,
+                        "features": features,
+                        "ground_truth": features.get("malignancy", 3),
+                        "report": report_gen.generate(features)
                     })
+                    count += 1
                 self._log(f"Loaded {len(self.cases)} cases from LIDC-IDRI")
             except Exception as e:
                 self._log(f"Failed to load LIDC: {e}, using sample data")
@@ -216,47 +220,52 @@ class ExtendedMAS:
             {
                 "nodule_id": "sample_001",
                 "features": {
-                    "size_mm": 5, "texture": "ground_glass",
-                    "location": "left_upper_lobe", "malignancy": 2
+                    "size_mm": 5, "texture": 1,  # ground_glass
+                    "location": "left_upper_lobe", "malignancy": 2,
+                    "spiculation": 1, "calcification": 6, "margin": 5
                 },
                 "ground_truth": 2
             },
             {
                 "nodule_id": "sample_002",
                 "features": {
-                    "size_mm": 12, "texture": "solid",
-                    "location": "right_upper_lobe", "malignancy": 4
+                    "size_mm": 12, "texture": 5,  # solid
+                    "location": "right_upper_lobe", "malignancy": 4,
+                    "spiculation": 1, "calcification": 6, "margin": 4
                 },
                 "ground_truth": 4
             },
             {
                 "nodule_id": "sample_003",
                 "features": {
-                    "size_mm": 8, "texture": "part_solid",
-                    "location": "right_lower_lobe", "malignancy": 3
+                    "size_mm": 8, "texture": 3,  # part_solid
+                    "location": "right_lower_lobe", "malignancy": 3,
+                    "spiculation": 2, "calcification": 6, "margin": 3
                 },
                 "ground_truth": 3
             },
             {
                 "nodule_id": "sample_004",
                 "features": {
-                    "size_mm": 20, "texture": "spiculated",
-                    "location": "right_upper_lobe", "malignancy": 5
+                    "size_mm": 20, "texture": 5,  # solid
+                    "location": "right_upper_lobe", "malignancy": 5,
+                    "spiculation": 4, "calcification": 6, "margin": 2
                 },
                 "ground_truth": 5
             },
             {
                 "nodule_id": "sample_005",
                 "features": {
-                    "size_mm": 4, "texture": "calcified",
-                    "location": "left_lower_lobe", "malignancy": 1
+                    "size_mm": 4, "texture": 5,  # solid
+                    "location": "left_lower_lobe", "malignancy": 1,
+                    "spiculation": 1, "calcification": 3, "margin": 5
                 },
                 "ground_truth": 1
             },
         ]
         
         for n in sample_nodules:
-            n["report"] = report_gen.generate_report(n["features"])
+            n["report"] = report_gen.generate(n["features"])
         
         self.cases = sample_nodules
         self._log(f"Created {len(self.cases)} sample cases")

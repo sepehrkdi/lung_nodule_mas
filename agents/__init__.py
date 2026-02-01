@@ -35,11 +35,6 @@ Note: The SPADE-BDI agents provide proper AgentSpeak(L) plan execution
       as required for academic BDI demonstrations.
 """
 
-# Original custom BDI implementation
-from .base_agent import BDIAgent, Belief, BeliefBase, Plan, ASLParser
-from .radiologist_agent import RadiologistAgent, create_radiologist_agent
-from .pathologist_agent import PathologistAgent, create_pathologist_agent
-from .oncologist_agent import OncologistAgent, create_oncologist_agent
 
 # SPADE-BDI implementation (proper AgentSpeak interpreter)
 from .spade_base import MedicalAgentBase, Belief as SpadeBelief, get_asl_path
@@ -52,38 +47,30 @@ from .spade_oncologist import create_spade_oncologist
 
 # Specialized Variant Agents - Extended Architecture
 from .radiologist_variants import (
-    BaseRadiologist,
+    RadiologistBase,
     RadiologistDenseNet,
     RadiologistResNet,
-    RadiologistRuleBased,
+    RadiologistRules,
     create_radiologist_densenet,
     create_radiologist_resnet,
-    create_radiologist_rulebased,
+    create_radiologist_rules,
     create_all_radiologists,
+    create_calibrated_radiologists,
 )
 
 from .pathologist_variants import (
     PathologistBase,
     PathologistRegex,
     PathologistSpacy,
+    PathologistContext,
     create_pathologist_regex,
     create_pathologist_spacy,
+    create_pathologist_context,
     create_all_pathologists,
 )
 
+
 __all__ = [
-    # Original custom BDI
-    'BDIAgent',
-    'Belief', 
-    'BeliefBase',
-    'Plan',
-    'ASLParser',
-    'RadiologistAgent',
-    'PathologistAgent', 
-    'OncologistAgent',
-    'create_radiologist_agent',
-    'create_pathologist_agent',
-    'create_oncologist_agent',
     
     # SPADE-BDI (proper AgentSpeak)
     'MedicalAgentBase',
@@ -97,21 +84,25 @@ __all__ = [
     'create_spade_oncologist',
     
     # Specialized Radiologist Variants
-    'BaseRadiologist',
+    'RadiologistBase',
     'RadiologistDenseNet',
     'RadiologistResNet',
-    'RadiologistRuleBased',
+    'RadiologistRules',
     'create_radiologist_densenet',
     'create_radiologist_resnet',
-    'create_radiologist_rulebased',
+    'create_radiologist_rules',
     'create_all_radiologists',
+    'create_calibrated_radiologists',
     
     # Specialized Pathologist Variants
     'PathologistBase',
     'PathologistRegex',
     'PathologistSpacy',
+    'PathologistContext',
     'create_pathologist_regex',
     'create_pathologist_spacy',
+    'create_pathologist_context',
     'create_all_pathologists',
 ]
+
 

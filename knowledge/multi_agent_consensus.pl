@@ -551,3 +551,169 @@ class_to_risk(2, low).
 class_to_risk(3, intermediate).
 class_to_risk(4, high).
 class_to_risk(5, high).
+
+
+/* ============================================================
+ * SECTION 11: NATURAL LANGUAGE EXPLANATION GENERATION
+ * ============================================================
+ * Generate human-readable explanations of consensus decisions.
+ * 
+ * EDUCATIONAL PURPOSE:
+ * This demonstrates how Prolog can generate structured natural
+ * language explanations for AI decisions, improving interpretability.
+ */
+
+% Main explanation generator
+% Produces a structured explanation of the consensus decision
+generate_explanation(NoduleId, Explanation) :-
+    explain_agents(NoduleId, AgentExpl),
+    explain_consensus(NoduleId, ConsensusExpl),
+    explain_resolution(NoduleId, ResolutionExpl),
+    explain_recommendation(NoduleId, RecommendationExpl),
+    Explanation = explanation{
+        nodule_id: NoduleId,
+        agent_summary: AgentExpl,
+        consensus_summary: ConsensusExpl,
+        resolution_summary: ResolutionExpl,
+        recommendation_summary: RecommendationExpl
+    }.
+
+% Explain agent findings
+explain_agents(NoduleId, Summary) :-
+    findall(
+        AgentInfo,
+        (
+            agent_finding(NoduleId, Agent, Prob, Class),
+            get_agent_weight(Agent, Weight),
+            format(atom(AgentInfo), '~w reported probability ~2f (class ~w, weight ~2f)', 
+                   [Agent, Prob, Class, Weight])
+        ),
+        Summaries
+    ),
+    atomic_list_concat(Summaries, '; ', Summary).
+
+explain_agents(NoduleId, 'No agent findings available') :-
+    \+ agent_finding(NoduleId, _, _, _).
+
+% Explain consensus calculation
+explain_consensus(NoduleId, Summary) :-
+    calculate_consensus(NoduleId, Prob, Confidence),
+    probability_to_class(Prob, Class),
+    (has_disagreement(NoduleId) -> 
+        Disagreement = 'with significant disagreement' ; 
+        Disagreement = 'with good agreement'),
+    format(atom(Summary), 
+           'Weighted consensus: ~2f probability (class ~w), confidence ~2f ~w',
+           [Prob, Class, Confidence, Disagreement]).
+
+explain_consensus(NoduleId, 'Unable to calculate consensus') :-
+    \+ calculate_consensus(NoduleId, _, _).
+
+% Explain disagreement resolution
+explain_resolution(NoduleId, Summary) :-
+    has_disagreement(NoduleId),
+    resolve_disagreement(NoduleId, FinalProb, Strategy),
+    strategy_description(Strategy, StrategyDesc),
+    format(atom(Summary),
+           'Disagreement resolved using ~w strategy. Final probability: ~2f',
+           [StrategyDesc, FinalProb]).
+
+explain_resolution(NoduleId, 'No disagreement requiring resolution') :-
+    \+ has_disagreement(NoduleId).
+
+% Strategy descriptions for human readability
+strategy_description('cnn_nlp_agreement', 'CNN-NLP agreement (weighted CNN 60%, NLP 40%)').
+strategy_description('rule_based_tiebreaker', 'rule-based tiebreaker (CNN 50%, rules 50%)').
+strategy_description('weighted_average', 'weighted average of all agents').
+
+% Explain recommendation
+explain_recommendation(NoduleId, Summary) :-
+    recommendation(NoduleId, Category, Action, Urgency),
+    format(atom(Summary),
+           'Lung-RADS ~w: ~w (urgency: ~w)',
+           [Category, Action, Urgency]).
+
+explain_recommendation(NoduleId, 'Clinical correlation recommended') :-
+    \+ recommendation(NoduleId, _, _, _).
+
+% Generate full natural language explanation (sentences)
+generate_narrative(NoduleId, Narrative) :-
+    % Get nodule info
+    (nodule_size(NoduleId, Size) -> true ; Size = unknown),
+    (nodule_texture(NoduleId, Texture) -> true ; Texture = unknown),
+    
+    % Get agent count
+    findall(Agent, agent_finding(NoduleId, Agent, _, _), Agents),
+    length(Agents, NumAgents),
+    
+    % Get consensus
+    (calculate_consensus(NoduleId, Prob, Confidence) -> 
+        (probability_to_class(Prob, Class),
+         class_to_risk(Class, Risk)) ; 
+        (Prob = 0.5, Confidence = 0, Class = 3, Risk = intermediate)),
+    
+    % Build narrative
+    format(atom(SentenceOne),
+           'This ~w nodule (~w mm) was analyzed by ~w expert agents.',
+           [Texture, Size, NumAgents]),
+    
+    format(atom(SentenceTwo),
+           'The consensus malignancy probability is ~2f (class ~w, ~w risk) with ~2f confidence.',
+           [Prob, Class, Risk, Confidence]),
+    
+    % Add disagreement info if applicable
+    (has_disagreement(NoduleId) ->
+        (resolve_disagreement(NoduleId, _, Strategy),
+         strategy_description(Strategy, StrategyDesc),
+         format(atom(SentenceThree),
+                'Significant disagreement was detected and resolved using ~w.',
+                [StrategyDesc])) ;
+        SentenceThree = 'All agents showed good agreement.'),
+    
+    % Add recommendation
+    (recommendation(NoduleId, Category, Action, Urgency) ->
+        format(atom(SentenceFour),
+               'Based on Lung-RADS category ~w, the recommendation is: ~w (~w priority).',
+               [Category, Action, Urgency]) ;
+        SentenceFour = 'Clinical correlation is recommended.'),
+    
+    atomic_list_concat([SentenceOne, SentenceTwo, SentenceThree, SentenceFour], ' ', Narrative).
+
+% List which rules fired for a decision
+list_fired_rules(NoduleId, FiredRules) :-
+    findall(
+        Rule,
+        (
+            (lung_rads(NoduleId, _, _) -> Rule = lung_rads_classification ; fail) ;
+            (t_stage(NoduleId, _, _) -> Rule = t_staging ; fail) ;
+            (has_disagreement(NoduleId) -> Rule = disagreement_detection ; fail) ;
+            (has_suspicious_feature(NoduleId) -> Rule = suspicious_feature_upgrade ; fail)
+        ),
+        FiredRules
+    ).
+
+% Agent certainty integration (for Pathologist-3 context agent)
+:- dynamic agent_certainty/3.  % agent_certainty(NoduleId, Agent, Certainty)
+
+% Get certainty-adjusted probability
+certainty_adjusted_prob(NoduleId, Agent, AdjustedProb) :-
+    agent_finding(NoduleId, Agent, BaseProb, _),
+    (agent_certainty(NoduleId, Agent, Certainty) ->
+        (Certainty == negated -> AdjustedProb is 0.1 ;
+         Certainty == uncertain -> AdjustedProb is 0.5 * BaseProb + 0.25 ;
+         AdjustedProb = BaseProb) ;
+        AdjustedProb = BaseProb).
+
+% Explain certainty from context agent
+explain_certainty(NoduleId, CertaintyExpl) :-
+    findall(
+        Info,
+        (
+            agent_certainty(NoduleId, Agent, Certainty),
+            format(atom(Info), '~w: ~w', [Agent, Certainty])
+        ),
+        Infos
+    ),
+    (Infos \= [] ->
+        atomic_list_concat(Infos, ', ', CertaintyExpl) ;
+        CertaintyExpl = 'No certainty information available').
