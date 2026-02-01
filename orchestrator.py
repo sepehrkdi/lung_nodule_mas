@@ -45,7 +45,7 @@ CONSENSUS MECHANISM:
 import asyncio
 import logging
 import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Callable, Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime
 import numpy as np
@@ -304,7 +304,8 @@ class MultiAgentOrchestrator:
         image_path: Optional[str] = None,
         image_array: Optional[np.ndarray] = None,
         report: Optional[str] = None,
-        features: Optional[Dict[str, Any]] = None
+        features: Optional[Dict[str, Any]] = None,
+        on_agent_complete: Optional[Callable[[str, Dict[str, Any]], Awaitable[None]]] = None
     ) -> ConsensusResult:
         """
         Analyze a single nodule case with all 5 agents.
@@ -315,6 +316,8 @@ class MultiAgentOrchestrator:
             image_array: Pre-loaded image array
             report: Radiology report text
             features: Pre-extracted nodule features
+            on_agent_complete: Optional async callback called when each agent finishes.
+                               Signature: async def callback(agent_name: str, result: dict)
             
         Returns:
             ConsensusResult with combined decision
@@ -335,33 +338,52 @@ class MultiAgentOrchestrator:
             "features": features or {},
         }
         
-        # Run all agents in parallel
+        # Create wrapped tasks that invoke callback on completion
+        async def run_agent_with_callback(agent, request, agent_type):
+            """Run agent and invoke callback when done."""
+            result = await agent.process_request(request)
+            result["_agent_name"] = agent.name
+            result["_agent_type"] = agent_type
+            if on_agent_complete:
+                await on_agent_complete(agent.name, result)
+            return result
+        
+        # Create all tasks
         radiologist_tasks = [
-            agent.process_request(radiologist_request)
+            run_agent_with_callback(agent, radiologist_request, "radiologist")
             for agent in self.radiologists
         ]
         
         pathologist_tasks = [
-            agent.process_request(pathologist_request)
+            run_agent_with_callback(agent, pathologist_request, "pathologist")
             for agent in self.pathologists
         ]
         
-        # Gather all results
-        all_results = await asyncio.gather(
-            *radiologist_tasks, *pathologist_tasks,
-            return_exceptions=True
-        )
+        all_tasks = radiologist_tasks + pathologist_tasks
         
-        # Split results
-        radiologist_results = all_results[:len(self.radiologists)]
-        pathologist_results = all_results[len(self.radiologists):]
+        # Use as_completed to process results as they arrive (for streaming)
+        radiologist_results = []
+        pathologist_results = []
+        
+        for coro in asyncio.as_completed(all_tasks):
+            try:
+                result = await coro
+                agent_name = result.get("_agent_name", "")
+                agent_type = result.get("_agent_type", "")
+                
+                if agent_type == "radiologist":
+                    radiologist_results.append(result)
+                else:
+                    pathologist_results.append(result)
+            except Exception as e:
+                logger.warning(f"Agent task failed: {e}")
         
         # Convert to AgentFinding objects
-        radiologist_findings = self._process_results(
-            radiologist_results, self.radiologists, "radiologist"
+        radiologist_findings = self._process_results_streaming(
+            radiologist_results, "radiologist"
         )
-        pathologist_findings = self._process_results(
-            pathologist_results, self.pathologists, "pathologist"
+        pathologist_findings = self._process_results_streaming(
+            pathologist_results, "pathologist"
         )
         
         # Compute consensus
@@ -417,6 +439,52 @@ class MultiAgentOrchestrator:
             
             if result.get("status") != "success":
                 logger.warning(f"Agent {agent.name} returned error")
+                continue
+            
+            agent_findings = result.get("findings", {})
+            
+            # Extract probability (different keys for different agents)
+            prob = (
+                agent_findings.get("malignancy_probability") or
+                agent_findings.get("text_malignancy_probability") or
+                0.5
+            )
+            
+            findings.append(AgentFinding(
+                agent_name=agent.name,
+                agent_type=agent_type,
+                approach=agent.APPROACH,
+                weight=agent.WEIGHT,
+                probability=prob,
+                predicted_class=agent_findings.get("predicted_class", 3),
+                details=agent_findings
+            ))
+        
+        return findings
+    
+    def _process_results_streaming(
+        self,
+        results: List[Dict[str, Any]],
+        agent_type: str
+    ) -> List[AgentFinding]:
+        """Convert raw results to AgentFinding objects (streaming version)."""
+        findings = []
+        
+        # Build agent lookup by name
+        all_agents = self.radiologists + self.pathologists
+        agent_lookup = {agent.name: agent for agent in all_agents}
+        
+        for result in results:
+            if isinstance(result, Exception):
+                continue
+            
+            if result.get("status") != "success":
+                continue
+            
+            agent_name = result.get("_agent_name", "")
+            agent = agent_lookup.get(agent_name)
+            
+            if not agent:
                 continue
             
             agent_findings = result.get("findings", {})
