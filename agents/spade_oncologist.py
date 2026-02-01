@@ -177,8 +177,18 @@ class OncologistAgent(MedicalAgentBase):
         if not self._prolog_loaded:
             self._action_load_prolog()
         
+        # Handle numeric texture from LIDC (1-5)
+        if isinstance(texture, (int, float)):
+            tex_val = float(texture)
+            if tex_val <= 2.5:
+                texture = "ground_glass"
+            elif tex_val <= 3.5:
+                texture = "part_solid"
+            else:
+                texture = "solid"
+                
         # Normalize texture
-        texture = texture.replace("-", "_").lower()
+        texture = str(texture).replace("-", "_").lower()
         
         # Try Prolog query first
         if self._prolog is not None:

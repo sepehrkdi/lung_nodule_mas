@@ -64,7 +64,72 @@ class RadiologistBase(MedicalAgentBase):
     
     def _register_actions(self) -> None:
         """Register internal actions for ASL plans."""
-        self.internal_actions["classify_image"] = self._classify
+        self.internal_actions["load_classifier"] = self._action_load_classifier
+        self.internal_actions["classify_image"] = self._action_classify_image
+        self.internal_actions["extract_features"] = self._action_extract_features
+
+    # =========================================================================
+    # BDI Internal Actions (wrappers for variants)
+    # =========================================================================
+
+    def _action_load_classifier(self) -> bool:
+        """Internal action: Load model."""
+        try:
+            # Variants handle loading in __init__ or lazy usage
+            # This is just a hook for the ASL to feel good
+            self.add_belief(Belief("model_loaded", (True,)))
+            self.add_belief(Belief("model_name", (self.__class__.__name__,)))
+            return True
+        except Exception as e:
+            logger.error(f"[{self.name}] Load error: {e}")
+            return False
+
+    def _action_classify_image(self, nodule_id: str, image_data: Any) -> Tuple[float, int]:
+        """Internal action: Classify image."""
+        try:
+            image = self._prepare_image(image_data)
+            prob, pred_class = self._classify(image)
+            
+            # Update belief (redundant but good for BDI)
+            self.add_belief(Belief(
+                "classification",
+                (nodule_id, prob, pred_class),
+                annotations={"source": self.name}
+            ))
+            return (prob, pred_class)
+        except Exception as e:
+            logger.error(f"[{self.name}] Classification error: {e}")
+            return (0.5, 3)
+
+    def _action_extract_features(
+        self, 
+        nodule_id: str, 
+        image_data: Any
+    ) -> Tuple[float, str, str]:
+        """Internal action: Extract visual features."""
+        try:
+            # Fallback feature extraction for all variants
+            # In a real system, each variant might extract differently
+            # For now, we use a shared heuristic extraction
+            image = self._prepare_image(image_data)
+            
+            # Simple heuristics for BDI demo
+            size_mm = 10.0 # Default
+            if isinstance(image_data, dict):
+                 size_mm = image_data.get("size_mm", 10.0)
+            
+            # Texture heuristic from image noise
+            texture = "solid"
+            if image.std() > 50: texture = "heterogeneous"
+            elif image.std() > 30: texture = "part_solid"
+            
+            # Shape
+            shape = "round"
+            
+            return (size_mm, texture, shape)
+        except Exception as e:
+            logger.error(f"[{self.name}] Feature extraction error: {e}")
+            return (10.0, "unknown", "unknown")
 
         
     @abstractmethod
@@ -110,7 +175,9 @@ class RadiologistBase(MedicalAgentBase):
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process classification request."""
         nodule_id = request.get("nodule_id", "unknown")
-        image_data = request.get("image") or request.get("features", {})
+        image_data = request.get("image")
+        if image_data is None:
+            image_data = request.get("features", {})
         
         logger.info(f"[{self.name}] Processing {nodule_id}")
         
@@ -168,8 +235,8 @@ class RadiologistDenseNet(RadiologistBase):
     # NEW: Operating point threshold (affects probability-to-class conversion)
     THRESHOLD = 0.5  # Balanced by default
     
-    def __init__(self, name: str = "radiologist_densenet", threshold: float = 0.5):
-        super().__init__(name=name)
+    def __init__(self, name: str = "radiologist_densenet", threshold: float = 0.5, asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         self._model = None
         self.THRESHOLD = threshold
     
@@ -311,8 +378,8 @@ class RadiologistResNet(RadiologistBase):
     APPROACH = "resnet50"
     WEIGHT = 1.0
     
-    def __init__(self, name: str = "radiologist_resnet"):
-        super().__init__(name=name)
+    def __init__(self, name: str = "radiologist_resnet", asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         self._model = None
         
     def _load_model(self):
@@ -454,8 +521,8 @@ class RadiologistRules(RadiologistBase):
         (30, 1000, "ground_glass", 0.50),
     ]
     
-    def __init__(self, name: str = "radiologist_rules"):
-        super().__init__(name=name)
+    def __init__(self, name: str = "radiologist_rules", asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         self._model_loaded = True  # No model to load
         self.add_belief(Belief("model_loaded", ("rule_based", True)))
         

@@ -124,25 +124,72 @@ class SPADEMedicalMAS:
         self.num_radiologists = num_radiologists
         self.num_pathologists = num_pathologists
         
-        # Import agents
-        from agents.spade_radiologist import RadiologistAgent
-        from agents.spade_pathologist import PathologistAgent
+        # Import BDI factory
+        from agents.spade_base import create_spade_bdi_agent, DEFAULT_XMPP_CONFIG, get_asl_path
+        
+        # Import Variants
+        from agents.radiologist_variants import (
+            RadiologistDenseNet, RadiologistResNet, RadiologistRules
+        )
+        from agents.pathologist_variants import (
+            PathologistRegex, PathologistSpacy, PathologistContext
+        )
         from agents.spade_oncologist import OncologistAgent
         
         # Initialize agents
-        self._log("Initializing SPADE-BDI agents...")
+        self._log("Initializing 6 Specialized SPADE-BDI agents...")
         
-        # Create multiple radiologists
-        self.radiologists = [
-            RadiologistAgent(name=f"radiologist_{i+1}")
-            for i in range(num_radiologists)
-        ]
+        # XMPP Config (default)
+        xmpp_config = DEFAULT_XMPP_CONFIG
         
-        # Create multiple pathologists
-        self.pathologists = [
-            PathologistAgent(name=f"pathologist_{i+1}")
-            for i in range(num_pathologists)
-        ]
+        # Warn if custom counts requested
+        if num_radiologists != 3 or num_pathologists != 3:
+            self._log(
+                "WARNING: Custom agent counts ignored. Using fixed specialized team: "
+                "3 Radiologists (DenseNet/ResNet/Rule) and 3 Pathologists (Regex/SpaCy/Context)."
+            )
+
+        # Create 3 Radiologists
+        self.radiologists = []
+        
+        # Rad 1: DenseNet
+        self.radiologists.append(create_spade_bdi_agent(
+            RadiologistDenseNet, "radiologist_densenet", 
+            xmpp_config, get_asl_path("radiologist")
+        ))
+        
+        # Rad 2: ResNet
+        self.radiologists.append(create_spade_bdi_agent(
+            RadiologistResNet, "radiologist_resnet", 
+            xmpp_config, get_asl_path("radiologist")
+        ))
+        
+        # Rad 3: Rules
+        self.radiologists.append(create_spade_bdi_agent(
+            RadiologistRules, "radiologist_rules", 
+            xmpp_config, get_asl_path("radiologist")
+        ))
+        
+        # Create 3 Pathologists
+        self.pathologists = []
+        
+        # Path 1: Regex
+        self.pathologists.append(create_spade_bdi_agent(
+            PathologistRegex, "pathologist_regex", 
+            xmpp_config, get_asl_path("pathologist")
+        ))
+        
+        # Path 2: SpaCy
+        self.pathologists.append(create_spade_bdi_agent(
+            PathologistSpacy, "pathologist_spacy", 
+            xmpp_config, get_asl_path("pathologist")
+        ))
+        
+        # Path 3: Context
+        self.pathologists.append(create_spade_bdi_agent(
+            PathologistContext, "pathologist_context", 
+            xmpp_config, get_asl_path("pathologist")
+        ))
         
         # Single oncologist for consensus
         self.oncologist = OncologistAgent(name="oncologist")
@@ -158,8 +205,8 @@ class SPADEMedicalMAS:
         self.results: List[ProcessingResult] = []
         
         self._log(
-            f"MAS initialized with {num_radiologists} radiologists, "
-            f"{num_pathologists} pathologists"
+            f"MAS initialized with {len(self.radiologists)} radiologists, "
+            f"{len(self.pathologists)} pathologists"
         )
     
     def _log(self, message: str) -> None:
@@ -220,18 +267,20 @@ class SPADEMedicalMAS:
             ProcessingResult with consensus classification
         """
         start_time = time.time()
-        self._log(f"Processing {nodule_id} with {self.num_radiologists}R/{self.num_pathologists}P agents...")
+        self._log(f"Processing {nodule_id} with {len(self.radiologists)}R/{len(self.pathologists)}P agents...")
         
         # Load nodule data
-        nodule_data = self.loader.load_nodule(nodule_id)
-        
-        if nodule_data is None:
-            self._log(f"Could not load {nodule_id}")
+        try:
+            image, features = self.loader.load_nodule(nodule_id)
+        except Exception as e:
+            self._log(f"Could not load {nodule_id}: {e}")
             return self._empty_result(nodule_id, time.time() - start_time)
         
-        features = nodule_data.get("features", {})
-        image = nodule_data.get("image")
-        ground_truth = nodule_data.get("malignancy", 3)
+        if features is None:
+            self._log(f"No features for {nodule_id}")
+            return self._empty_result(nodule_id, time.time() - start_time)
+            
+        ground_truth = features.get("malignancy", 3)
         
         # Generate report from features
         report_text = self.report_generator.generate(features)
@@ -466,8 +515,12 @@ def run_demo():
         verbose=True
     )
     
-    # Process first 3 nodules
-    nodule_ids = mas.loader.list_nodules()[:3]
+    # Select nodules for demo
+    ids = mas.loader.get_nodule_ids()
+    if not ids:
+        print("No nodules found in data directory.")
+        return
+    nodule_ids = ids[:3] # Process first 3 nodules for demo
     
     for nodule_id in nodule_ids:
         result = mas.process_nodule(nodule_id)
@@ -599,7 +652,7 @@ Examples:
     
     else:
         # Default: process first 5 or all if less
-        nodule_ids = mas.loader.list_nodules()[:5]
+        nodule_ids = mas.loader.get_nodule_ids()[:5]
         for nodule_id in nodule_ids:
             mas.process_nodule(nodule_id)
         mas.print_results()

@@ -63,7 +63,51 @@ class PathologistBase(MedicalAgentBase):
     
     def _register_actions(self) -> None:
         """Register internal actions for ASL plans."""
-        self.internal_actions["analyze_report"] = self._analyze_report
+        self.internal_actions["load_nlp_model"] = self._action_load_nlp
+        self.internal_actions["extract_all"] = self._action_extract_all
+        
+        # Individual extractors (for detailed plans)
+        self.internal_actions["extract_size"] = lambda t, i="": (self._analyze_report(t).get("size_mm", 10),)
+        self.internal_actions["extract_texture"] = lambda t, i="": (self._analyze_report(t).get("texture", "solid"),)
+        self.internal_actions["extract_margin"] = lambda t, i="": ("smooth",) # Placeholder
+        self.internal_actions["extract_spiculation"] = lambda t, i="": (1,) # Placeholder
+        self.internal_actions["extract_malignancy"] = lambda t, i="": (self._analyze_report(t).get("malignancy_score", 0.5),)
+        self.internal_actions["extract_lung_rads"] = lambda t, i="": ("3",)
+
+    # =========================================================================
+    # BDI Internal Actions
+    # =========================================================================
+
+    def _action_load_nlp(self) -> bool:
+        """Internal action: Load NLP."""
+        self.add_belief(Belief("nlp_loaded", (True,)))
+        self.add_belief(Belief("nlp_model", (self.APPROACH,)))
+        return True
+
+    def _action_extract_all(
+        self, 
+        text: str, 
+        nodule_id: str = "unknown"
+    ) -> Tuple[float, str, str, int, float]:
+        """
+        Internal action: Extract all findings.
+        Returns: (Size, Texture, Margin, Spiculation, Assessment)
+        """
+        logger.info(f"[{self.name}] Analyzing text for {nodule_id}")
+        findings = self._analyze_report(text)
+        
+        size = findings.get("size_mm", 10.0)
+        texture = findings.get("texture", "solid")
+        margin = "smooth" # Not currently extracted by variants
+        spic = 1 # Not currently extracted
+        
+        # Calculate malignancy assessment
+        # Variants return 'malignancy_score' or 'suspicious_terms'
+        assessment = findings.get("malignancy_score", 0.5)
+        if "probability" in findings: # Some variants might use different keys
+             assessment = findings["probability"]
+        
+        return (size, texture, margin, spic, assessment)
 
         
     @abstractmethod
@@ -264,8 +308,8 @@ class PathologistRegex(PathologistBase):
         "lingula": r"lingula",
     }
     
-    def __init__(self, name: str = "pathologist_regex"):
-        super().__init__(name=name)
+    def __init__(self, name: str = "pathologist_regex", asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         
     def _analyze_report(self, report: str) -> Dict[str, Any]:
         """Analyze report using regex patterns."""
@@ -361,8 +405,8 @@ class PathologistSpacy(PathologistBase):
         "low": ["benign", "stable", "unchanged", "granuloma", "resolved"]
     }
     
-    def __init__(self, name: str = "pathologist_spacy"):
-        super().__init__(name=name)
+    def __init__(self, name: str = "pathologist_spacy", asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         self._nlp = None
         self._nlp_loaded = False
         
@@ -661,8 +705,8 @@ class PathologistContext(PathologistBase):
         r'\bmalignancy\b',
     ]
     
-    def __init__(self, name: str = "pathologist_context"):
-        super().__init__(name=name)
+    def __init__(self, name: str = "pathologist_context", asl_file: Optional[str] = None):
+        super().__init__(name=name, asl_file=asl_file)
         self._negex_detector = None
         self._report_parser = None
         self._load_nlp_extensions()

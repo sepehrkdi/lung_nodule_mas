@@ -295,11 +295,8 @@ class MultiAgentOrchestrator:
         ]
     
     def _create_pathologists(self) -> List:
-        """Create both pathologist agents."""
-        return [
-            PathologistRegex("pathologist_regex"),
-            PathologistSpacy("pathologist_spacy"),
-        ]
+        """Create all pathologist agents."""
+        return create_all_pathologists()
     
     async def analyze_case(
         self,
