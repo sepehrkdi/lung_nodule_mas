@@ -48,31 +48,7 @@ from ui.pages.evaluation import render_evaluation_page
 
 
 def render_sidebar():
-    """Render the sidebar navigation."""
-    
-    st.sidebar.image(
-        "https://img.icons8.com/fluency/96/lungs.png",
-        width=80
-    )
-    
-    st.sidebar.title("🫁 Lung Nodule MAS")
-    st.sidebar.markdown("Multi-Agent Classification System")
-    
-    st.sidebar.markdown("---")
-    
-    # Navigation
-    page = st.sidebar.radio(
-        "Navigation",
-        options=[
-            "🔬 Case Analysis",
-            "📦 Batch Processing",
-            "📊 Evaluation Dashboard"
-        ],
-        index=0,
-        key="navigation"
-    )
-    
-    st.sidebar.markdown("---")
+    """Render the sidebar with system info."""
     
     # System info
     st.sidebar.markdown("### 🤖 Agent Configuration")
@@ -86,41 +62,46 @@ def render_sidebar():
     - Regex Parser (W=0.8)
     - spaCy NER (W=0.9)
     """)
+
+
+def render_header():
+    """Render the page header."""
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        st.image(
+            "https://img.icons8.com/fluency/96/lungs.png",
+            width=80
+        )
+    with col2:
+        st.title("🫁 Lung Nodule MAS")
+        st.markdown("Multi-Agent Classification System")
     
-    st.sidebar.markdown("---")
-    
-    # Help section
-    with st.sidebar.expander("ℹ️ Help"):
-        st.markdown("""
-        **Quick Start:**
-        1. Start the API: `python run_api.py`
-        2. Select a nodule from the dropdown
-        3. Click "Analyze Nodule"
-        4. Watch agents process in real-time
-        
-        **API Status:**
-        - Green = Connected
-        - Red = Start API server
-        
-        **Questions?**
-        Check the README.md for detailed documentation.
-        """)
-    
-    return page
+    st.markdown("---")
 
 
 def main():
     """Main application entry point."""
     
-    # Render sidebar and get selected page
-    page = render_sidebar()
+    # Render header at top of page
+    render_header()
     
-    # Render selected page
-    if page == "🔬 Case Analysis":
+    # Render sidebar
+    render_sidebar()
+    
+    # Tab-based navigation in main area
+    tab1, tab2, tab3 = st.tabs([
+        "🔬 Case Analysis",
+        "📦 Batch Processing", 
+        "📊 Evaluation Dashboard"
+    ])
+    
+    with tab1:
         render_case_analysis_page()
-    elif page == "📦 Batch Processing":
+    
+    with tab2:
         render_batch_processing_page()
-    elif page == "📊 Evaluation Dashboard":
+    
+    with tab3:
         render_evaluation_page()
 
 
