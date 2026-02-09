@@ -273,7 +273,7 @@ def render_agent_panel(
     
     # Pathologists section
     st.markdown("#### 📝 Pathologists (Report Analysis)")
-    path_cols = st.columns(2)
+    path_cols = st.columns(3)
     
     pathologist_agents = [a for a in ALL_AGENTS if "pathologist" in a]
     for i, agent_name in enumerate(pathologist_agents):

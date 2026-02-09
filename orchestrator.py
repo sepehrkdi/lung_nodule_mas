@@ -63,12 +63,12 @@ from agents.pathologist_variants import (
     create_all_pathologists,
 )
 
-# Import Prolog consensus engine
-try:
-    from knowledge.prolog_engine import PrologEngine
-    PROLOG_AVAILABLE = True
-except ImportError:
-    PROLOG_AVAILABLE = False
+# Import Prolog consensus engine - STRICT MODE: Required, no fallback
+from knowledge.prolog_engine import (
+    PrologEngine,
+    PrologUnavailableError,
+    PrologQueryError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +120,8 @@ class PrologConsensusEngine:
     """
     Prolog-based consensus engine for multi-agent decision making.
     
+    STRICT MODE: Prolog is required. No fallback behavior is provided.
+    
     Uses multi_agent_consensus.pl for:
     - Weighted voting
     - Disagreement detection
@@ -128,18 +130,17 @@ class PrologConsensusEngine:
     """
     
     def __init__(self, kb_path: Optional[str] = None):
-        self.prolog = None
         self.kb_path = kb_path
         
-        if PROLOG_AVAILABLE:
-            try:
-                self.prolog = PrologEngine()
-                if kb_path:
-                    self.prolog.load_knowledge_base(kb_path)
-                logger.info("Prolog consensus engine initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Prolog: {e}")
-                self.prolog = None
+        # STRICT MODE: Initialize Prolog engine - let errors propagate
+        logger.info("Initializing Prolog consensus engine (STRICT MODE)...")
+        self.prolog = PrologEngine(auto_load_kb=True)
+        
+        # Load additional KB if specified
+        if kb_path:
+            self.prolog.load_knowledge_base(kb_path)
+        
+        logger.info("Prolog consensus engine initialized successfully")
     
     def compute_consensus(
         self,
@@ -147,89 +148,38 @@ class PrologConsensusEngine:
         radiologist_findings: List[AgentFinding],
         pathologist_findings: List[AgentFinding]
     ) -> Dict[str, Any]:
-        """Compute consensus using Prolog weighted voting."""
+        """
+        Compute consensus using Prolog weighted voting.
         
-        if self.prolog is None:
-            return self._fallback_consensus(
-                nodule_id, radiologist_findings, pathologist_findings
-            )
+        STRICT MODE: Uses Prolog only, no fallback.
         
-        try:
-            # Clear previous findings
-            self.prolog.query("retractall(agent_finding(_, _, _, _, _, _))")
-            
-            # Assert all findings
-            for finding in radiologist_findings + pathologist_findings:
-                self.prolog.assertz(finding.to_prolog_fact())
-            
-            # Query for consensus
-            result = list(self.prolog.query(
-                f"weighted_consensus({nodule_id}, Prob, Class, Conf)"
-            ))
-            
-            if result:
-                return {
-                    "method": "prolog_weighted_voting",
-                    "probability": float(result[0]["Prob"]),
-                    "class": int(result[0]["Class"]),
-                    "confidence": float(result[0]["Conf"])
-                }
-            else:
-                return self._fallback_consensus(
-                    nodule_id, radiologist_findings, pathologist_findings
-                )
-                
-        except Exception as e:
-            logger.warning(f"Prolog consensus failed: {e}")
-            return self._fallback_consensus(
-                nodule_id, radiologist_findings, pathologist_findings
-            )
-    
-    def _fallback_consensus(
-        self,
-        nodule_id: str,
-        radiologist_findings: List[AgentFinding],
-        pathologist_findings: List[AgentFinding]
-    ) -> Dict[str, Any]:
-        """Python fallback for weighted consensus."""
+        Raises:
+            PrologQueryError: If consensus computation fails
+        """
         all_findings = radiologist_findings + pathologist_findings
         
         if not all_findings:
-            return {
-                "method": "fallback_no_findings",
-                "probability": 0.5,
-                "class": 3,
-                "confidence": 0.0
+            raise PrologQueryError("No findings provided for consensus")
+        
+        # Convert findings to format expected by Prolog engine
+        prolog_findings = [
+            {
+                "agent_name": f.agent_name,
+                "probability": f.probability,
+                "predicted_class": f.predicted_class,
+                "weight": f.weight
             }
+            for f in all_findings
+        ]
         
-        # Weighted average
-        total_weight = sum(f.weight for f in all_findings)
-        weighted_prob = sum(
-            f.probability * f.weight for f in all_findings
-        ) / total_weight
-        
-        # Confidence from agreement
-        probabilities = [f.probability for f in all_findings]
-        variance = np.var(probabilities)
-        confidence = max(0, 1 - variance * 4)  # Higher variance = lower confidence
-        
-        # Determine class
-        if weighted_prob < 0.2:
-            pred_class = 1
-        elif weighted_prob < 0.4:
-            pred_class = 2
-        elif weighted_prob < 0.6:
-            pred_class = 3
-        elif weighted_prob < 0.8:
-            pred_class = 4
-        else:
-            pred_class = 5
+        # Use Prolog engine's compute_consensus method
+        result = self.prolog.compute_consensus(nodule_id, prolog_findings)
         
         return {
-            "method": "weighted_average_fallback",
-            "probability": weighted_prob,
-            "class": pred_class,
-            "confidence": confidence
+            "method": "prolog_weighted_voting",
+            "probability": result["probability"],
+            "class": result["predicted_class"],
+            "confidence": result["confidence"]
         }
 
 
@@ -673,7 +623,7 @@ async def main():
     
     # Test case with features and report
     test_case = {
-        "nodule_id": "test_001",
+        "case_id": "test_001",
         "features": {
             "size_mm": 12,
             "texture": "spiculated",

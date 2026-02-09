@@ -45,6 +45,11 @@ from pathlib import Path
 from collections import Counter
 
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
+from knowledge.prolog_engine import (
+    PrologEngine,
+    PrologUnavailableError,
+    PrologQueryError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,21 +77,7 @@ class OncologistAgent(MedicalAgentBase):
         "oncologist": 1.2
     }
     
-    # Lung-RADS fallback rules (used if Prolog unavailable)
-    LUNG_RADS_RULES = {
-        # (size_min, size_max, texture): (category, management)
-        (0, 6, "solid"): ("2", "annual_ct"),
-        (6, 8, "solid"): ("3", "ct_6_months"),
-        (8, 15, "solid"): ("4A", "ct_3_months_or_pet"),
-        (15, 999, "solid"): ("4B", "tissue_sampling"),
-        
-        (0, 6, "ground_glass"): ("2", "annual_ct"),
-        (6, 999, "ground_glass"): ("3", "ct_6_months"),
-        
-        (0, 6, "part_solid"): ("2", "annual_ct"),
-        (6, 8, "part_solid"): ("3", "ct_6_months"),
-        (8, 999, "part_solid"): ("4A", "ct_3_months_or_pet"),
-    }
+    # STRICT MODE: No fallback rules - Prolog is required
     
     def __init__(self, name: str = "oncologist", asl_file: Optional[str] = None):
         """
@@ -101,14 +92,14 @@ class OncologistAgent(MedicalAgentBase):
         
         super().__init__(name=name, asl_file=asl_file)
         
-        # Prolog engine - lazy loaded
-        self._prolog = None
+        # Prolog engine - lazy loaded but REQUIRED (no fallback)
+        self._prolog: Optional[PrologEngine] = None
         self._prolog_loaded = False
         
         # Findings storage for consensus
         self._findings: Dict[str, List[Dict[str, Any]]] = {}
         
-        logger.info(f"[{self.name}] Agent created")
+        logger.info(f"[{self.name}] Agent created (STRICT MODE - Prolog required)")
     
     def _register_actions(self) -> None:
         """Register internal actions callable from AgentSpeak."""
@@ -130,26 +121,24 @@ class OncologistAgent(MedicalAgentBase):
         
         Called from ASL: .load_prolog
         
+        STRICT MODE: This will raise an error if Prolog is unavailable.
+        No fallback behavior is provided.
+        
         Returns:
-            True if successful, False otherwise
+            True if successful
+            
+        Raises:
+            PrologUnavailableError: If Prolog/PySwip is not available
         """
-        try:
-            from knowledge_base.prolog_kb import LungRADSKnowledgeBase
-            
-            logger.info(f"[{self.name}] Loading Prolog knowledge base...")
-            self._prolog = LungRADSKnowledgeBase()
-            self._prolog_loaded = True
-            
-            self.add_belief(Belief("prolog_loaded", (True,)))
-            logger.info(f"[{self.name}] Prolog KB loaded successfully")
-            return True
-            
-        except Exception as e:
-            logger.warning(f"[{self.name}] Failed to load Prolog: {e}")
-            logger.info(f"[{self.name}] Using fallback rule-based reasoning")
-            self.add_belief(Belief("prolog_error", (str(e),)))
-            self._prolog_loaded = True  # Use fallback
-            return True
+        logger.info(f"[{self.name}] Loading Prolog knowledge base (STRICT MODE)...")
+        
+        # STRICT MODE: No try/except fallback - let errors propagate
+        self._prolog = PrologEngine(auto_load_kb=True)
+        self._prolog_loaded = True
+        
+        self.add_belief(Belief("prolog_loaded", (True,)))
+        logger.info(f"[{self.name}] Prolog KB loaded successfully")
+        return True
     
     def _action_query_lung_rads(
         self,
@@ -188,39 +177,32 @@ class OncologistAgent(MedicalAgentBase):
         elif texture in ["solid", "dense"]:
             texture = "solid"
         
-        # Try Prolog query first
-        if self._prolog is not None:
-            try:
-                result = self._prolog.query_lung_rads(
-                    size=float(size_mm),
-                    texture=texture
-                )
-                category = result.get("category", "2")
-                management = result.get("management", "annual_ct")
-                
-                logger.info(
-                    f"[{self.name}] Prolog query: size={size_mm}, texture={texture} "
-                    f"-> category={category}, mgmt={management}"
-                )
-                
-                self.add_belief(Belief(
-                    "lung_rads",
-                    (nodule_id, category, management),
-                    annotations={"source": "prolog"}
-                ))
-                
-                return (category, management)
-                
-            except Exception as e:
-                logger.warning(f"[{self.name}] Prolog query failed: {e}")
+        # STRICT MODE: Prolog is required, no fallback
+        if self._prolog is None:
+            raise PrologUnavailableError(
+                f"[{self.name}] Prolog engine not loaded. "
+                "Call _action_load_prolog() first."
+            )
         
-        # Fallback to rule-based
-        category, management = self._fallback_lung_rads(size_mm, texture)
+        # Query Prolog - let errors propagate (no fallback)
+        result = self._prolog.query_lung_rads(
+            size=float(size_mm) if size_mm is not None else 10.0,
+            texture=texture,
+            nodule_id=nodule_id
+        )
+        
+        category = result.get("category", "3")
+        management = result.get("management", "clinical_correlation")
+        
+        logger.info(
+            f"[{self.name}] Prolog query: size={size_mm}, texture={texture} "
+            f"-> category={category}, mgmt={management}"
+        )
         
         self.add_belief(Belief(
             "lung_rads",
             (nodule_id, category, management),
-            annotations={"source": "fallback"}
+            annotations={"source": "prolog"}
         ))
         
         return (category, management)
@@ -380,31 +362,7 @@ class OncologistAgent(MedicalAgentBase):
     # Helper Methods
     # =========================================================================
     
-    def _fallback_lung_rads(
-        self,
-        size_mm: float,
-        texture: str
-    ) -> Tuple[str, str]:
-        """Fallback Lung-RADS classification without Prolog."""
-        # Handle None size_mm
-        if size_mm is None:
-            size_mm = 10.0  # Default to intermediate size
-            
-        texture = texture.replace("-", "_").lower()
-        
-        for (min_s, max_s, tex), (cat, mgmt) in self.LUNG_RADS_RULES.items():
-            if min_s <= size_mm < max_s and tex == texture:
-                return (cat, mgmt)
-        
-        # Default fallback
-        if size_mm < 6:
-            return ("2", "annual_ct")
-        elif size_mm < 8:
-            return ("3", "ct_6_months")
-        elif size_mm < 15:
-            return ("4A", "ct_3_months_or_pet")
-        else:
-            return ("4B", "tissue_sampling")
+    # STRICT MODE: _fallback_lung_rads removed - Prolog is required
     
     def _generate_recommendation(
         self,
@@ -529,7 +487,7 @@ class OncologistAgent(MedicalAgentBase):
             },
             "sources": {
                 "agent_count": len(self._findings.get(nodule_id, [])),
-                "method": "prolog" if self._prolog else "rule_based"
+                "method": "prolog"  # STRICT MODE: Always Prolog
             }
         }
         

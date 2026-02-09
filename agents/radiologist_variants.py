@@ -42,6 +42,25 @@ from models.classifier import NoduleClassifier
 logger = logging.getLogger(__name__)
 
 
+class ModelUnavailableError(Exception):
+    """
+    Raised when a required CNN model is not available.
+    
+    STRICT MODE: The system requires all models to be properly loaded.
+    No fallback heuristics are provided.
+    """
+    pass
+
+
+class ClassificationError(Exception):
+    """
+    Raised when image classification fails.
+    
+    STRICT MODE: Classification errors are not silently handled.
+    """
+    pass
+
+
 # =============================================================================
 # BASE RADIOLOGIST CLASS
 # =============================================================================
@@ -366,71 +385,70 @@ class RadiologistDenseNet(RadiologistBase):
         return instance
         
     def _load_model(self):
-        """Lazy load NoduleClassifier (TorchXRayVision DenseNet)."""
+        """Lazy load NoduleClassifier (TorchXRayVision DenseNet).
+        
+        STRICT MODE: Raises error if model cannot be loaded.
+        """
         if self._classifier is not None:
             return
             
+        logger.info(f"[{self.name}] Loading TorchXRayVision DenseNet (STRICT MODE)...")
+        
         try:
-            logger.info(f"[{self.name}] Loading TorchXRayVision DenseNet...")
             self._classifier = NoduleClassifier()
-            self._model_loaded = self._classifier.model_loaded
-            
-            if self._model_loaded:
-                self.add_belief(Belief("model_loaded", ("densenet121_xrv", True)))
-                logger.info(f"[{self.name}] TorchXRayVision DenseNet loaded")
-            else:
-                logger.warning(f"[{self.name}] NoduleClassifier using fallback mode")
-            
         except Exception as e:
-            logger.warning(f"[{self.name}] Failed to load classifier: {e}")
-            self._classifier = None
+            raise ModelUnavailableError(
+                f"[{self.name}] Failed to load NoduleClassifier: {e}\n"
+                "Install with: pip install torchxrayvision torch torchvision"
+            )
+        
+        if not self._classifier.model_loaded:
+            raise ModelUnavailableError(
+                f"[{self.name}] NoduleClassifier model not loaded. "
+                "TorchXRayVision DenseNet is required - no fallback mode."
+            )
+        
+        self.add_belief(Belief("model_loaded", ("densenet121_xrv", True)))
+        logger.info(f"[{self.name}] TorchXRayVision DenseNet loaded successfully")
             
     def _classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Classify using TorchXRayVision DenseNet."""
+        """Classify using TorchXRayVision DenseNet.
+        
+        STRICT MODE: Raises error if classification fails.
+        """
         self._load_model()
         
-        if self._classifier is not None:
-            try:
-                # Use NoduleClassifier which handles TorchXRayVision
-                result = self._classifier.classify(image)
-                
-                prob = result["malignancy_probability"]
-                
-                # Apply threshold adjustment for different operating points
-                # Conservative: shift down, Sensitive: shift up
-                threshold_adjustment = (0.5 - self.THRESHOLD) * 0.2
-                prob = np.clip(prob + threshold_adjustment, 0.05, 0.95)
-                
-                predicted_class = self._prob_to_class(prob)
-                
-                logger.debug(
-                    f"[{self.name}] XRV result: prob={prob:.3f}, class={predicted_class}, "
-                    f"confidence={result.get('confidence', 0):.3f}"
-                )
-                
-                return (prob, predicted_class)
-                
-            except Exception as e:
-                logger.warning(f"[{self.name}] Classification error: {e}")
+        if self._classifier is None:
+            raise ModelUnavailableError(
+                f"[{self.name}] Classifier not loaded"
+            )
         
-        # Fallback: feature-based estimation
-        return self._fallback_classify(image)
-    
-    def _fallback_classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Fallback classification based on image statistics."""
-        if len(image.shape) == 3:
-            gray = np.mean(image, axis=-1)
-        else:
-            gray = image
+        try:
+            # Use NoduleClassifier which handles TorchXRayVision
+            result = self._classifier.classify(image)
             
-        mean_intensity = np.mean(gray) / 255.0
-        std_intensity = np.std(gray) / 255.0
-        
-        # Heuristic: brighter, more variable = more suspicious
-        prob = 0.3 + mean_intensity * 0.3 + std_intensity * 0.4
-        prob = min(max(prob, 0.05), 0.95)
-        
-        return (prob, self._prob_to_class(prob))
+            prob = result["malignancy_probability"]
+            
+            # Apply threshold adjustment for different operating points
+            # Conservative: shift down, Sensitive: shift up
+            threshold_adjustment = (0.5 - self.THRESHOLD) * 0.2
+            prob = np.clip(prob + threshold_adjustment, 0.05, 0.95)
+            
+            predicted_class = self._prob_to_class(prob)
+            
+            logger.debug(
+                f"[{self.name}] XRV result: prob={prob:.3f}, class={predicted_class}, "
+                f"confidence={result.get('confidence', 0):.3f}"
+            )
+            
+            return (prob, predicted_class)
+            
+        except Exception as e:
+            raise ClassificationError(
+                f"[{self.name}] Classification failed: {e}"
+            )
+    
+    # STRICT MODE: _fallback_classify removed - CNN model is required
     
     def _prob_to_class(self, prob: float) -> int:
         """Convert probability to malignancy class 1-5."""
@@ -469,96 +487,98 @@ class RadiologistResNet(RadiologistBase):
         self._classifier = None
         
     def _load_model(self):
-        """Lazy load NoduleClassifier."""
+        """Lazy load NoduleClassifier.
+        
+        STRICT MODE: Raises error if model cannot be loaded.
+        """
         if self._classifier is not None:
             return
-            
+        
+        logger.info(f"[{self.name}] Loading TorchXRayVision (Mass-focused, STRICT MODE)...")
+        
         try:
-            logger.info(f"[{self.name}] Loading TorchXRayVision (Mass-focused)...")
             self._classifier = NoduleClassifier()
-            self._model_loaded = self._classifier.model_loaded
-            
-            if self._model_loaded:
-                self.add_belief(Belief("model_loaded", ("densenet121_xrv_mass", True)))
-                logger.info(f"[{self.name}] TorchXRayVision loaded (Mass-focused)")
-            
         except Exception as e:
-            logger.warning(f"[{self.name}] Failed to load classifier: {e}")
-            self._classifier = None
+            raise ModelUnavailableError(
+                f"[{self.name}] Failed to load NoduleClassifier: {e}\n"
+                "Install with: pip install torchxrayvision torch torchvision"
+            )
+        
+        if not self._classifier.model_loaded:
+            raise ModelUnavailableError(
+                f"[{self.name}] NoduleClassifier model not loaded. "
+                "TorchXRayVision is required - no fallback mode."
+            )
+        
+        self.add_belief(Belief("model_loaded", ("densenet121_xrv_mass", True)))
+        logger.info(f"[{self.name}] TorchXRayVision loaded (Mass-focused) successfully")
             
     def _classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Classify with focus on Mass/Opacity pathologies."""
+        """Classify with focus on Mass/Opacity pathologies.
+        
+        STRICT MODE: Raises error if classification fails.
+        """
         self._load_model()
         
-        if self._classifier is not None and self._classifier.model_loaded:
-            try:
-                import torch
-                
-                # Get raw model output for custom pathology weighting
-                tensor = self._classifier._preprocess_image(image)
-                
-                with torch.no_grad():
-                    output = self._classifier.model(tensor)
-                    probs = torch.sigmoid(output)
-                
-                # Get pathology indices
-                pathologies = self._classifier.model.pathologies
-                
-                # Focus on Mass, Lung Lesion, Lung Opacity instead of just Nodule
-                target_pathologies = ["Mass", "Lung Lesion", "Lung Opacity", "Consolidation"]
-                scores = []
-                
-                for p in target_pathologies:
-                    if p in pathologies:
-                        idx = pathologies.index(p)
-                        scores.append(float(probs[0, idx]))
-                
-                if scores:
-                    # Weight Mass higher
-                    prob = max(scores) * 0.6 + np.mean(scores) * 0.4
-                else:
-                    # Fallback to Nodule
-                    if "Nodule" in pathologies:
-                        idx = pathologies.index("Nodule")
-                        prob = float(probs[0, idx])
-                    else:
-                        prob = 0.5
-                
-                # Add slight variation for agent diversity
-                prob = np.clip(prob + np.random.uniform(-0.03, 0.03), 0.05, 0.95)
-                
-                predicted_class = self._prob_to_class(prob)
-                
-                logger.debug(
-                    f"[{self.name}] Mass-focused result: prob={prob:.3f}, class={predicted_class}"
-                )
-                
-                return (prob, predicted_class)
-                
-            except Exception as e:
-                logger.warning(f"[{self.name}] Classification error: {e}")
+        if self._classifier is None or not self._classifier.model_loaded:
+            raise ModelUnavailableError(
+                f"[{self.name}] Classifier not loaded"
+            )
         
-        return self._fallback_classify(image)
-    
-    def _fallback_classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Fallback with slightly different heuristic than DenseNet."""
-        if len(image.shape) == 3:
-            gray = np.mean(image, axis=-1)
-        else:
-            gray = image
+        try:
+            import torch
             
-        # Edge detection proxy - mass focus looks for larger structures
-        edges = np.abs(np.diff(gray.astype(float), axis=0)).mean()
-        edges += np.abs(np.diff(gray.astype(float), axis=1)).mean()
-        edges = edges / 255.0
-        
-        mean_intensity = np.mean(gray) / 255.0
-        
-        # Different formula than DenseNet - emphasizes edges
-        prob = 0.25 + mean_intensity * 0.25 + edges * 0.5
-        prob = min(max(prob, 0.05), 0.95)
-        
-        return (prob, self._prob_to_class(prob))
+            # Get raw model output for custom pathology weighting
+            tensor = self._classifier._preprocess_image(image)
+            
+            with torch.no_grad():
+                output = self._classifier.model(tensor)
+                probs = torch.sigmoid(output)
+            
+            # Get pathology indices
+            pathologies = self._classifier.model.pathologies
+            
+            # Focus on Mass, Lung Lesion, Lung Opacity instead of just Nodule
+            target_pathologies = ["Mass", "Lung Lesion", "Lung Opacity", "Consolidation"]
+            scores = []
+            
+            for p in target_pathologies:
+                if p in pathologies:
+                    idx = pathologies.index(p)
+                    scores.append(float(probs[0, idx]))
+            
+            if scores:
+                # Weight Mass higher
+                prob = max(scores) * 0.6 + np.mean(scores) * 0.4
+            else:
+                # Use Nodule if no target pathologies found
+                if "Nodule" in pathologies:
+                    idx = pathologies.index("Nodule")
+                    prob = float(probs[0, idx])
+                else:
+                    raise ClassificationError(
+                        f"[{self.name}] No valid pathologies found in model output"
+                    )
+            
+            # Add slight variation for agent diversity
+            prob = np.clip(prob + np.random.uniform(-0.03, 0.03), 0.05, 0.95)
+            
+            predicted_class = self._prob_to_class(prob)
+            
+            logger.debug(
+                f"[{self.name}] Mass-focused result: prob={prob:.3f}, class={predicted_class}"
+            )
+            
+            return (prob, predicted_class)
+            
+        except ClassificationError:
+            raise
+        except Exception as e:
+            raise ClassificationError(
+                f"[{self.name}] Classification failed: {e}"
+            )
+    
+    # STRICT MODE: _fallback_classify removed - CNN model is required
     
     def _prob_to_class(self, prob: float) -> int:
         if prob < 0.2: return 1
