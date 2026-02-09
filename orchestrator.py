@@ -110,6 +110,7 @@ class ConsensusResult:
     disagreement_agents: List[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     prolog_reasoning: Dict[str, Any] = field(default_factory=dict)
+    thinking_process: List[Dict[str, str]] = field(default_factory=list)
 
 
 # =============================================================================
@@ -175,11 +176,142 @@ class PrologConsensusEngine:
         # Use Prolog engine's compute_consensus method
         result = self.prolog.compute_consensus(nodule_id, prolog_findings)
         
+        # Generate BDI Thinking Process
+        thinking_process = []
+        
+        # Define weights to match Prolog KB
+        weights = {
+            "radiologist_densenet": 1.0,
+            "radiologist_resnet": 1.0,
+            "radiologist_rulebased": 0.7,
+            "pathologist_regex": 0.8,
+            "pathologist_spacy": 0.9,
+            "pathologist_context": 0.5 # Default
+        }
+        
+        # 1. Perception
+        weight_sum = 0
+        weighted_prob_sum = 0
+        explanation_parts = []
+        
+        scores = []
+        
+        for f in all_findings:
+            w = weights.get(f.agent_name, 0.5)
+            # Update weight in finding object if not set
+            f.weight = w
+            
+            p = f.probability
+            weighted_prob_sum += p * w
+            weight_sum += w
+            scores.append(p)
+            
+            explanation_parts.append(f"{p:.2f}*{w}")
+            
+            # Extract features if available
+            details_str = ""
+            if "size_mm" in f.details:
+                size = f.details["size_mm"]
+                texture = f.details.get("texture", "unknown")
+                details_str = f" | Feat: {size}mm, {texture}"
+            
+            thinking_process.append({
+                "step": "Perception",
+                "description": f"I perceive a finding from {f.agent_name}: Class {f.predicted_class} (Prob: {p:.1%}, Weight: {w}{details_str})",
+                "type": "belief"
+            })
+            
+        # 2. Deliberation - Weighted Voting
+        equation = f"({ ' + '.join(explanation_parts) }) / {weight_sum}"
+        
+        # Calculate stats for confidence explanation
+        import statistics
+        if len(scores) > 1:
+            variance = statistics.variance(scores) # Sample variance, Prolog might use population but let's stick to concept
+            stdev = statistics.stdev(scores)
+            # Prolog formula: Confidence = max(0, 1 - (StdDev * 3))
+            # Note: Prolog uses population variance formula usually implemented manually.
+            # Let's match Prolog's output logic behavior explanation
+            
+            # Re-calculate manually to match Prolog's exact "sum_squares / N" logic
+            mean = sum(scores) / len(scores)
+            variance_pop = sum((x - mean) ** 2 for x in scores) / len(scores)
+            stdev_pop = variance_pop ** 0.5
+            calc_conf = max(0, 1 - (stdev_pop * 3))
+            
+            conf_e = f"1 - ({stdev_pop:.3f} * 3) = {calc_conf:.3f}"
+        else:
+            conf_e = "Single agent default (0.8)"
+
+        thinking_process.append({
+            "step": "Deliberation (Weighted Voting)",
+            "description": f"Formula: {equation} = {result['probability']:.1%}",
+            "type": "deliberation"
+        })
+        
+        # Generate consensus summary (Python-based, since Prolog facts are retracted after compute)
+        agreement_desc = "with good agreement" if result['confidence'] >= 0.6 else "with significant disagreement"
+        summary = f"Weighted consensus: {result['probability']:.2f} probability (class {result['predicted_class']}), confidence {result['confidence']:.2f} {agreement_desc}"
+        thinking_process.append({
+            "step": "Deliberation (Summary)",
+            "description": summary,
+            "type": "deliberation"
+        })
+
+        thinking_process.append({
+            "step": "Deliberation (Confidence)",
+            "description": f"Confidence is calculated based on agreement variance: {conf_e}",
+            "type": "deliberation"
+        })
+        
+        # 3. Knowledge Retrieval & Application (Rules)
+        try:
+            fired_rules_result = list(self.prolog.query(f"list_fired_rules('{nodule_id}', Rules)"))
+            if fired_rules_result:
+                rules = fired_rules_result[0].get("Rules", [])
+                if rules:
+                    thinking_process.append({
+                        "step": "Knowledge Check (Active Rules)",
+                        "description": f"The following Prolog rules were triggered: {', '.join(str(r) for r in rules)}",
+                        "type": "reasoning"
+                    })
+        except Exception as e:
+            logger.warning(f"Failed to query fired rules: {e}")
+            
+        # Check Disagreement Resolution
+        if result['confidence'] < 0.6:
+             try:
+                res_expl = list(self.prolog.query(f"explain_resolution('{nodule_id}', Expl)"))
+                if res_expl and "Expl" in res_expl[0]:
+                    thinking_process.append({
+                        "step": "Disagreement Resolution",
+                        "description": str(res_expl[0]["Expl"]),
+                        "type": "deliberation"
+                    })
+             except Exception:
+                 pass
+
+        # 4. Intention & Recommendation
+        rec_desc = ""
+        try:
+            rec_expl = list(self.prolog.query(f"explain_recommendation('{nodule_id}', Expl)"))
+            if rec_expl and "Expl" in rec_expl[0]:
+                rec_desc = f" | {rec_expl[0]['Expl']}"
+        except Exception:
+            pass
+
+        thinking_process.append({
+            "step": "Intention",
+            "description": f"I intend to classify as Class {result['predicted_class']} with {result['confidence']:.1%} confidence.{rec_desc}",
+            "type": "intention"
+        })
+        
         return {
             "method": "prolog_weighted_voting",
             "probability": result["probability"],
             "class": result["predicted_class"],
-            "confidence": result["confidence"]
+            "confidence": result["confidence"],
+            "thinking_process": thinking_process
         }
 
 
@@ -378,7 +510,8 @@ class MultiAgentOrchestrator:
             pathologist_findings=pathologist_findings,
             agreement_level=agreement_level,
             disagreement_agents=disagreement_agents,
-            prolog_reasoning=consensus
+            prolog_reasoning=consensus,
+            thinking_process=consensus.get("thinking_process", [])
         )
         
         logger.info(
@@ -597,7 +730,8 @@ class MultiAgentOrchestrator:
                     }
                     for f in result.pathologist_findings
                 ],
-                "prolog_reasoning": result.prolog_reasoning
+                "prolog_reasoning": result.prolog_reasoning,
+                "thinking_process": result.thinking_process
             })
         
         with open(output_path, 'w') as f:
@@ -656,6 +790,10 @@ async def main():
     print("\n--- Pathologist Findings ---")
     for f in result.pathologist_findings:
         print(f"  {f.agent_name}: class={f.predicted_class}, prob={f.probability:.3f}")
+
+    print("\n--- Thinking Process (BDI) ---")
+    for step in result.thinking_process:
+        print(f"  [{step['type'].upper()}] {step['step']}: {step['description']}")
     
     print("\n--- Statistics ---")
     stats = orchestrator.get_statistics()

@@ -402,6 +402,70 @@ class OncologistAgent(MedicalAgentBase):
         
         return recommendation
     
+    def _get_thinking_process(self, nodule_id: str) -> List[Dict[str, str]]:
+        """
+        Extract the agent's thinking process (BDI format) for visualization.
+        
+        Returns:
+            List of steps with 'step', 'description', and 'type'.
+        """
+        steps = []
+        
+        # 1. Perception (Beliefs from other agents)
+        findings = self._findings.get(nodule_id, [])
+        for f in findings:
+            agent = f["agent"]
+            data = f["data"]
+            prob = data.get("malignancy_probability") or data.get("probability", 0)
+            cls = data.get("predicted_class", "?")
+            
+            steps.append({
+                "step": "Perception",
+                "description": f"I perceive a finding from {agent}: Class {cls} (Prob: {prob:.1%})",
+                "type": "belief"
+            })
+            
+        # 2. Knowledge Retrieval (Prolog)
+        # Check specific beliefs for this nodule
+        lung_rads_belief = [b for b in self.beliefs if b.key == "lung_rads" and b.args[0] == nodule_id]
+        if lung_rads_belief:
+            _, cat, mgmt = lung_rads_belief[0].args
+            steps.append({
+                "step": "Knowledge Retrieval",
+                "description": f"My internal knowledge base (Prolog) indicates Lung-RADS Category {cat}",
+                "type": "reasoning"
+            })
+            steps.append({
+                "step": "Guideline Application",
+                "description": f"Standard management for Category {cat} is: {mgmt}",
+                "type": "reasoning"
+            })
+            
+        # 3. Deliberation (Consensus)
+        consensus_belief = [b for b in self.beliefs if b.key == "consensus" and b.args[0] == nodule_id]
+        if consensus_belief:
+            _, prob, risk, conf = consensus_belief[0].args
+            steps.append({
+                "step": "Deliberation",
+                "description": f"Weighing all evidence, I calculate a consensus probability of {prob:.1%}",
+                "type": "deliberation"
+            })
+            steps.append({
+                "step": "Risk Assessment",
+                "description": f"This places the nodule in the '{risk}' risk tier (Confidence: {conf:.1%})",
+                "type": "deliberation"
+            })
+            
+        # 4. Intention (Final Decision)
+        steps.append({
+            "step": "Intention",
+            "description": "I intend to recommend the management plan derived from consensus and guidelines.",
+            "type": "intention"
+        })
+        
+        return steps
+
+    
     # =========================================================================
     # Main Processing Interface
     # =========================================================================
@@ -485,6 +549,7 @@ class OncologistAgent(MedicalAgentBase):
                 "management": management,
                 "description": recommendation
             },
+            "thinking_process": self._get_thinking_process(nodule_id),
             "sources": {
                 "agent_count": len(self._findings.get(nodule_id, [])),
                 "method": "prolog"  # STRICT MODE: Always Prolog

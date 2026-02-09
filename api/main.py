@@ -336,6 +336,7 @@ async def run_analysis_task(session_id: str, nodule_id: str):
                 for f in result.pathologist_findings
             ],
             "prolog_reasoning": result.prolog_reasoning,
+            "thinking_process": result.thinking_process,
         }
         
         # Add Lung-RADS category based on final class

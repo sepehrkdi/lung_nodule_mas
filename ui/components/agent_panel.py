@@ -380,3 +380,60 @@ def render_consensus_panel(consensus: Dict[str, Any]):
     if disagreement_agents:
         st.markdown("---")
         st.warning(f"⚠️ **Disagreement detected** among agents: {', '.join(disagreement_agents)}")
+    
+    # Render Thinking Process (BDI)
+    print(f"DEBUG: Consensus keys: {list(consensus.keys())}")
+    if "thinking_process" in consensus:
+        render_thinking_process(consensus["thinking_process"])
+
+
+def render_thinking_process(steps: List[Dict[str, str]]):
+    """
+    Render the agent's internal thinking process (BDI).
+    
+    Args:
+        steps: List of reasoning steps
+    """
+    st.markdown("---")
+    st.subheader("🧠 Agent Thinking Process")
+    
+    with st.expander("See internal BDI reasoning (Beliefs, Desires, Intentions)", expanded=False):
+        for step in steps:
+            step_type = step.get("type", "info")
+            icon = "ℹ️"
+            color = "#17a2b8"
+            
+            if step_type == "belief":
+                icon = "👁️"  # Perception
+                color = "#28a745"
+            elif step_type == "reasoning":
+                icon = "⚙️"  # Processing/Logic
+                color = "#ffc107"
+            elif step_type == "deliberation":
+                icon = "⚖️"  # Weighing options
+                color = "#17a2b8"
+            elif step_type == "intention":
+                icon = "🎯"  # Goal/Action
+                color = "#dc3545"
+            
+            st.markdown(f"""
+            <div style="
+                display: flex;
+                align-items: flex-start;
+                margin-bottom: 10px;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-left: 4px solid {color};
+                border-radius: 4px;
+            ">
+                <div style="font-size: 1.2em; margin-right: 15px;">{icon}</div>
+                <div>
+                    <div style="font-weight: bold; color: {color}; font-size: 0.85em; text-transform: uppercase;">
+                        {step.get('step')}
+                    </div>
+                    <div style="color: #333;">
+                        {step.get('description')}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)

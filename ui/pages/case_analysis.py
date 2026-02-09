@@ -30,7 +30,7 @@ API_BASE_URL = "http://localhost:8000"
 def check_api_connection() -> bool:
     """Check if the API is available."""
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=2)
+        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
         return response.status_code == 200
     except:
         return False
@@ -39,7 +39,7 @@ def check_api_connection() -> bool:
 def get_nodule_list() -> list:
     """Fetch list of available nodules from API."""
     try:
-        response = requests.get(f"{API_BASE_URL}/nodules", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/nodules", timeout=10)
         if response.status_code == 200:
             return response.json().get("nodule_ids", [])
     except:
@@ -50,7 +50,7 @@ def get_nodule_list() -> list:
 def get_nodule_features(nodule_id: str) -> Optional[Dict[str, Any]]:
     """Fetch nodule features from API."""
     try:
-        response = requests.get(f"{API_BASE_URL}/nodules/{nodule_id}/features", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/nodules/{nodule_id}/features", timeout=10)
         if response.status_code == 200:
             return response.json()
     except:
@@ -61,7 +61,7 @@ def get_nodule_features(nodule_id: str) -> Optional[Dict[str, Any]]:
 def get_nodule_report(nodule_id: str) -> Optional[str]:
     """Fetch generated report from API."""
     try:
-        response = requests.get(f"{API_BASE_URL}/nodules/{nodule_id}/report", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/nodules/{nodule_id}/report", timeout=10)
         if response.status_code == 200:
             return response.json().get("report_text", "")
     except:
@@ -83,7 +83,7 @@ def start_analysis(nodule_id: str) -> Optional[str]:
 def get_analysis_status(session_id: str) -> Optional[Dict[str, Any]]:
     """Poll for analysis status."""
     try:
-        response = requests.get(f"{API_BASE_URL}/analyze/status/{session_id}", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/analyze/status/{session_id}", timeout=10)
         if response.status_code == 200:
             return response.json()
     except:
