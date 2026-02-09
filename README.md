@@ -26,7 +26,7 @@ This project uses **SPADE-BDI** as the primary BDI framework:
 
 ## Architecture
 
-### Extended 5-Agent Architecture (Recommended)
+### Extended 6-Agent Architecture (Recommended)
 
 ```
     ┌─────────────────────────────────────────────────────────────────┐
@@ -42,14 +42,14 @@ This project uses **SPADE-BDI** as the primary BDI framework:
     │          │                 │                  │                 │
     │          └────────────────┬┴──────────────────┘                │
     │                           │                                     │
-    │   PATHOLOGIST AGENTS (Report Analysis) - 2 Approaches          │
-    │   ┌──────────────────────┐  ┌──────────────────────┐           │
-    │   │    Regex-Based       │  │    spaCy NER + Rules │           │
-    │   │     W = 0.8          │  │       W = 0.9        │           │
-    │   │  (Pattern Match)     │  │   (Statistical NLP)  │           │
-    │   └──────────┬───────────┘  └──────────┬───────────┘           │
-    │              │                          │                       │
-    │              └────────────┬─────────────┘                      │
+    │   PATHOLOGIST AGENTS (Report Analysis) - 3 Approaches          │
+    │   ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐      │
+    │   │  Regex-Based │  │ spaCy NER + Rules│  │   Context    │      │
+    │   │   W = 0.8    │  │     W = 0.9      │  │   W = 0.85   │      │
+    │   │ (Patterns)   │  │ (Statistical NLP)│  │ (Contextual) │      │
+    │   └──────┬───────┘  └────────┬─────────┘  └──────┬───────┘      │
+    │          │                   │                   │              │
+    │          └──────────────────┬┴───────────────────┘              │
     │                           │                                     │
     │   ┌───────────────────────┴───────────────────────┐            │
     │   │              PROLOG CONSENSUS                  │            │
@@ -97,7 +97,7 @@ This project uses **SPADE-BDI** as the primary BDI framework:
 
 ### 3. Oncologist/Consensus (Symbolic Reasoning)
 - Uses **Prolog** via PySwip
-- Combines findings from ALL 5 agents
+- Combines findings from ALL 6 agents
 - Applies **Lung-RADS** classification rules
 - Implements **weighted consensus voting**
 - Handles disagreement resolution
@@ -202,12 +202,12 @@ Each fallback case includes:
 
 ## Usage
 
-### Extended 5-Agent Demo (Recommended)
+### Extended 6-Agent Demo (Recommended)
 ```bash
 python main_extended.py --demo
 ```
 
-### Extended 5-Agent Evaluation
+### Extended 6-Agent Evaluation
 ```bash
 python main_extended.py --evaluate
 ```
@@ -257,7 +257,7 @@ python spade_main.py --all --output results.json
 ```
 lung_nodule_mas/
 ├── main.py                     # Original orchestrator
-├── main_extended.py            # Extended 5-agent orchestrator (recommended)
+├── main_extended.py            # Extended 6-agent orchestrator (recommended)
 ├── spade_main.py               # SPADE-BDI orchestrator
 ├── orchestrator.py             # Multi-agent orchestrator with Prolog consensus
 ├── requirements.txt            # Dependencies
@@ -295,13 +295,13 @@ lung_nodule_mas/
 │   └── extractor.py           # scispaCy extractor
 │
 ├── data/                       # Data handling
-│   ├── lidc_loader.py         # LIDC data loader
-│   ├── openi_loader.py        # Open-I dataset loader
-│   ├── report_generator.py    # Report synthesis
-│   ├── prepare_dataset.py     # Dataset prep
-│   └── fallback/              # Demo nodules
-│       ├── nodule_001.json
-│       └── ...
+│   ├── nlmcxr_loader.py       # NLMCXR data loader
+│   ├── nlmcxr_parser.py       # XML report parser
+│   ├── base_loader.py         # Abstract loader interface
+│   ├── extract_nlmcxr.py      # Dataset extraction
+│   └── NLMCXR/                 # Dataset directory
+│       ├── ecgen-radiology/   # XML reports
+│       └── images/            # PNG images
 │
 └── evaluation/                 # Metrics
     └── metrics.py             # Accuracy, ROC, etc.
@@ -341,7 +341,7 @@ lung_nodule_mas/
 
 ```
 === SPADE-BDI MULTI-AGENT SYSTEM RESULTS ===
-Agents: 3 Radiologists, 2 Pathologists, 1 Oncologist
+Agents: 3 Radiologists, 3 Pathologists, 1 Oncologist
 
 --- nodule_001 ---
   Ground Truth:    Malignancy 1
@@ -386,7 +386,7 @@ Avg Confidence:      81.2%
 - AgentSpeak(L): Rao, A. S. (1996). "AgentSpeak(L): BDI Agents Speak Out in a Logical Computable Language"
 
 ### Medical AI
-- Armato III, S. G., et al. (2011). "The Lung Image Database Consortium (LIDC) and Image Database Resource Initiative (IDRI)"
+- Demner-Fushman, D., et al. (2016). "Preparing a collection of radiology examinations for distribution and retrieval" (Open-I/NLMCXR)
 - American College of Radiology. (2019). "Lung-RADS Assessment Categories"
 
 ### NLP for Medical Text

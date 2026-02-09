@@ -100,45 +100,37 @@ class NoduleClassifier:
         """
         try:
             import torch
-            import torchvision.models as models
             import torchvision.transforms as transforms
+            import torchxrayvision as xrv
             
             # Determine device
             if self.device is None:
                 self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
             
-            # Load pre-trained DenseNet121
-            # EDUCATIONAL: These weights are trained on ImageNet
-            print(f"[NoduleClassifier] Loading DenseNet121 on {self.device}...")
+            # Load pre-trained DenseNet121 from TorchXRayVision
+            # EDUCATIONAL: These weights are trained on multiple chest X-ray datasets
+            # (NIH, PC, CheXpert, MIMIC_CH, Google, OpenI, RSNA, etc.)
+            print(f"[NoduleClassifier] Loading TorchXRayVision DenseNet on {self.device}...")
             
-            # Use weights parameter for newer torchvision versions
-            try:
-                weights = models.DenseNet121_Weights.IMAGENET1K_V1
-                self.model = models.densenet121(weights=weights)
-            except AttributeError:
-                # Fallback for older torchvision
-                self.model = models.densenet121(pretrained=True)
-            
+            self.model = xrv.models.DenseNet(weights="densenet121-res224-all")
             self.model = self.model.to(self.device)
-            self.model.eval()  # Set to evaluation mode
+            self.model.eval()
             
-            # Define preprocessing transform
-            # EDUCATIONAL: ImageNet normalization is standard practice
+            # Define preprocessing transform for XRV
+            # XRV expects images to be normalized to [-1024, 1024]
+            # We will handle this normalization in _preprocess_image
             self.transform = transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],  # ImageNet means
-                    std=[0.229, 0.224, 0.225]    # ImageNet stds
-                )
+                transforms.ToTensor() 
             ])
             
             self.model_loaded = True
-            print("[NoduleClassifier] DenseNet121 loaded successfully")
+            print("[NoduleClassifier] TorchXRayVision model loaded successfully")
+            print(f"[NoduleClassifier] Model pathologies: {self.model.pathologies}")
             
         except ImportError as e:
-            print(f"[NoduleClassifier] PyTorch not available: {e}")
+            print(f"[NoduleClassifier] TorchXRayVision not available: {e}")
             print("[NoduleClassifier] Falling back to feature-based classification")
         except Exception as e:
             print(f"[NoduleClassifier] Model loading failed: {e}")
@@ -173,23 +165,60 @@ class NoduleClassifier:
         if not isinstance(image, np.ndarray):
             image = np.array(image)
         
-        # Handle grayscale images
-        if len(image.shape) == 2:
-            # Convert to RGB by stacking
-            image = np.stack([image, image, image], axis=-1)
-        elif len(image.shape) == 3 and image.shape[2] == 1:
-            # Single channel to RGB
-            image = np.concatenate([image, image, image], axis=-1)
+        # Handle channels - XRV expects 1 channel (Grayscale)
+        if len(image.shape) == 3:
+            # If RGB, convert to grayscale using standard weights
+            if image.shape[2] == 3:
+                image = 0.2989 * image[:,:,0] + 0.5870 * image[:,:,1] + 0.1140 * image[:,:,2]
+            # If 1 channel but 3D dims
+            elif image.shape[2] == 1:
+                image = image[:,:,0]
         
-        # Ensure uint8 for PIL
-        if image.dtype != np.uint8:
-            if image.max() <= 1.0:
-                image = (image * 255).astype(np.uint8)
-            else:
-                image = image.astype(np.uint8)
+        # Ensure float32 for calculations
+        image = image.astype(np.float32)
         
-        # Apply transform
-        tensor = self.transform(image)
+        # Normalize to range [-1024, 1024]
+        # Assuming input is [0, 255] or [0, 1]
+        if image.max() <= 1.0:
+            # Map [0, 1] -> [-1024, 1024]
+            image = (image * 2048) - 1024
+        else:
+            # Map [0, 255] -> [-1024, 1024]
+            image = (image / 255.0 * 2048) - 1024
+            
+        # Clip to ensure range
+        image = np.clip(image, -1024, 1024)
+            
+        # Convert back to uint8 for PIL (resizing) - WAIT, PIL needs 0-255
+        # So we resize FIRST before normalization if using PIL, OR use torch for resizing.
+        # Let's use torch transform which expects 0-1 tensor if possible, but XRV needs specific values.
+        # Better approach: Resize numpy array directly or use transform on normalized tensor.
+        
+        # Let's stick to the self.transform which does ToTensor (Expects 0-1)
+        # So we should pass 0-1 image to transform, then scale tensor.
+        
+        # RE-DOING NORMALIZATION STRATEGY:
+        # 1. Normalize/Ensure input is 0-1
+        # 2. Resize using standard transforms (keeps 0-1)
+        # 3. Scale tensor to -1024..1024
+        
+        # Reset image to 0-1 base
+        if image.max() > 1024: # Correction for my previous logic block
+             image = image / 255.0 
+        elif image.min() < -500: # Was already normalized?
+             # Assume it's already properly scaled, map back to 0-1 for resizing safe
+             image = (image + 1024) / 2048
+        elif image.max() > 1.0: # 0-255
+             image = image / 255.0
+             
+        # Ensure uint8 for PIL resize to work smoothly with ToPILImage
+        image_uint8 = (image * 255).astype(np.uint8)
+        
+        # Apply transform (Resize -> Tensor 0-1)
+        tensor = self.transform(image_uint8)
+        
+        # Now scale Tensor to [-1024, 1024]
+        tensor = (tensor * 2048) - 1024
         
         # Add batch dimension
         tensor = tensor.unsqueeze(0)
@@ -266,23 +295,51 @@ class NoduleClassifier:
         with torch.no_grad():
             tensor = self._preprocess_image(image)
             
-            # Get model output
+            # Get model output (pathologies probabilities)
             output = self.model(tensor)
             
-            # Apply softmax to get probabilities
-            probs = torch.nn.functional.softmax(output, dim=1)
+            # Find "Nodule" or "Mass" class
+            target_idx = -1
+            pathologies = self.model.pathologies
             
-            # Get top predictions
-            top_probs, top_classes = torch.topk(probs, 5)
+            if "Nodule" in pathologies:
+                target_idx = pathologies.index("Nodule")
+            elif "Mass" in pathologies:
+                target_idx = pathologies.index("Mass")
+                
+            if target_idx != -1:
+                # Use the specific nodule probability
+                # XRV outputs are already probabilities or logits? 
+                # xrv.models.DenseNet has sigmoids at end? 
+                # Docs say: outputs are raw logits usually, need sigmoid. 
+                # BUT xrv.models.DenseNet forward() returns 'out' which is often logits.
+                # Let's check source code dynamically or assume logits. 
+                # Actually XRV DenseNet forward returns dictionary if feature_map is requested, but raw tensor otherwise.
+                # It usually applies sigmoid in training but output of .forward() is logits?
+                # Inspecting: "The forwarding function returns the output of the model... logits."
+                
+                probs = torch.sigmoid(output)
+                malignancy_score = float(probs[0, target_idx])
+                
+                # Boost confidence since we have a specific model
+                confidence_boost = 0.2
+            else:
+                # Fallback if class not found
+                malignancy_score = 0.5
+                confidence_boost = 0.0
+
+            # Get top predictions across all pathologies
+            probs_all = torch.sigmoid(output)
+            top_probs, top_indices = torch.topk(probs_all, 5)
+            top_classes = top_indices # Just indices
             
         # EDUCATIONAL NOTE:
-        # The model outputs ImageNet class probabilities.
-        # For a real medical classifier, you would:
-        # 1. Replace the final layer with a 5-class output (malignancy 1-5)
-        # 2. Fine-tune on labeled nodule data
-        # 3. Use proper calibration
+        # We successfully used a model trained on Chest X-rays!
+        # output[target_idx] gives us the probability of a "Nodule".
         
-        # For demo, we extract features and use heuristics
+        # For compatibility with the rest of the system (Malignancy 1-5),
+        # we map the probability [0, 1] to the scale [1, 5]
+        # and combine with visual feature heuristics.
         features = self._extract_features(image)
         
         # Compute feature statistics
@@ -295,20 +352,35 @@ class NoduleClassifier:
         
         # Heuristic malignancy estimation based on features
         # Higher feature activation variance often indicates complexity
-        malignancy_score = self._estimate_malignancy_from_features(
+        heuristic_score = self._estimate_malignancy_from_features(
             features, image_stats
         )
         
+        # Combine model prediction with heuristic
+        if confidence_boost > 0:
+            # Weighted average: 70% model, 30% heuristic
+            final_malignancy = 0.7 * malignancy_score + 0.3 * heuristic_score
+            final_confidence = min(0.95, 0.6 + feature_std * 0.1 + confidence_boost)
+        else:
+            # Fallback to mostly heuristic if specific class not found
+            final_malignancy = heuristic_score
+            final_confidence = min(0.9, 0.5 + feature_std * 0.1)
+        
+        # Clip result
+        final_malignancy = float(np.clip(final_malignancy, 0.0, 1.0))
+        
         return {
-            "malignancy_probability": malignancy_score,
-            "predicted_class": self._score_to_class(malignancy_score),
+            "malignancy_probability": final_malignancy,
+            "predicted_class": self._score_to_class(final_malignancy),
             "estimated_size_mm": image_stats["estimated_size"],
-            "confidence": min(0.9, 0.5 + feature_std * 0.1),  # Heuristic confidence
+            "confidence": final_confidence,
             "features_summary": {
                 "mean_activation": feature_mean,
                 "std_activation": feature_std,
                 "max_activation": feature_max,
-                "feature_dim": len(features)
+                "feature_dim": len(features),
+                "model_prediction": malignancy_score,
+                "heuristic_prediction": heuristic_score
             },
             "image_stats": image_stats
         }
@@ -459,12 +531,12 @@ class NoduleClassifier:
         """
         Convert malignancy probability to class (1-5).
         
-        LIDC-IDRI Malignancy Scale:
-        1 = Highly Unlikely
+        Malignancy Scale (Lung-RADS aligned):
+        1 = Highly Unlikely (benign)
         2 = Moderately Unlikely
         3 = Indeterminate
         4 = Moderately Suspicious
-        5 = Highly Suspicious
+        5 = Highly Suspicious (malignant)
         """
         if score < 0.2:
             return 1

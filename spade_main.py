@@ -75,9 +75,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ProcessingResult:
-    """Result from processing a single nodule."""
+    """Result from processing a single case."""
     nodule_id: str
-    ground_truth: int  # Malignancy 1-5
+    ground_truth: int  # Binary: 1=abnormal, 0=normal, -1=indeterminate
     predicted_class: int
     malignancy_probability: float
     lung_rads: str
@@ -194,12 +194,10 @@ class SPADEMedicalMAS:
         # Single oncologist for consensus
         self.oncologist = OncologistAgent(name="oncologist")
         
-        # Initialize data loader
-        from data.lidc_loader import LIDCLoader
-        from data.report_generator import ReportGenerator
+        # Initialize data loader (NLMCXR with real radiology reports)
+        from data.nlmcxr_loader import NLMCXRLoader
         
-        self.loader = LIDCLoader(data_path)
-        self.report_generator = ReportGenerator()
+        self.loader = NLMCXRLoader(data_path)
         
         # Results storage
         self.results: List[ProcessingResult] = []
@@ -248,12 +246,12 @@ class SPADEMedicalMAS:
     
     async def process_nodule_async(self, nodule_id: str) -> ProcessingResult:
         """
-        Process a single nodule through all agents asynchronously.
+        Process a single case through all agents asynchronously.
         
         EDUCATIONAL PURPOSE - PARALLEL AGENT EXECUTION:
         
-        1. Load nodule data (image + features)
-        2. Generate synthetic report from features
+        1. Load case data (images + metadata with real report)
+        2. Use real FINDINGS/IMPRESSION from radiology report
         3. Run ALL radiologists in parallel (concurrent classification)
         4. Run ALL pathologists in parallel (concurrent NLP)
         5. Collect all findings
@@ -261,7 +259,7 @@ class SPADEMedicalMAS:
         7. Return final assessment
         
         Args:
-            nodule_id: Identifier for the nodule to process
+            nodule_id: Identifier for the case to process (case_id)
             
         Returns:
             ProcessingResult with consensus classification
@@ -269,30 +267,42 @@ class SPADEMedicalMAS:
         start_time = time.time()
         self._log(f"Processing {nodule_id} with {len(self.radiologists)}R/{len(self.pathologists)}P agents...")
         
-        # Load nodule data
+        # Load case data (NLMCXR returns list of images + metadata)
         try:
-            image, features = self.loader.load_nodule(nodule_id)
+            images, metadata = self.loader.load_case(nodule_id)
         except Exception as e:
             self._log(f"Could not load {nodule_id}: {e}")
             return self._empty_result(nodule_id, time.time() - start_time)
         
-        if features is None:
-            self._log(f"No features for {nodule_id}")
+        if metadata is None:
+            self._log(f"No metadata for {nodule_id}")
             return self._empty_result(nodule_id, time.time() - start_time)
-            
-        ground_truth = features.get("malignancy", 3)
         
-        # Generate report from features
-        report_text = self.report_generator.generate(features)
+        # Ground truth from NLP extraction of report text
+        ground_truth = metadata.get("ground_truth", -1)
         
-        # Run ALL radiologists in parallel
+        # Use real radiology report text (FINDINGS + IMPRESSION)
+        findings = metadata.get("findings", "")
+        impression = metadata.get("impression", "")
+        report_text = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}".strip()
+        
+        # Build features dict from NLP extraction and metadata
+        features = metadata.get("nlp_features", {})
+        features.update({
+            "case_id": nodule_id,
+            "num_images": len(images),
+            "ground_truth": ground_truth
+        })
+        
+        # Run ALL radiologists in parallel (pass first image or list)
+        image = images[0] if len(images) == 1 else images
         rad_tasks = [
             self._run_radiologist(agent, nodule_id, image, features)
             for agent in self.radiologists
         ]
         rad_results = await asyncio.gather(*rad_tasks)
         
-        # Run ALL pathologists in parallel
+        # Run ALL pathologists in parallel with real report text
         path_tasks = [
             self._run_pathologist(agent, nodule_id, report_text, features)
             for agent in self.pathologists
@@ -357,16 +367,16 @@ class SPADEMedicalMAS:
     
     async def process_all_async(self) -> List[ProcessingResult]:
         """
-        Process all nodules asynchronously.
+        Process all cases asynchronously.
         
         Returns:
-            List of ProcessingResult for each nodule
+            List of ProcessingResult for each case
         """
-        nodule_ids = self.loader.list_nodules()
-        self._log(f"Processing {len(nodule_ids)} nodules with SPADE-BDI...")
+        case_ids = self.loader.get_case_ids()
+        self._log(f"Processing {len(case_ids)} cases with SPADE-BDI...")
         
-        for nodule_id in nodule_ids:
-            await self.process_nodule_async(nodule_id)
+        for case_id in case_ids:
+            await self.process_nodule_async(case_id)
         
         return self.results
     
@@ -396,8 +406,8 @@ class SPADEMedicalMAS:
         """Create empty result for failed processing."""
         return ProcessingResult(
             nodule_id=nodule_id,
-            ground_truth=3,
-            predicted_class=3,
+            ground_truth=-1,  # Indeterminate
+            predicted_class=0,
             malignancy_probability=0.5,
             lung_rads="3",
             recommendation="Unable to process",
@@ -416,21 +426,18 @@ class SPADEMedicalMAS:
         
         total = len(self.results)
         
-        # Calculate accuracy
-        correct = sum(
-            1 for r in self.results 
-            if r.predicted_class == r.ground_truth
-        )
-        
-        # Binary accuracy (exclude indeterminate)
+        # Binary accuracy (exclude indeterminate ground truth = -1)
         binary_results = [
             r for r in self.results 
-            if r.ground_truth != 3
+            if r.ground_truth != -1
         ]
+        
+        # Calculate binary accuracy
+        # predicted_class: map to binary (prob > 0.5 = abnormal)
         binary_correct = sum(
             1 for r in binary_results
-            if (r.predicted_class <= 2 and r.ground_truth <= 2) or
-               (r.predicted_class >= 4 and r.ground_truth >= 4)
+            if (r.malignancy_probability >= 0.5 and r.ground_truth == 1) or
+               (r.malignancy_probability < 0.5 and r.ground_truth == 0)
         )
         
         # Lung-RADS distribution
@@ -445,11 +452,21 @@ class SPADEMedicalMAS:
         # Average confidence
         avg_conf = sum(r.confidence for r in self.results) / total
         
+        # Count ground truth distribution
+        gt_dist = {"abnormal": 0, "normal": 0, "indeterminate": 0}
+        for r in self.results:
+            if r.ground_truth == 1:
+                gt_dist["abnormal"] += 1
+            elif r.ground_truth == 0:
+                gt_dist["normal"] += 1
+            else:
+                gt_dist["indeterminate"] += 1
+        
         return {
-            "total_nodules": total,
-            "five_class_accuracy": correct / total if total > 0 else 0,
+            "total_cases": total,
             "binary_accuracy": binary_correct / len(binary_results) if binary_results else 0,
-            "binary_total": len(binary_results),
+            "evaluable_cases": len(binary_results),
+            "ground_truth_distribution": gt_dist,
             "lung_rads_distribution": lung_rads_dist,
             "average_processing_time": avg_time,
             "average_confidence": avg_conf,
@@ -470,26 +487,34 @@ class SPADEMedicalMAS:
         
         for result in self.results:
             print(f"\n--- {result.nodule_id} ---")
-            print(f"  Ground Truth:    Malignancy {result.ground_truth}")
-            print(f"  Predicted:       Malignancy {result.predicted_class}")
+            gt_label = {1: "Abnormal", 0: "Normal", -1: "Indeterminate"}.get(result.ground_truth, "Unknown")
+            pred_label = "Abnormal" if result.malignancy_probability >= 0.5 else "Normal"
+            print(f"  Ground Truth:    {gt_label}")
+            print(f"  Predicted:       {pred_label}")
             print(f"  Probability:     {result.malignancy_probability:.3f}")
             print(f"  Confidence:      {result.confidence:.3f}")
             print(f"  Lung-RADS:       Category {result.lung_rads}")
             print(f"  Time:            {result.processing_time:.2f}s")
             
-            match = "✓" if result.predicted_class == result.ground_truth else "✗"
-            print(f"  Match:           {match}")
+            if result.ground_truth != -1:
+                pred_binary = 1 if result.malignancy_probability >= 0.5 else 0
+                match = "✓" if pred_binary == result.ground_truth else "✗"
+                print(f"  Match:           {match}")
+            else:
+                print(f"  Match:           N/A (no ground truth)")
         
         # Summary
         summary = self.get_summary()
         print("\n" + "="*70)
         print("SUMMARY")
         print("="*70)
-        print(f"Total Nodules:       {summary['total_nodules']}")
-        print(f"5-Class Accuracy:    {summary['five_class_accuracy']:.1%}")
-        print(f"Binary Accuracy:     {summary['binary_accuracy']:.1%} ({summary['binary_total']} nodules)")
+        print(f"Total Cases:         {summary['total_cases']}")
+        print(f"Binary Accuracy:     {summary['binary_accuracy']:.1%} ({summary['evaluable_cases']} evaluable cases)")
         print(f"Avg Confidence:      {summary['average_confidence']:.1%}")
         print(f"Avg Processing Time: {summary['average_processing_time']:.2f}s")
+        print(f"\nGround Truth Distribution:")
+        for label, count in summary['ground_truth_distribution'].items():
+            print(f"  {label.capitalize()}: {count}")
         print(f"\nLung-RADS Distribution:")
         for cat, count in sorted(summary['lung_rads_distribution'].items()):
             print(f"  Category {cat}: {count}")
@@ -503,7 +528,7 @@ def run_demo():
     print()
     print("This demo showcases:")
     print("1. SPADE-BDI: Proper AgentSpeak(L) interpreter")
-    print("2. Multiple Agents: 3 Radiologists + 2 Pathologists + 1 Oncologist")
+    print("2. Multiple Agents: 3 Radiologists + 3 Pathologists + 1 Oncologist")
     print("3. Weighted Consensus: Disagreement resolution via voting")
     print("4. Internal Actions: Python ML/NLP called from AgentSpeak plans")
     print()
@@ -515,20 +540,22 @@ def run_demo():
         verbose=True
     )
     
-    # Select nodules for demo
-    ids = mas.loader.get_nodule_ids()
+    # Select cases for demo
+    ids = mas.loader.get_case_ids()
     if not ids:
-        print("No nodules found in data directory.")
+        print("No cases found in data directory.")
         return
-    nodule_ids = ids[:3] # Process first 3 nodules for demo
+    case_ids = ids[:3] # Process first 3 cases for demo
     
-    for nodule_id in nodule_ids:
-        result = mas.process_nodule(nodule_id)
+    for case_id in case_ids:
+        result = mas.process_nodule(case_id)
         
         print(f"\n{'='*50}")
-        print(f"Result for {nodule_id}:")
-        print(f"  Ground Truth:    Malignancy {result.ground_truth}")
-        print(f"  Prediction:      Malignancy {result.predicted_class}")
+        print(f"Result for {case_id}:")
+        gt_label = {1: "Abnormal", 0: "Normal", -1: "Indeterminate"}.get(result.ground_truth, "Unknown")
+        pred_label = "Abnormal" if result.malignancy_probability >= 0.5 else "Normal"
+        print(f"  Ground Truth:    {gt_label}")
+        print(f"  Prediction:      {pred_label}")
         print(f"  Probability:     {result.malignancy_probability:.2%}")
         print(f"  Confidence:      {result.confidence:.2%}")
         print(f"  Lung-RADS:       Category {result.lung_rads}")
@@ -652,9 +679,9 @@ Examples:
     
     else:
         # Default: process first 5 or all if less
-        nodule_ids = mas.loader.get_nodule_ids()[:5]
-        for nodule_id in nodule_ids:
-            mas.process_nodule(nodule_id)
+        case_ids = mas.loader.get_case_ids()[:5]
+        for case_id in case_ids:
+            mas.process_nodule(case_id)
         mas.print_results()
     
     # Run evaluation if requested

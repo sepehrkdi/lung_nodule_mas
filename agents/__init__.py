@@ -27,9 +27,10 @@ Specialized Variant Agents (Extended Architecture):
     - RadiologistResNet: ResNet50 CNN architecture  
     - RadiologistRuleBased: Size/texture heuristic rules
     
-    Pathologists (2 approaches):
+    Pathologists (3 approaches):
     - PathologistRegex: Regular expression pattern matching
     - PathologistSpacy: spaCy NER + semantic rules
+    - PathologistContext: Contextual analysis for negation and uncertainty
 
 Note: The SPADE-BDI agents provide proper AgentSpeak(L) plan execution
       as required for academic BDI demonstrations.

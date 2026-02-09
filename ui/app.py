@@ -33,7 +33,7 @@ st.set_page_config(
         
         A multi-agent system for lung nodule classification using:
         - 3 Radiologist agents (DenseNet-121, ResNet-50, Rule-based)
-        - 2 Pathologist agents (Regex, spaCy NER)
+        - 3 Pathologist agents (Regex, spaCy NER, Context Analyzer)
         - Prolog-based consensus mechanism
         
         Educational demonstration of AI in medical imaging.

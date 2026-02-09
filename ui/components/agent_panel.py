@@ -3,7 +3,7 @@ Agent Panel Component
 =====================
 
 Displays agent findings in card format with real-time updates.
-Shows 5 agent cards: 3 radiologists + 2 pathologists
+Shows 6 agent cards: 3 radiologists + 3 pathologists
 """
 
 import streamlit as st
@@ -47,6 +47,13 @@ AGENT_INFO = {
         "approach": "NLP / NER",
         "color": "#8BD48F",
     },
+    "pathologist_context": {
+        "display_name": "Context Analyzer",
+        "type": "Pathologist",
+        "icon": "🔍",
+        "approach": "Negation/Uncertainty",
+        "color": "#9BE49F",
+    },
 }
 
 # All agent names in expected order
@@ -56,6 +63,7 @@ ALL_AGENTS = [
     "radiologist_rulebased",
     "pathologist_regex",
     "pathologist_spacy",
+    "pathologist_context",
 ]
 
 
@@ -222,7 +230,7 @@ def render_agent_panel(
     show_all: bool = True
 ):
     """
-    Render the full agent panel with all 5 agent cards.
+    Render the full agent panel with all 6 agent cards.
     
     Args:
         completed_agents: List of completed agent findings

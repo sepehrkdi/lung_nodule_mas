@@ -140,16 +140,13 @@ class EvaluationMetrics:
         predictions: np.ndarray
     ) -> Dict[str, Any]:
         """
-        Evaluate 5-class malignancy prediction.
+        Evaluate multi-class prediction.
         
         EDUCATIONAL NOTE:
-        Medical imaging often uses multi-level ratings.
-        LIDC-IDRI uses 5 levels:
-        1 = Highly Unlikely malignant
-        2 = Moderately Unlikely
-        3 = Indeterminate
-        4 = Moderately Suspicious
-        5 = Highly Suspicious
+        For systems that support multi-class output (e.g., Lung-RADS categories),
+        this evaluates per-class precision, recall, and F1 scores.
+        
+        Note: For NLMCXR with binary ground truth, use binary_evaluation instead.
         """
         # Overall accuracy
         accuracy = np.mean(ground_truth == predictions)
@@ -218,20 +215,20 @@ class EvaluationMetrics:
         predictions: np.ndarray
     ) -> Dict[str, Any]:
         """
-        Evaluate binary (benign vs malignant) prediction.
+        Evaluate binary (normal vs abnormal) prediction.
         
         EDUCATIONAL NOTE:
         For clinical decisions, we often care about:
-        - Can we detect malignancy? (Sensitivity/Recall)
+        - Can we detect abnormalities? (Sensitivity/Recall)
         - Are we creating false alarms? (Specificity)
         
-        LIDC-IDRI mapping:
-        - Benign: malignancy 1-2
-        - Malignant: malignancy 4-5
-        - Indeterminate (3): excluded
+        Ground truth mapping:
+        - Normal/benign: 0
+        - Abnormal/suspicious: 1
+        - Indeterminate: -1 (excluded)
         """
-        # Create binary masks (exclude class 3)
-        mask = (ground_truth != 3) & (predictions != 3)
+        # Create binary masks (exclude indeterminate = -1)
+        mask = (ground_truth != -1) & (predictions != -1)
         
         if not np.any(mask):
             return {
@@ -239,14 +236,10 @@ class EvaluationMetrics:
                 "n_excluded": len(ground_truth)
             }
         
-        gt_binary = ground_truth[mask]
-        pred_binary = predictions[mask]
+        gt_bin = ground_truth[mask]
+        pred_bin = predictions[mask]
         
-        # Convert to binary: benign (1-2) = 0, malignant (4-5) = 1
-        gt_bin = (gt_binary >= 4).astype(int)
-        pred_bin = (pred_binary >= 4).astype(int)
-        
-        # Compute metrics
+        # Compute metrics (1 = abnormal/positive, 0 = normal/negative)
         tp = np.sum((gt_bin == 1) & (pred_bin == 1))
         tn = np.sum((gt_bin == 0) & (pred_bin == 0))
         fp = np.sum((gt_bin == 0) & (pred_bin == 1))

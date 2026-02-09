@@ -36,7 +36,7 @@ class AnalysisState:
     session_id: str
     nodule_id: str
     status: str  # "pending", "running", "completed", "error"
-    total_agents: int = 5
+    total_agents: int = 6  # 3 radiologists + 3 pathologists
     completed_agents: List[AgentResult] = field(default_factory=list)
     consensus: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
@@ -149,11 +149,12 @@ class AnalysisStateManager:
             
             # Extract agent info from result
             findings = result.get("findings", {})
-            prob = (
-                findings.get("malignancy_probability") or
-                findings.get("text_malignancy_probability") or
-                0.5
-            )
+            # Use None check instead of 'or' to handle 0.0 correctly
+            prob = findings.get("malignancy_probability")
+            if prob is None:
+                prob = findings.get("text_malignancy_probability")
+            if prob is None:
+                prob = 0.5
             
             agent_result = AgentResult(
                 agent_name=agent_name,

@@ -5,7 +5,7 @@
  * EDUCATIONAL PURPOSE - SYMBOLIC AI FOR MULTI-AGENT SYSTEMS:
  * 
  * This Prolog knowledge base extends the Lung-RADS rules to support:
- * 1. Multi-agent evidence fusion from 3 radiologists + 2 pathologists
+ * 1. Multi-agent evidence fusion from 3 radiologists + 3 pathologists
  * 2. Weighted voting with agent-specific reliability scores
  * 3. Disagreement detection and resolution strategies
  * 4. TNM staging from publicly available criteria

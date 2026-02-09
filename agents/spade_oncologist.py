@@ -177,18 +177,16 @@ class OncologistAgent(MedicalAgentBase):
         if not self._prolog_loaded:
             self._action_load_prolog()
         
-        # Handle numeric texture from LIDC (1-5)
-        if isinstance(texture, (int, float)):
-            tex_val = float(texture)
-            if tex_val <= 2.5:
-                texture = "ground_glass"
-            elif tex_val <= 3.5:
-                texture = "part_solid"
-            else:
-                texture = "solid"
-                
-        # Normalize texture
-        texture = str(texture).replace("-", "_").lower()
+        # Normalize texture to expected format
+        texture = str(texture).replace("-", "_").lower().strip()
+        
+        # Map common texture variations
+        if texture in ["ground_glass", "groundglass", "ggo"]:
+            texture = "ground_glass"
+        elif texture in ["part_solid", "partsolid", "mixed"]:
+            texture = "part_solid"
+        elif texture in ["solid", "dense"]:
+            texture = "solid"
         
         # Try Prolog query first
         if self._prolog is not None:
@@ -388,6 +386,10 @@ class OncologistAgent(MedicalAgentBase):
         texture: str
     ) -> Tuple[str, str]:
         """Fallback Lung-RADS classification without Prolog."""
+        # Handle None size_mm
+        if size_mm is None:
+            size_mm = 10.0  # Default to intermediate size
+            
         texture = texture.replace("-", "_").lower()
         
         for (min_s, max_s, tex), (cat, mgmt) in self.LUNG_RADS_RULES.items():

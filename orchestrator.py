@@ -2,11 +2,11 @@
 Multi-Agent Orchestrator - Extended Architecture
 ================================================
 
-EDUCATIONAL PURPOSE - 5-AGENT MULTI-AGENT SYSTEM:
+EDUCATIONAL PURPOSE - 6-AGENT MULTI-AGENT SYSTEM:
 
-This orchestrator coordinates 5 specialized agents:
+This orchestrator coordinates 6 specialized agents:
 - 3 Radiologists: DenseNet121, ResNet50, Rule-based
-- 2 Pathologists: Regex-based, spaCy NER
+- 3 Pathologists: Regex-based, spaCy NER, Context Analyzer
 
 ARCHITECTURE DIAGRAM:
     ┌─────────────────────────────────────────────────────────────────┐
@@ -28,10 +28,10 @@ ARCHITECTURE DIAGRAM:
     │                      │                                          │
     │        ┌─────────────┴─────────────┐                           │
     │        │             │             │                            │
-    │   ┌────┴─────┐  ┌────┴─────┐                                   │
-    │   │  Regex   │  │  spaCy   │         ← Pathologists            │
-    │   │  W=0.8   │  │  W=0.9   │                                   │
-    │   └──────────┘  └──────────┘                                   │
+    │   ┌────┴─────┐  ┌────┴─────┐  ┌────┴─────┐                     │
+    │   │  Regex   │  │  spaCy   │  │ Context  │   ← Pathologists    │
+    │   │  W=0.8   │  │  W=0.9   │  │  W=0.9   │                     │
+    │   └──────────┘  └──────────┘  └──────────┘                     │
     │                                                                 │
     └─────────────────────────────────────────────────────────────────┘
 
@@ -45,7 +45,7 @@ CONSENSUS MECHANISM:
 import asyncio
 import logging
 import json
-from typing import Dict, Any, List, Optional, Tuple, Callable, Awaitable
+from typing import Dict, Any, List, Optional, Tuple, Callable, Awaitable, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 import numpy as np
@@ -300,40 +300,59 @@ class MultiAgentOrchestrator:
     
     async def analyze_case(
         self,
-        nodule_id: str,
+        case_id: str,  # Renamed from nodule_id for consistency
         image_path: Optional[str] = None,
-        image_array: Optional[np.ndarray] = None,
+        image_array: Union[np.ndarray, List[np.ndarray], None] = None,  # Support both single and multi-image
         report: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
+        image_metadata: Optional[List[Dict[str, Any]]] = None,  # Per-image metadata for aggregation
         on_agent_complete: Optional[Callable[[str, Dict[str, Any]], Awaitable[None]]] = None
     ) -> ConsensusResult:
         """
-        Analyze a single nodule case with all 5 agents.
-        
+        Analyze a single case with all 6 agents.
+
+        Supports both single-image and multi-image (NLMCXR) cases.
+
         Args:
-            nodule_id: Unique identifier for the nodule
-            image_path: Path to CT/X-ray image
-            image_array: Pre-loaded image array
+            case_id: Unique identifier for the case
+            image_path: Path to CT/X-ray image (single-image only)
+            image_array: Pre-loaded image array - either:
+                        - np.ndarray for single-image cases
+                        - List[np.ndarray] for multi-image (NLMCXR)
             report: Radiology report text
-            features: Pre-extracted nodule features
+            features: Pre-extracted features or metadata
+            image_metadata: Per-image metadata (view_type, etc.) for multi-image aggregation
             on_agent_complete: Optional async callback called when each agent finishes.
                                Signature: async def callback(agent_name: str, result: dict)
-            
+
         Returns:
             ConsensusResult with combined decision
         """
-        logger.info(f"Analyzing case {nodule_id} with 5 agents...")
-        
-        # Prepare requests
-        radiologist_request = {
-            "nodule_id": nodule_id,
-            "image_path": image_path,
-            "image_array": image_array,
-            "features": features or {},
-        }
-        
+        logger.info(f"Analyzing case {case_id} with 6 agents...")
+
+        # Detect if multi-image
+        is_multi_image = isinstance(image_array, list)
+
+        # Prepare requests based on type
+        if is_multi_image:
+            # NLMCXR multi-image path
+            radiologist_request = {
+                "case_id": case_id,
+                "images": image_array,
+                "image_metadata": image_metadata or [],
+                "features": features or {},
+            }
+        else:
+            # Single-image path
+            radiologist_request = {
+                "nodule_id": case_id,
+                "image_path": image_path,
+                "image_array": image_array,
+                "features": features or {},
+            }
+
         pathologist_request = {
-            "nodule_id": nodule_id,
+            "nodule_id": case_id,
             "report": report,
             "features": features or {},
         }
@@ -388,7 +407,7 @@ class MultiAgentOrchestrator:
         
         # Compute consensus
         consensus = self.consensus_engine.compute_consensus(
-            nodule_id, radiologist_findings, pathologist_findings
+            case_id, radiologist_findings, pathologist_findings
         )
         
         # Determine agreement level
@@ -401,7 +420,7 @@ class MultiAgentOrchestrator:
         
         # Create final result
         result = ConsensusResult(
-            nodule_id=nodule_id,
+            nodule_id=case_id,
             final_probability=consensus["probability"],
             final_class=consensus["class"],
             confidence=consensus["confidence"],
@@ -413,7 +432,7 @@ class MultiAgentOrchestrator:
         )
         
         logger.info(
-            f"Case {nodule_id}: class={result.final_class}, "
+            f"Case {case_id}: class={result.final_class}, "
             f"prob={result.final_probability:.3f}, "
             f"confidence={result.confidence:.3f}, "
             f"agreement={agreement_level}"
@@ -444,11 +463,12 @@ class MultiAgentOrchestrator:
             agent_findings = result.get("findings", {})
             
             # Extract probability (different keys for different agents)
-            prob = (
-                agent_findings.get("malignancy_probability") or
-                agent_findings.get("text_malignancy_probability") or
-                0.5
-            )
+            # Use None check instead of 'or' to handle 0.0 correctly
+            prob = agent_findings.get("malignancy_probability")
+            if prob is None:
+                prob = agent_findings.get("text_malignancy_probability")
+            if prob is None:
+                prob = 0.5
             
             findings.append(AgentFinding(
                 agent_name=agent.name,
@@ -490,11 +510,12 @@ class MultiAgentOrchestrator:
             agent_findings = result.get("findings", {})
             
             # Extract probability (different keys for different agents)
-            prob = (
-                agent_findings.get("malignancy_probability") or
-                agent_findings.get("text_malignancy_probability") or
-                0.5
-            )
+            # Use None check instead of 'or' to handle 0.0 correctly
+            prob = agent_findings.get("malignancy_probability")
+            if prob is None:
+                prob = agent_findings.get("text_malignancy_probability")
+            if prob is None:
+                prob = 0.5
             
             findings.append(AgentFinding(
                 agent_name=agent.name,
@@ -644,7 +665,7 @@ async def main():
     logging.basicConfig(level=logging.INFO)
     
     print("=" * 60)
-    print("Multi-Agent Orchestrator - 5-Agent Architecture Test")
+    print("Multi-Agent Orchestrator - 6-Agent Architecture Test")
     print("=" * 60)
     
     # Create orchestrator

@@ -95,7 +95,7 @@ def render_case_analysis_page():
     """Render the case analysis page."""
     
     st.title("🔬 Case Analysis")
-    st.markdown("Analyze lung nodules with our 5-agent multi-agent system")
+    st.markdown("Analyze lung nodules with our 6-agent multi-agent system")
     
     # Check API connection
     api_connected = check_api_connection()

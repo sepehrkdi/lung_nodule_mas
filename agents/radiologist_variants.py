@@ -32,10 +32,12 @@ WHY DIFFERENT APPROACHES?
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union, List
 import numpy as np
 
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
+from models.aggregation import get_aggregator
+from models.classifier import NoduleClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,8 @@ class RadiologistBase(MedicalAgentBase):
     AGENT_TYPE = "radiologist"
     APPROACH = "base"
     WEIGHT = 1.0
-    
+    AGGREGATION_STRATEGY = "weighted_average"  # Default aggregation for multi-image
+
     def __init__(self, name: str, asl_file: Optional[str] = None):
         if asl_file is None:
             asl_file = get_asl_path("radiologist")
@@ -173,24 +176,47 @@ class RadiologistBase(MedicalAgentBase):
         return image
     
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Process classification request."""
+        """
+        Process classification request (supports both single and multi-image).
+
+        Args:
+            request: Request dict with either:
+                     - Single-image: {"nodule_id": ..., "image": ..., "features": ...}
+                     - Multi-image: {"case_id": ..., "images": [...], "image_metadata": [...], "features": ...}
+
+        Returns:
+            Result dict with findings
+        """
+        # Detect request type
+        if "images" in request and isinstance(request["images"], list):
+            # Multi-image path
+            return await self._process_multi_image(request)
+        else:
+            # Legacy single-image path
+            return await self._process_single_image(request)
+
+    async def _process_single_image(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process single-image request."""
         nodule_id = request.get("nodule_id", "unknown")
+        # Support both 'image' and 'image_array' keys for compatibility
         image_data = request.get("image")
         if image_data is None:
+            image_data = request.get("image_array")
+        if image_data is None:
             image_data = request.get("features", {})
-        
-        logger.info(f"[{self.name}] Processing {nodule_id}")
-        
+
+        logger.info(f"[{self.name}] Processing single image {nodule_id}")
+
         image = self._prepare_image(image_data)
         probability, predicted_class = self._classify(image)
-        
+
         # Add belief about classification
         self.add_belief(Belief(
             "classification",
             (nodule_id, probability, predicted_class),
             annotations={"source": self.name, "approach": self.APPROACH}
         ))
-        
+
         return {
             "nodule_id": nodule_id,
             "agent": self.name,
@@ -204,6 +230,78 @@ class RadiologistBase(MedicalAgentBase):
             }
         }
 
+    async def _process_multi_image(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process multi-image request (NLMCXR path).
+
+        Classifies each image independently, then aggregates predictions.
+        """
+        case_id = request.get("case_id", "unknown")
+        images = request["images"]
+        image_metadata = request.get("image_metadata", [])
+
+        logger.info(f"[{self.name}] Processing {case_id} with {len(images)} images")
+
+        # Classify each image independently
+        probabilities = []
+        classes = []
+
+        for i, img in enumerate(images):
+            try:
+                prob, cls = self._classify(img)
+                probabilities.append(prob)
+                classes.append(cls)
+                logger.debug(
+                    f"[{self.name}] Image {i} ({image_metadata[i].get('view_type', 'Unknown') if i < len(image_metadata) else 'Unknown'}): "
+                    f"prob={prob:.3f}, class={cls}"
+                )
+            except Exception as e:
+                logger.error(f"[{self.name}] Error classifying image {i}: {e}")
+                # Use default values for failed images
+                probabilities.append(0.5)
+                classes.append(3)
+
+        # Aggregate predictions
+        aggregator = get_aggregator(self.AGGREGATION_STRATEGY)
+        agg_prob, agg_class, aggregation_details = aggregator.aggregate(
+            probabilities, classes, image_metadata
+        )
+
+        logger.info(
+            f"[{self.name}] Aggregated result for {case_id}: "
+            f"prob={agg_prob:.3f}, class={agg_class}"
+        )
+
+        # Add belief about aggregated classification
+        self.add_belief(Belief(
+            "classification",
+            (case_id, agg_prob, agg_class),
+            annotations={"source": self.name, "approach": self.APPROACH, "multi_image": True}
+        ))
+
+        return {
+            "case_id": case_id,
+            "agent": self.name,
+            "agent_type": self.AGENT_TYPE,
+            "approach": self.APPROACH,
+            "weight": self.WEIGHT,
+            "status": "success",
+            "findings": {
+                "malignancy_probability": agg_prob,
+                "predicted_class": agg_class,
+                "per_image_results": [
+                    {
+                        "image_idx": i,
+                        "view_type": image_metadata[i].get("view_type", "Unknown") if i < len(image_metadata) else "Unknown",
+                        "probability": probabilities[i],
+                        "predicted_class": classes[i]
+                    }
+                    for i in range(len(images))
+                ],
+                "aggregation": aggregation_details
+            }
+        }
+
 
 # =============================================================================
 # DENSENET121 RADIOLOGIST (CNN #1)
@@ -211,12 +309,12 @@ class RadiologistBase(MedicalAgentBase):
 
 class RadiologistDenseNet(RadiologistBase):
     """
-    Radiologist using DenseNet121 pre-trained on ImageNet.
+    Radiologist using TorchXRayVision DenseNet121.
     
     EDUCATIONAL NOTE:
-    DenseNet121 uses dense connections between layers, where each
-    layer receives inputs from all preceding layers. This helps with
-    feature reuse and gradient flow.
+    Uses TorchXRayVision's DenseNet121 pre-trained on multiple chest X-ray
+    datasets (NIH, CheXpert, MIMIC-CXR, etc.) for clinically relevant
+    pathology detection including Nodule, Mass, and Lung Lesion.
     
     OPERATING POINTS:
     Different thresholds simulate distinct expert styles:
@@ -224,20 +322,20 @@ class RadiologistDenseNet(RadiologistBase):
     - Balanced (0.5): Standard operating point
     - Sensitive (0.4): High recall, fewer missed nodules
     
-    Architecture: 121 layers, ~8M parameters
-    Input: 224x224 RGB
+    Architecture: 121 layers, trained on chest X-rays
+    Input: 224x224 grayscale
     """
     
     AGENT_TYPE = "radiologist"
-    APPROACH = "densenet121"
+    APPROACH = "densenet121_xrv"  # TorchXRayVision
     WEIGHT = 1.0
     
-    # NEW: Operating point threshold (affects probability-to-class conversion)
+    # Operating point threshold (affects probability-to-class conversion)
     THRESHOLD = 0.5  # Balanced by default
     
     def __init__(self, name: str = "radiologist_densenet", threshold: float = 0.5, asl_file: Optional[str] = None):
         super().__init__(name=name, asl_file=asl_file)
-        self._model = None
+        self._classifier = None  # NoduleClassifier instance
         self.THRESHOLD = threshold
     
     @classmethod
@@ -247,14 +345,14 @@ class RadiologistDenseNet(RadiologistBase):
         Threshold = 0.6 (requires higher probability for positive classification)
         """
         instance = cls(name=name, threshold=0.6)
-        instance.APPROACH = "densenet121_conservative"
+        instance.APPROACH = "densenet121_xrv_conservative"
         return instance
     
     @classmethod
     def balanced(cls, name: str = "radiologist_balanced"):
         """Create balanced radiologist with standard threshold."""
         instance = cls(name=name, threshold=0.5)
-        instance.APPROACH = "densenet121_balanced"
+        instance.APPROACH = "densenet121_xrv_balanced"
         return instance
     
     @classmethod
@@ -264,66 +362,52 @@ class RadiologistDenseNet(RadiologistBase):
         Threshold = 0.4 (lower threshold catches more potential cases)
         """
         instance = cls(name=name, threshold=0.4)
-        instance.APPROACH = "densenet121_sensitive"
+        instance.APPROACH = "densenet121_xrv_sensitive"
         return instance
         
     def _load_model(self):
-        """Lazy load DenseNet121."""
-        if self._model is not None:
+        """Lazy load NoduleClassifier (TorchXRayVision DenseNet)."""
+        if self._classifier is not None:
             return
             
         try:
-            import torch
-            import torchvision.models as models
+            logger.info(f"[{self.name}] Loading TorchXRayVision DenseNet...")
+            self._classifier = NoduleClassifier()
+            self._model_loaded = self._classifier.model_loaded
             
-            logger.info(f"[{self.name}] Loading DenseNet121...")
-            self._model = models.densenet121(pretrained=True)
-            self._model.eval()
-            self._model_loaded = True
+            if self._model_loaded:
+                self.add_belief(Belief("model_loaded", ("densenet121_xrv", True)))
+                logger.info(f"[{self.name}] TorchXRayVision DenseNet loaded")
+            else:
+                logger.warning(f"[{self.name}] NoduleClassifier using fallback mode")
             
-            self.add_belief(Belief("model_loaded", ("densenet121", True)))
-            logger.info(f"[{self.name}] DenseNet121 loaded")
-            
-        except ImportError:
-            logger.warning(f"[{self.name}] PyTorch not available, using fallback")
-            self._model = None
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to load classifier: {e}")
+            self._classifier = None
             
     def _classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Classify using DenseNet121."""
+        """Classify using TorchXRayVision DenseNet."""
         self._load_model()
         
-        if self._model is not None:
+        if self._classifier is not None:
             try:
-                import torch
-                from torchvision import transforms
+                # Use NoduleClassifier which handles TorchXRayVision
+                result = self._classifier.classify(image)
                 
-                # Preprocess
-                transform = transforms.Compose([
-                    transforms.ToPILImage(),
-                    transforms.Resize((224, 224)),
-                    transforms.ToTensor(),
-                    transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225]
-                    )
-                ])
+                prob = result["malignancy_probability"]
                 
-                # Convert grayscale to RGB if needed
-                if len(image.shape) == 2:
-                    image = np.stack([image] * 3, axis=-1)
-                
-                input_tensor = transform(image).unsqueeze(0)
-                
-                with torch.no_grad():
-                    output = self._model(input_tensor)
-                    probs = torch.softmax(output, dim=1)
-                    
-                # Use first few class probabilities as malignancy proxy
-                # Higher ImageNet class indices correlate with complexity
-                prob = float(probs[0, :100].sum()) * 0.8 + 0.1
-                prob = min(max(prob, 0.05), 0.95)
+                # Apply threshold adjustment for different operating points
+                # Conservative: shift down, Sensitive: shift up
+                threshold_adjustment = (0.5 - self.THRESHOLD) * 0.2
+                prob = np.clip(prob + threshold_adjustment, 0.05, 0.95)
                 
                 predicted_class = self._prob_to_class(prob)
+                
+                logger.debug(
+                    f"[{self.name}] XRV result: prob={prob:.3f}, class={predicted_class}, "
+                    f"confidence={result.get('confidence', 0):.3f}"
+                )
+                
                 return (prob, predicted_class)
                 
             except Exception as e:
@@ -363,83 +447,92 @@ class RadiologistDenseNet(RadiologistBase):
 
 class RadiologistResNet(RadiologistBase):
     """
-    Radiologist using ResNet50 pre-trained on ImageNet.
+    Radiologist using TorchXRayVision with alternative pathology focus.
     
     EDUCATIONAL NOTE:
-    ResNet50 uses skip connections (residual connections) to enable
-    training of deeper networks. Different from DenseNet, it adds
-    the input to the output rather than concatenating.
+    Uses same TorchXRayVision DenseNet but with different pathology weights
+    to create meaningful disagreement with RadiologistDenseNet.
     
-    Architecture: 50 layers, ~25M parameters
-    Input: 224x224 RGB
+    Focuses on: Mass, Lung Lesion, Lung Opacity instead of just Nodule
+    This simulates a radiologist with different expertise/priorities.
+    
+    Architecture: DenseNet121 (XRV), different inference strategy
+    Input: 224x224 grayscale
     """
     
     AGENT_TYPE = "radiologist"
-    APPROACH = "resnet50"
+    APPROACH = "densenet121_xrv_mass"  # Focuses on Mass/Opacity
     WEIGHT = 1.0
     
     def __init__(self, name: str = "radiologist_resnet", asl_file: Optional[str] = None):
         super().__init__(name=name, asl_file=asl_file)
-        self._model = None
+        self._classifier = None
         
     def _load_model(self):
-        """Lazy load ResNet50."""
-        if self._model is not None:
+        """Lazy load NoduleClassifier."""
+        if self._classifier is not None:
             return
             
         try:
-            import torch
-            import torchvision.models as models
+            logger.info(f"[{self.name}] Loading TorchXRayVision (Mass-focused)...")
+            self._classifier = NoduleClassifier()
+            self._model_loaded = self._classifier.model_loaded
             
-            logger.info(f"[{self.name}] Loading ResNet50...")
-            self._model = models.resnet50(pretrained=True)
-            self._model.eval()
-            self._model_loaded = True
+            if self._model_loaded:
+                self.add_belief(Belief("model_loaded", ("densenet121_xrv_mass", True)))
+                logger.info(f"[{self.name}] TorchXRayVision loaded (Mass-focused)")
             
-            self.add_belief(Belief("model_loaded", ("resnet50", True)))
-            logger.info(f"[{self.name}] ResNet50 loaded")
-            
-        except ImportError:
-            logger.warning(f"[{self.name}] PyTorch not available, using fallback")
-            self._model = None
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to load classifier: {e}")
+            self._classifier = None
             
     def _classify(self, image: np.ndarray) -> Tuple[float, int]:
-        """Classify using ResNet50."""
+        """Classify with focus on Mass/Opacity pathologies."""
         self._load_model()
         
-        if self._model is not None:
+        if self._classifier is not None and self._classifier.model_loaded:
             try:
                 import torch
-                from torchvision import transforms
                 
-                transform = transforms.Compose([
-                    transforms.ToPILImage(),
-                    transforms.Resize((224, 224)),
-                    transforms.ToTensor(),
-                    transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225]
-                    )
-                ])
-                
-                if len(image.shape) == 2:
-                    image = np.stack([image] * 3, axis=-1)
-                
-                input_tensor = transform(image).unsqueeze(0)
+                # Get raw model output for custom pathology weighting
+                tensor = self._classifier._preprocess_image(image)
                 
                 with torch.no_grad():
-                    output = self._model(input_tensor)
-                    probs = torch.softmax(output, dim=1)
-                    
-                # Different weighting than DenseNet for diversity
-                prob = float(probs[0, 50:150].sum()) * 0.7 + 0.15
-                prob = min(max(prob, 0.05), 0.95)
+                    output = self._classifier.model(tensor)
+                    probs = torch.sigmoid(output)
                 
-                # Add small random variation to simulate model differences
-                prob += np.random.uniform(-0.05, 0.05)
-                prob = min(max(prob, 0.05), 0.95)
+                # Get pathology indices
+                pathologies = self._classifier.model.pathologies
+                
+                # Focus on Mass, Lung Lesion, Lung Opacity instead of just Nodule
+                target_pathologies = ["Mass", "Lung Lesion", "Lung Opacity", "Consolidation"]
+                scores = []
+                
+                for p in target_pathologies:
+                    if p in pathologies:
+                        idx = pathologies.index(p)
+                        scores.append(float(probs[0, idx]))
+                
+                if scores:
+                    # Weight Mass higher
+                    prob = max(scores) * 0.6 + np.mean(scores) * 0.4
+                else:
+                    # Fallback to Nodule
+                    if "Nodule" in pathologies:
+                        idx = pathologies.index("Nodule")
+                        prob = float(probs[0, idx])
+                    else:
+                        prob = 0.5
+                
+                # Add slight variation for agent diversity
+                prob = np.clip(prob + np.random.uniform(-0.03, 0.03), 0.05, 0.95)
                 
                 predicted_class = self._prob_to_class(prob)
+                
+                logger.debug(
+                    f"[{self.name}] Mass-focused result: prob={prob:.3f}, class={predicted_class}"
+                )
+                
                 return (prob, predicted_class)
                 
             except Exception as e:
@@ -454,14 +547,14 @@ class RadiologistResNet(RadiologistBase):
         else:
             gray = image
             
-        # Edge detection proxy
+        # Edge detection proxy - mass focus looks for larger structures
         edges = np.abs(np.diff(gray.astype(float), axis=0)).mean()
         edges += np.abs(np.diff(gray.astype(float), axis=1)).mean()
         edges = edges / 255.0
         
         mean_intensity = np.mean(gray) / 255.0
         
-        # Different formula than DenseNet
+        # Different formula than DenseNet - emphasizes edges
         prob = 0.25 + mean_intensity * 0.25 + edges * 0.5
         prob = min(max(prob, 0.05), 0.95)
         
@@ -573,16 +666,16 @@ class RadiologistRules(RadiologistBase):
     
     def _apply_rules(self, size_mm: float, texture: Union[str, int]) -> float:
         """Apply Lung-RADS rules to get probability."""
-        if isinstance(texture, int):
-            # Map LIDC texture score (1-5) to string
-            if texture <= 2:
-                texture = "ground_glass"
-            elif texture == 3:
-                texture = "part_solid"
-            else:
-                texture = "solid"
-                
-        texture = texture.replace("-", "_").lower()
+        # Normalize texture to string format
+        texture = str(texture).replace("-", "_").lower().strip()
+        
+        # Map common texture variations
+        if texture in ["ground_glass", "groundglass", "ggo"]:
+            texture = "ground_glass"
+        elif texture in ["part_solid", "partsolid", "mixed"]:
+            texture = "part_solid"
+        elif texture in ["solid", "dense"]:
+            texture = "solid"
         
         for min_s, max_s, tex, prob in self.SIZE_RISK_RULES:
             if min_s <= size_mm < max_s and tex == texture:
@@ -607,12 +700,12 @@ class RadiologistRules(RadiologistBase):
     
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process with feature extraction from request."""
-        nodule_id = request.get("nodule_id", "unknown")
+        nodule_id = request.get("nodule_id", request.get("case_id", "unknown"))
         
         # Can use features directly if provided
         features = request.get("features", {})
-        if features and "size_mm" in features:
-            size_mm = features.get("size_mm", 10)
+        size_mm = features.get("size_mm") if features else None
+        if size_mm is not None:
             texture = features.get("texture", "solid")
             probability = self._apply_rules(size_mm, texture)
             predicted_class = self._prob_to_class(probability)

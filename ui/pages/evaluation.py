@@ -216,8 +216,8 @@ def render_evaluation_page():
         
         ### Agreement Analysis
         
-        - **Unanimous Agreement** ({unanimous/total_cases:.1%}): All 5 agents agreed on the classification
-        - **Majority Agreement** ({majority/total_cases:.1%}): At least 3 of 5 agents agreed
+        - **Unanimous Agreement** ({unanimous/total_cases:.1%}): All 6 agents agreed on the classification
+        - **Majority Agreement** ({majority/total_cases:.1%}): At least 4 of 6 agents agreed
         - **Split Decision** ({split/total_cases:.1%}): No clear majority among agents
         
         ### Key Insights

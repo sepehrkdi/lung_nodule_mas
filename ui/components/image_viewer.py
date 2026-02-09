@@ -169,7 +169,9 @@ def render_features_table(features: dict):
     
     # Source badge
     source = features.get("source", "Unknown")
-    if source == "XML Import":
-        st.success("✅ Real LIDC-IDRI data")
+    if source == "NLMCXR":
+        st.success("✅ Real NLMCXR data")
+    elif source == "XML Import":
+        st.success("✅ Real dataset")
     else:
-        st.warning("⚠️ Synthetic/fallback data")
+        st.warning("⚠️ Sample/demo data")

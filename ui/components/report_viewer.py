@@ -59,6 +59,25 @@ def highlight_findings(report_text: str) -> str:
         flags=re.IGNORECASE
     )
     
+    # Highlight normal/negative findings (light blue)
+    normal_phrases = [
+        r'no\s+(?:evidence\s+of\s+)?(?:pulmonary\s+)?(?:edema|consolidation|pneumothorax|effusion|infiltrate|opacity|nodule|mass|lesion)',
+        r'no\s+acute\s+(?:cardiopulmonary\s+)?(?:abnormality|disease|process|finding)',
+        r'within\s+normal\s+limits',
+        r'normal\s+(?:chest|heart|lungs?|cardiac|mediastinum|appearance)',
+        r'unremarkable',
+        r'clear\s+lungs?',
+        r'no\s+focal\s+(?:consolidation|abnormality)',
+        r'negative\s+(?:for|examination)',
+        r'there\s+(?:is|are)\s+no\s+\w+',
+    ]
+    for phrase in normal_phrases:
+        pattern = re.compile(rf'({phrase})', re.IGNORECASE)
+        report_text = pattern.sub(
+            r'<span style="background-color: #e7f3ff; color: #0066cc; padding: 1px 4px; border-radius: 3px;">\1</span>',
+            report_text
+        )
+    
     return report_text
 
 
@@ -132,6 +151,7 @@ def render_report_viewer(
             - <span style="background-color: #f8d7da; color: #721c24; padding: 1px 4px;">Red</span> - Suspicious findings
             - <span style="background-color: #d4edda; color: #155724; padding: 1px 4px;">Green</span> - Benign indicators
             - <span style="background-color: #cce5ff; color: #004085; padding: 1px 4px;">Blue</span> - Lung-RADS category
+            - <span style="background-color: #e7f3ff; color: #0066cc; padding: 1px 4px;">Light Blue</span> - Normal/Negative findings
             """, unsafe_allow_html=True)
     else:
         st.text_area(

@@ -42,8 +42,7 @@ from api.schemas import (
     HealthResponse,
 )
 from api.analysis_state import analysis_manager, AgentResult
-from data.lidc_loader import LIDCLoader
-from data.report_generator import ReportGenerator
+from data.nlmcxr_loader import NLMCXRLoader
 from orchestrator import MultiAgentOrchestrator, ConsensusResult
 
 # Configure logging
@@ -67,25 +66,16 @@ app.add_middleware(
 )
 
 # Global instances (lazy initialization)
-_loader: Optional[LIDCLoader] = None
-_report_generator: Optional[ReportGenerator] = None
+_loader: Optional[NLMCXRLoader] = None
 _orchestrator: Optional[MultiAgentOrchestrator] = None
 
 
-def get_loader() -> LIDCLoader:
+def get_loader() -> NLMCXRLoader:
     """Get or create the data loader."""
     global _loader
     if _loader is None:
-        _loader = LIDCLoader()
+        _loader = NLMCXRLoader()
     return _loader
-
-
-def get_report_generator() -> ReportGenerator:
-    """Get or create the report generator."""
-    global _report_generator
-    if _report_generator is None:
-        _report_generator = ReportGenerator()
-    return _report_generator
 
 
 def get_orchestrator() -> MultiAgentOrchestrator:
@@ -108,7 +98,7 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         version="1.0.0",
-        agents_available=5
+        agents_available=6  # 3 radiologists + 3 pathologists
     )
 
 
@@ -125,68 +115,74 @@ async def root():
 
 @app.get("/nodules", response_model=NoduleListResponse, tags=["Nodules"])
 async def list_nodules():
-    """List all available nodule IDs."""
+    """List all available case IDs."""
     try:
         loader = get_loader()
-        nodule_ids = loader.get_nodule_ids()
+        case_ids = loader.get_case_ids()
         return NoduleListResponse(
-            nodule_ids=nodule_ids,
-            total_count=len(nodule_ids)
+            nodule_ids=case_ids,
+            total_count=len(case_ids)
         )
     except Exception as e:
-        logger.error(f"Failed to list nodules: {e}")
+        logger.error(f"Failed to list cases: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/nodules/{nodule_id}/features", response_model=NoduleFeaturesResponse, tags=["Nodules"])
 async def get_nodule_features(nodule_id: str):
-    """Get features/metadata for a specific nodule."""
+    """Get features/metadata for a specific case."""
     try:
         loader = get_loader()
-        _, features = loader.load_nodule(nodule_id)
+        images, metadata = loader.load_case(nodule_id)
+        
+        # Extract features from NLMCXR metadata
+        nlp_features = metadata.get("nlp_features", {})
         
         return NoduleFeaturesResponse(
             nodule_id=nodule_id,
-            diameter_mm=features.get("diameter_mm"),
-            malignancy=features.get("malignancy"),
-            malignancy_label=features.get("malignancy_label"),
-            texture=features.get("texture"),
-            texture_label=features.get("texture_label"),
-            margin=features.get("margin"),
-            margin_label=features.get("margin_label"),
-            spiculation=features.get("spiculation"),
-            spiculation_label=features.get("spiculation_label"),
-            lobulation=features.get("lobulation"),
-            calcification=features.get("calcification"),
-            sphericity=features.get("sphericity"),
-            subtlety=features.get("subtlety"),
-            internal_structure=features.get("internal_structure"),
-            source=features.get("source"),
-            is_synthetic=features.get("source") != "XML Import"
+            diameter_mm=nlp_features.get("size_mm"),
+            malignancy=metadata.get("ground_truth"),
+            malignancy_label=metadata.get("ground_truth_label"),
+            texture=nlp_features.get("texture"),
+            texture_label=nlp_features.get("texture"),
+            margin=nlp_features.get("margin"),
+            margin_label=nlp_features.get("margin"),
+            spiculation=nlp_features.get("spiculation"),
+            spiculation_label=nlp_features.get("spiculation"),
+            lobulation=nlp_features.get("lobulation"),
+            calcification=nlp_features.get("calcification"),
+            sphericity=None,
+            subtlety=None,
+            internal_structure=None,
+            source="NLMCXR",
+            is_synthetic=False
         )
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Nodule {nodule_id} not found")
+        raise HTTPException(status_code=404, detail=f"Case {nodule_id} not found")
     except Exception as e:
-        logger.error(f"Failed to get nodule features: {e}")
+        logger.error(f"Failed to get case features: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/nodules/{nodule_id}/image", tags=["Nodules"])
 async def get_nodule_image(nodule_id: str, colormap: str = "gray", upscale: int = 4):
     """
-    Get CT image for a specific nodule as PNG.
+    Get chest X-ray image for a specific case as PNG.
     
     Args:
-        nodule_id: The nodule identifier
+        nodule_id: The case identifier
         colormap: Color mapping ('gray', 'bone', 'hot')
         upscale: Upscaling factor for display (default 4x)
     """
     try:
         loader = get_loader()
-        image, _ = loader.load_nodule(nodule_id)
+        images, _ = loader.load_case(nodule_id)
         
-        if image is None:
+        if not images:
             raise HTTPException(status_code=404, detail="Image not available")
+        
+        # Use first image (PA view typically)
+        image = images[0]
         
         # Convert from float [0,1] to uint8 [0,255]
         img_uint8 = (image * 255).astype(np.uint8)
@@ -227,22 +223,24 @@ async def get_nodule_image(nodule_id: str, colormap: str = "gray", upscale: int 
 @app.get("/nodules/{nodule_id}/report", response_model=ReportResponse, tags=["Nodules"])
 async def get_nodule_report(nodule_id: str, report_type: str = "full"):
     """
-    Generate a radiology report for a specific nodule.
+    Get radiology report for a specific case.
     
     Args:
-        nodule_id: The nodule identifier
+        nodule_id: The case identifier
         report_type: 'full' for complete report, 'brief' for summary
     """
     try:
         loader = get_loader()
-        _, features = loader.load_nodule(nodule_id)
+        _, metadata = loader.load_case(nodule_id)
         
-        generator = get_report_generator()
+        # Use real NLMCXR report text
+        findings = metadata.get("findings", "")
+        impression = metadata.get("impression", "")
         
         if report_type == "brief":
-            report_text = generator.generate_brief(features)
+            report_text = impression if impression else findings[:200]
         else:
-            report_text = generator.generate(features)
+            report_text = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
         
         return ReportResponse(
             nodule_id=nodule_id,
@@ -251,9 +249,9 @@ async def get_nodule_report(nodule_id: str, report_type: str = "full"):
         )
         
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Nodule {nodule_id} not found")
+        raise HTTPException(status_code=404, detail=f"Case {nodule_id} not found")
     except Exception as e:
-        logger.error(f"Failed to generate report: {e}")
+        logger.error(f"Failed to get report: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -268,10 +266,23 @@ async def run_analysis_task(session_id: str, nodule_id: str):
     """
     try:
         loader = get_loader()
-        image, features = loader.load_nodule(nodule_id)
+        images, metadata = loader.load_case(nodule_id)
         
-        generator = get_report_generator()
-        report = generator.generate(features)
+        # Use real NLMCXR report text
+        findings = metadata.get("findings", "")
+        impression = metadata.get("impression", "")
+        report = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
+        
+        # Build features from metadata
+        features = metadata.get("nlp_features", {})
+        features.update({
+            "case_id": nodule_id,
+            "ground_truth": metadata.get("ground_truth"),
+            "num_images": len(images)
+        })
+        
+        # Use first image or list for multi-image
+        image = images[0] if len(images) == 1 else images
         
         orchestrator = get_orchestrator()
         
@@ -279,12 +290,16 @@ async def run_analysis_task(session_id: str, nodule_id: str):
         async def on_agent_complete(agent_name: str, result: dict):
             analysis_manager.add_agent_result(session_id, agent_name, result)
         
+        # Get image metadata for multi-image aggregation
+        image_metadata = metadata.get("images_metadata", [])
+        
         # Run analysis with callback
         result = await orchestrator.analyze_case(
-            nodule_id=nodule_id,
+            case_id=nodule_id,
             image_array=image,
             report=report,
             features=features,
+            image_metadata=image_metadata,
             on_agent_complete=on_agent_complete
         )
         
@@ -353,9 +368,9 @@ async def start_analysis(nodule_id: str, background_tasks: BackgroundTasks):
     The analysis runs in the background with agents completing one by one.
     """
     try:
-        # Verify nodule exists
+        # Verify case exists
         loader = get_loader()
-        loader.load_nodule(nodule_id)  # Will raise if not found
+        loader.load_case(nodule_id)  # Will raise if not found
         
         # Create session
         session_id = analysis_manager.start_analysis(nodule_id)
@@ -421,7 +436,7 @@ async def start_batch_analysis(request: BatchAnalysisRequest, background_tasks: 
         
         for nodule_id in request.nodule_ids:
             try:
-                loader.load_nodule(nodule_id)  # Verify exists
+                loader.load_case(nodule_id)  # Verify exists
                 session_id = analysis_manager.start_analysis(nodule_id)
                 background_tasks.add_task(run_analysis_task, session_id, nodule_id)
                 sessions.append({
@@ -434,7 +449,7 @@ async def start_batch_analysis(request: BatchAnalysisRequest, background_tasks: 
                     "nodule_id": nodule_id,
                     "session_id": None,
                     "status": "error",
-                    "error": f"Nodule {nodule_id} not found"
+                    "error": f"Case {nodule_id} not found"
                 })
         
         return {
@@ -472,24 +487,34 @@ async def get_metrics():
         majority_count = 0
         split_count = 0
         
-        nodule_ids = loader.get_nodule_ids()
+        case_ids = loader.get_case_ids()
         
-        for nodule_id in nodule_ids:
+        for nodule_id in case_ids:
             try:
-                image, features = loader.load_nodule(nodule_id)
-                generator = get_report_generator()
-                report = generator.generate(features)
+                images, metadata = loader.load_case(nodule_id)
+                
+                # Use real NLMCXR report
+                findings = metadata.get("findings", "")
+                impression = metadata.get("impression", "")
+                report = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
+                
+                # Build features
+                features = metadata.get("nlp_features", {})
+                features["ground_truth"] = metadata.get("ground_truth")
+                
+                image = images[0] if len(images) == 1 else images
                 
                 result = await orchestrator.analyze_case(
-                    nodule_id=nodule_id,
+                    case_id=nodule_id,
                     image_array=image,
                     report=report,
                     features=features
                 )
                 
-                ground_truth = features.get("malignancy", 3)
-                y_true.append(ground_truth)
-                y_pred.append(result.final_class)
+                ground_truth = metadata.get("ground_truth", -1)
+                if ground_truth != -1:  # Only include cases with ground truth
+                    y_true.append(ground_truth)
+                    y_pred.append(1 if result.final_probability >= 0.5 else 0)
                 
                 if result.agreement_level == "unanimous":
                     unanimous_count += 1

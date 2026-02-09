@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Extended Multi-Agent System - 5 Specialized Agents
+Extended Multi-Agent System - 6 Specialized Agents
 ==================================================
 
 EDUCATIONAL PURPOSE:
 
 This module demonstrates an extended Multi-Agent System with:
 - 3 Radiologist agents (DenseNet, ResNet, Rule-based)
-- 2 Pathologist agents (Regex, spaCy NER)
+- 3 Pathologist agents (Regex, spaCy NER, Context Analyzer)
 - Prolog-based weighted consensus
 
 ARCHITECTURE:
@@ -26,13 +26,13 @@ ARCHITECTURE:
     │          └────────────────┬┴──────────────────┘                │
     │                           │                                     │
     │   PATHOLOGIST AGENTS (Report Analysis)                         │
-    │   ┌──────────────────────┐  ┌──────────────────────┐           │
-    │   │    Regex-Based       │  │    spaCy NER + Rules │           │
-    │   │     W = 0.8          │  │       W = 0.9        │           │
-    │   │  (Pattern Match)     │  │   (Statistical NLP)  │           │
-    │   └──────────┬───────────┘  └──────────┬───────────┘           │
-    │              │                          │                       │
-    │              └────────────┬─────────────┘                      │
+    │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+    │   │ Regex-Based  │  │  spaCy NER   │  │   Context    │         │
+    │   │   W = 0.8    │  │   W = 0.9    │  │   W = 0.9    │         │
+    │   │(Pattern Match)│  │(Statistical) │  │ (Negation)   │         │
+    │   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
+    │          │                 │                  │                 │
+    │          └────────────────┬┴──────────────────┘                │
     │                           │                                     │
     │   ┌───────────────────────┴───────────────────────┐            │
     │   │              PROLOG CONSENSUS                  │            │
@@ -98,7 +98,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CaseResult:
-    """Result from analyzing a single case with all 5 agents."""
+    """Result from analyzing a single case with all 6 agents."""
     nodule_id: str
     ground_truth: Optional[int]
     final_class: int
@@ -115,11 +115,12 @@ class CaseResult:
     radiologist_rulebased: Dict[str, Any] = field(default_factory=dict)
     pathologist_regex: Dict[str, Any] = field(default_factory=dict)
     pathologist_spacy: Dict[str, Any] = field(default_factory=dict)
+    pathologist_context: Dict[str, Any] = field(default_factory=dict)
 
 
 class ExtendedMAS:
     """
-    Extended Multi-Agent System with 5 Specialized Agents.
+    Extended Multi-Agent System with 6 Specialized Agents.
     
     EDUCATIONAL PURPOSE:
     Demonstrates agent diversity, weighted consensus, and
@@ -128,14 +129,14 @@ class ExtendedMAS:
     
     def __init__(
         self,
-        data_source: str = "openi",
+        data_source: str = "nlmcxr",
         verbose: bool = True
     ):
         """
         Initialize the extended MAS.
         
         Args:
-            data_source: "openi" or "lidc" or "sample"
+            data_source: "nlmcxr" or "sample"
             verbose: Print progress messages
         """
         self.verbose = verbose
@@ -145,7 +146,7 @@ class ExtendedMAS:
         from orchestrator import MultiAgentOrchestrator
         
         # Initialize orchestrator with all agents
-        self._log("Initializing 5-Agent Orchestrator...")
+        self._log("Initializing 6-Agent Orchestrator...")
         
         kb_path = Path(__file__).parent / "knowledge" / "multi_agent_consensus.pl"
         self.orchestrator = MultiAgentOrchestrator(
@@ -158,7 +159,7 @@ class ExtendedMAS:
         # Results storage
         self.results: List[CaseResult] = []
         
-        self._log("Extended MAS initialized with 5 specialized agents")
+        self._log("Extended MAS initialized with 6 specialized agents")
     
     def _log(self, message: str) -> None:
         """Print log message if verbose."""
@@ -166,106 +167,95 @@ class ExtendedMAS:
             logger.info(f"[ExtendedMAS] {message}")
     
     def _load_data(self) -> None:
-        """Load nodule data based on source."""
+        """Load case data based on source."""
         self.cases = []
         
-        if self.data_source == "openi":
+        if self.data_source == "nlmcxr":
             try:
-                from data.openi_loader import OpenILoader
-                data_path = Path(__file__).parent / "data" / "openi_data"
-                if data_path.exists():
-                    loader = OpenILoader(str(data_path))
-                    self.cases = loader.load_all_cases()
-                    self._log(f"Loaded {len(self.cases)} cases from Open-I")
-                else:
-                    self._log("Open-I data not found, using sample data")
-                    self._create_sample_cases()
-            except Exception as e:
-                self._log(f"Failed to load Open-I: {e}, using sample data")
-                self._create_sample_cases()
-                
-        elif self.data_source == "lidc":
-            try:
-                from data.lidc_loader import LIDCLoader
-                loader = LIDCLoader()
-                
-                from data.report_generator import ReportGenerator
-                report_gen = ReportGenerator()
+                from data.nlmcxr_loader import NLMCXRLoader
+                loader = NLMCXRLoader()
                 
                 count = 0
-                for nodule_id, image, features in loader.load_all():
+                for case_id in loader.get_case_ids():
                     if count >= 50:
                         break
+                    
+                    try:
+                        images, metadata = loader.load_case(case_id)
                         
-                    self.cases.append({
-                        "nodule_id": nodule_id,
-                        "features": features,
-                        "ground_truth": features.get("malignancy", 3),
-                        "report": report_gen.generate(features)
-                    })
-                    count += 1
-                self._log(f"Loaded {len(self.cases)} cases from LIDC-IDRI")
+                        # Build case dict with real report
+                        findings = metadata.get("findings", "")
+                        impression = metadata.get("impression", "")
+                        report = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}"
+                        
+                        self.cases.append({
+                            "nodule_id": case_id,
+                            "features": metadata.get("nlp_features", {}),
+                            "ground_truth": metadata.get("ground_truth", -1),
+                            "report": report,
+                            "images": images
+                        })
+                        count += 1
+                    except Exception as e:
+                        self._log(f"Failed to load case {case_id}: {e}")
+                        continue
+                        
+                self._log(f"Loaded {len(self.cases)} cases from NLMCXR")
             except Exception as e:
-                self._log(f"Failed to load LIDC: {e}, using sample data")
+                self._log(f"Failed to load NLMCXR: {e}, using sample data")
                 self._create_sample_cases()
         else:
             self._create_sample_cases()
     
     def _create_sample_cases(self) -> None:
         """Create sample cases for testing."""
-        from data.report_generator import ReportGenerator
-        report_gen = ReportGenerator()
-        
         sample_nodules = [
             {
                 "nodule_id": "sample_001",
                 "features": {
-                    "size_mm": 5, "texture": 1,  # ground_glass
-                    "location": "left_upper_lobe", "malignancy": 2,
-                    "spiculation": 1, "calcification": 6, "margin": 5
+                    "size_mm": 5, "texture": "ground-glass",
+                    "location": "left_upper_lobe"
                 },
-                "ground_truth": 2
+                "ground_truth": 0,  # Normal
+                "report": "FINDINGS: Small ground-glass opacity in left upper lobe. Likely benign.\n\nIMPRESSION: Probably benign nodule."
             },
             {
                 "nodule_id": "sample_002",
                 "features": {
-                    "size_mm": 12, "texture": 5,  # solid
-                    "location": "right_upper_lobe", "malignancy": 4,
-                    "spiculation": 1, "calcification": 6, "margin": 4
+                    "size_mm": 12, "texture": "solid",
+                    "location": "right_upper_lobe"
                 },
-                "ground_truth": 4
+                "ground_truth": 1,  # Abnormal
+                "report": "FINDINGS: Solid nodule in right upper lobe, spiculated margins.\n\nIMPRESSION: Suspicious for malignancy."
             },
             {
                 "nodule_id": "sample_003",
                 "features": {
-                    "size_mm": 8, "texture": 3,  # part_solid
-                    "location": "right_lower_lobe", "malignancy": 3,
-                    "spiculation": 2, "calcification": 6, "margin": 3
+                    "size_mm": 8, "texture": "part-solid",
+                    "location": "right_lower_lobe"
                 },
-                "ground_truth": 3
+                "ground_truth": -1,  # Indeterminate
+                "report": "FINDINGS: Part-solid nodule in right lower lobe.\n\nIMPRESSION: Indeterminate, recommend follow-up."
             },
             {
                 "nodule_id": "sample_004",
                 "features": {
-                    "size_mm": 20, "texture": 5,  # solid
-                    "location": "right_upper_lobe", "malignancy": 5,
-                    "spiculation": 4, "calcification": 6, "margin": 2
+                    "size_mm": 20, "texture": "solid",
+                    "location": "right_upper_lobe"
                 },
-                "ground_truth": 5
+                "ground_truth": 1,  # Abnormal
+                "report": "FINDINGS: Large spiculated mass in right upper lobe.\n\nIMPRESSION: Highly suspicious for malignancy."
             },
             {
                 "nodule_id": "sample_005",
                 "features": {
-                    "size_mm": 4, "texture": 5,  # solid
-                    "location": "left_lower_lobe", "malignancy": 1,
-                    "spiculation": 1, "calcification": 3, "margin": 5
+                    "size_mm": 4, "texture": "solid",
+                    "location": "left_lower_lobe"
                 },
-                "ground_truth": 1
+                "ground_truth": 0,  # Normal
+                "report": "FINDINGS: Tiny calcified nodule in left lower lobe.\n\nIMPRESSION: Benign calcified granuloma."
             },
         ]
-        
-        for n in sample_nodules:
-            n["report"] = report_gen.generate(n["features"])
         
         self.cases = sample_nodules
         self._log(f"Created {len(self.cases)} sample cases")
@@ -301,7 +291,7 @@ class ExtendedMAS:
         self,
         case: Dict[str, Any]
     ) -> CaseResult:
-        """Process a single case with all 5 agents."""
+        """Process a single case with all 6 agents."""
         start_time = time.time()
         
         nodule_id = case.get("nodule_id", "unknown")
@@ -434,7 +424,7 @@ class ExtendedMAS:
     def print_results_summary(self) -> None:
         """Print a summary of all results."""
         print("\n" + "=" * 70)
-        print("EXTENDED MAS - 5-AGENT RESULTS SUMMARY")
+        print("EXTENDED MAS - 6-AGENT RESULTS SUMMARY")
         print("=" * 70)
         
         for r in self.results:
@@ -503,14 +493,14 @@ class ExtendedMAS:
 
 
 async def demo_mode():
-    """Quick demonstration of the 5-agent system."""
+    """Quick demonstration of the 6-agent system."""
     print("\n" + "=" * 70)
-    print("EXTENDED MAS DEMO - 5 Specialized Agents")
+    print("EXTENDED MAS DEMO - 6 Specialized Agents")
     print("=" * 70)
     
     print("\nArchitecture:")
     print("  Radiologists (3): DenseNet121, ResNet50, Rule-based")
-    print("  Pathologists (2): Regex-based, spaCy NER")
+    print("  Pathologists (3): Regex-based, spaCy NER, Context Analyzer")
     print("  Consensus: Prolog weighted voting")
     
     print("\nInitializing system...")
@@ -536,7 +526,7 @@ async def demo_mode():
 async def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Extended Multi-Agent System with 5 Specialized Agents"
+        description="Extended Multi-Agent System with 6 Specialized Agents"
     )
     parser.add_argument(
         "--demo", action="store_true",
@@ -548,7 +538,7 @@ async def main():
     )
     parser.add_argument(
         "--data", type=str, default="sample",
-        choices=["sample", "openi", "lidc"],
+        choices=["sample", "nlmcxr"],
         help="Data source to use"
     )
     parser.add_argument(

@@ -197,7 +197,7 @@ def render_batch_processing_page():
                     results.append({
                         "nodule_id": nodule_id,
                         "status": "running",
-                        "progress": f"{status.get('completed_count', 0)}/5 agents"
+                        "progress": f"{status.get('completed_count', 0)}/6 agents"
                     })
             else:
                 completed += 1

@@ -54,7 +54,7 @@ class AnalysisStateResponse(BaseModel):
     session_id: str
     nodule_id: str
     status: AnalysisStatus
-    total_agents: int = 5
+    total_agents: int = 6  # 3 radiologists + 3 pathologists
     completed_count: int = 0
     completed_agents: List[AgentFindingResponse] = Field(default_factory=list)
     consensus: Optional[ConsensusResultResponse] = None
@@ -75,14 +75,14 @@ class NoduleFeaturesResponse(BaseModel):
     diameter_mm: Optional[float] = None
     malignancy: Optional[int] = None
     malignancy_label: Optional[str] = None
-    texture: Optional[int] = None
+    texture: Optional[str] = None  # String for NLMCXR (e.g., "solid", "ground_glass")
     texture_label: Optional[str] = None
-    margin: Optional[int] = None
+    margin: Optional[str] = None  # String for NLMCXR
     margin_label: Optional[str] = None
-    spiculation: Optional[int] = None
+    spiculation: Optional[str] = None  # String for NLMCXR
     spiculation_label: Optional[str] = None
-    lobulation: Optional[int] = None
-    calcification: Optional[int] = None
+    lobulation: Optional[str] = None  # String for NLMCXR
+    calcification: Optional[str] = None  # String for NLMCXR
     sphericity: Optional[int] = None
     subtlety: Optional[int] = None
     internal_structure: Optional[int] = None
@@ -128,4 +128,4 @@ class HealthResponse(BaseModel):
     """Response model for health check."""
     status: str = "healthy"
     version: str = "1.0.0"
-    agents_available: int = 5
+    agents_available: int = 6  # 3 radiologists + 3 pathologists
