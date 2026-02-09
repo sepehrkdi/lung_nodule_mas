@@ -24,3 +24,9 @@ data/openi/images/
 data/openi/reports/
 data/subset/
 data/lidc_xml/
+data/NLMCXR/
+data/NLMCXR/**/*.xml
+data/NLMCXR/**/*.png
+data/NLMCXR/**/*.jpg
+data/NLMCXR/**/*.jpeg
+data/NLMCXR/*
