@@ -43,12 +43,12 @@ I will build a complete BDI multi-agent system in which all agents are BDI agent
 \subsection{The Kind of the Proposal}
 \label{subsec:kind}
 
-My proposal consists of a creative project.
+My proposal consists of a \textbf{creative project}.
 
 \subsection{The Range of Points/Difficulty of the Proposal}
 \label{subsec:points}
 
-The degree of difficulty for this project is hard.
+The degree of difficulty for this project is \textbf{hard}.
 
 \pagebreak
 
@@ -73,12 +73,12 @@ The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent s
 \subsection{Clinical Motivation}
 \label{subsec:clinical-motivation}
 
-In standard clinical practice, the workflow for lung nodule management follows a hub-and-spoke model: radiologists analyze images and produce reports, pathologists analyze tissue or textual evidence, and the treating oncologist synthesizes all findings into a treatment decision~\cite{pillay2016mdt}. Direct communication between radiologists and pathologists is uncommon in routine practice---they work independently and send reports to the treating physician. This clinically accurate architecture is reflected in our system design, where all agents report to the central Oncologist agent rather than communicating peer-to-peer.
+In standard clinical practice, the workflow for lung nodule management follows a hub-and-spoke model: radiologists analyze images and produce reports, pathologists analyze tissue or textual evidence, and the treating oncologist synthesizes all findings into a treatment decision~\cite{pillay2016mdt}. Direct communication between radiologists and pathologists is uncommon in routine practice---they work independently and send reports to the treating physician. This clinically accurate architecture is reflected in my system design, where all agents report to the central Oncologist agent rather than communicating peer-to-peer.
 
 \subsection{Dataset and Pre-processing}
 \label{subsec:dataset}
 
-The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies, for instance, Chapman et al.\ used 42 reports for NegEx evaluation~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, we implemented an NLP-based pre-filter pipeline:
+The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies, for instance, Chapman et al.\ used 42 reports for NegEx evaluation~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, I implemented an NLP-based pre-filter pipeline:
 
 \begin{enumerate}
     \item \textbf{Ingestion:} The efficient \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
@@ -123,19 +123,29 @@ The main contributions of this project are:
 \subsection{NLP in Radiology}
 \label{subsec:nlp-radiology}
 
-Pons et al.~\cite{pons2016nlpradiology} present a systematic review of NLP applications in radiology, describing a canonical pipeline consisting of: (i) report section splitting (e.g., separating Findings from Impression); (ii) tokenization and normalization (handling abbreviations and standardizing measurements); (iii) syntactic and semantic processing; and (iv) application-specific extraction. They emphasize that \emph{negation detection} is essential for clinical NLP, since a large proportion of medical concepts in radiology reports appear in negated contexts (e.g., ``no evidence of nodule''). Our NLP pipeline follows this structure, with each stage implemented across three specialized Pathologist agents.
+Pons et al.~\cite{pons2016nlpradiology} present a systematic review of NLP applications in radiology, describing a canonical pipeline consisting of: (i) report section splitting (e.g., separating Findings from Impression); (ii) tokenization and normalization (handling abbreviations and standardizing measurements); (iii) syntax and semantic processing; and (iv) application-specific extraction. Rule-based systems like CheXpert~\cite{irvin2019chexpert} and NegBio~\cite{peng2018negbio} have demonstrated that symbolic NLP can achieve high accuracy in this domain without the need for large annotated datasets required by deep learning models. They emphasize that \emph{negation detection} is essential for clinical NLP, since a large proportion of medical concepts in radiology reports appear in negated contexts (e.g., ``no evidence of nodule''). My NLP pipeline follows this structure, with each stage implemented across three specialized Pathologist agents.
 
 \subsection{Negation and Uncertainty Detection}
 \label{subsec:negation}
 
 Chapman et al.~\cite{chapman2001negex} introduced NegEx, a simple algorithm for identifying negated findings in clinical text. The algorithm operates by: (1) detecting \emph{trigger phrases} (e.g., ``no'', ``without'', ``denies'', ``ruled out''); (2) defining a forward or backward \emph{scope window} (typically 5--6 words); and (3) marking any medical entity within that scope as negated. Harkema et al.~\cite{harkema2009context} extended this approach with ConText, adding support for experiencer identification and temporal status.
 
-For uncertainty detection, the CheXpert labeler~\cite{irvin2019chexpert} demonstrated that rule-based approaches can effectively classify radiology report mentions as positive, negative, or uncertain using trigger words such as ``possible'', ``cannot exclude'', ``may represent'', and ``suggestive of''. While CheXpert targets 14 chest X-ray observations, our project applies the same principles to the narrower task of nodule-specific attribute extraction.
+For uncertainty detection, the CheXpert labeler~\cite{irvin2019chexpert} demonstrated that rule-based approaches can effectively classify radiology report mentions as positive, negative, or uncertain using trigger words such as ``possible'', ``cannot exclude'', ``may represent'', and ``suggestive of''. While CheXpert targets 14 chest X-ray observations, my project applies the same principles to the narrower task of nodule-specific attribute extraction.
 
 \subsection{BDI Multi-Agent Systems}
 \label{subsec:bdi}
 
-The Belief--Desire--Intention (BDI) architecture~\cite{rao2005bdi} models rational agents that maintain: \emph{beliefs} (information about the environment), \emph{desires} (goals to achieve), and \emph{intentions} (committed plans). This architecture is implemented using the SPADE-BDI framework~\cite{spadebdi2023}, which uses AgentSpeak(L) plans triggered by belief changes and provides FIPA-compliant inter-agent messaging. In our implementation, `spade\_main.py` serves as the entry point, initializing specialized BDI agents that execute strict AgentSpeak logic defined in `.asl` files.
+The Belief--Desire--Intention (BDI) architecture~\cite{rao2005bdi} models rational agents that maintain: \emph{beliefs} (information about the environment), \emph{desires} (goals to achieve), and \emph{intentions} (committed plans). This architecture is implemented using the SPADE-BDI framework~\cite{spadebdi2023}, which extends the SPADE middleware~\cite{palanca2020spade} to support AgentSpeak(L) plans. The use of AgentSpeak(L) for defining agent reasoning follows the standard approach for programming BDI agents popularized by Jason~\cite{bordini2007multi}. In my implementation, `spade\_main.py` serves as the entry point, initializing specialized BDI agents that execute strict AgentSpeak logic defined in `.asl` files.
+
+\subsection{Multi-Agent Consensus}
+\label{subsec:consensus-bg}
+
+Collective intelligence theory suggests that aggregating independent opinions often outperforms individual experts. Wolf et al.~\cite{wolf2015collective} demonstrated that pooling the decisions of multiple radiologists significantly improves diagnostic accuracy (both sensitivity and specificity). Similarly, calculating consensus from double reading is a standard quality assurance practice in radiology~\cite{schaefer2018double}. My system automates this ``double reading'' by using multiple agents (both CV and NLP) and resolving their conflicts via a structured voting mechanism.
+
+\subsection{Neuro-Symbolic AI}
+\label{subsec:neurosymbolic-bg}
+
+Neuro-symbolic AI seeks to combine the learning capability of neural networks with the reasoning transparency of symbolic logic~\cite{garcez2019neurosymbolic}. In high-stakes domains like medicine, pure black-box models are often insufficient due to lack of explainability. Recent systems like ProCDS~\cite{tan2025procds} have shown that using Prolog to enforce logical consistency on top of statistical model outputs can reduce errors and provide clinically meaningful explanations. This project adopts precisely this neuro-symbolic approach: CNNs provide perception, while Prolog provides reasoning.
 
 \subsection{Medical Decision Standards}
 \label{subsec:medical-standards}
@@ -144,7 +154,7 @@ The Oncologist agent's reasoning layer encodes decision criteria grounded in two
 
 \begin{itemize}
     \item \textbf{Lung-RADS v1.1}~\cite{acr2019lungrads}: The American College of Radiology's Lung Imaging Reporting and Data System defines categories from 1 (Negative) to 4X (Highly Suspicious) based on nodule size, texture, and morphological features. Although originally defined for low-dose CT screening, it provides a clear, codifiable mapping from nodule evidence to management recommendations.
-    \item \textbf{TNM Staging (8th Edition)}~\cite{amin2017ajcc}: The AJCC TNM classification provides tumor staging based on tumor size (T), lymph node involvement (N), and distant metastasis (M). We reference the staging thresholds to ensure the rule base uses medically consistent vocabulary.
+    \item \textbf{TNM Staging (8th Edition)}~\cite{amin2017ajcc}: The AJCC TNM classification provides tumor staging based on tumor size (T), lymph node involvement (N), and distant metastasis (M). I reference the staging thresholds to ensure the rule base uses medically consistent vocabulary.
 \end{itemize}
 
 
@@ -159,7 +169,7 @@ The Oncologist agent's reasoning layer encodes decision criteria grounded in two
 
 The system follows a hub-and-spoke architecture with three layers, mirroring the clinical workflow where independent specialists report to a coordinating physician:
 
-\begin{figure}[h]
+\begin{figure}[ht]
 \centering
 \begin{tikzpicture}[
     agent/.style={draw, rounded corners, minimum width=2.2cm, minimum height=1cm, align=center, font=\small},
@@ -211,7 +221,7 @@ The system follows a hub-and-spoke architecture with three layers, mirroring the
 \subsubsection{Radiologist Agents (R1--R3)}
 \label{subsubsec:radiologists}
 
-The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. Each radiologist agent utilizes the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, employing a DenseNet-121 architecture~\cite{huang2020densenet} pretrained on a comprehensive aggregation of open chest X-ray datasets (including NIH, CheXpert, MIMIC-CXR, and PadChest). This ensures the features are domain-specific to thoracic pathology. The agents specifically monitor the model's output probability for the ``Nodule'' or ``Mass'' pathology classes. No additional CV training is performed; we rely on these robust frozen weights. The system operates in \emph{strict mode}: the CNN model must be available and functional---no heuristic fallbacks are provided. If the model fails to load, a \texttt{ModelUnavailableError} is raised, ensuring classification integrity. The three agents differ in their operating thresholds:
+The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. Each radiologist agent utilizes the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, specifically employing the DenseNet-121 architecture proposed in CheXNet~\cite{rajpurkar2017chexnet}. CheXNet has been shown to exceed effective radiologist performance on pneumonia detection tasks, providing a strong baseline for automated chest X-ray reading. The agents specifically monitor the model's output probability for the ``Nodule'' or ``Mass'' pathology classes. No additional CV training is performed; I rely on these robust frozen weights. The system operates in \emph{strict mode}: the CNN model must be available and functional---no heuristic fallbacks are provided. If the model fails to load, a \texttt{ModelUnavailableError} is raised, ensuring classification integrity. The three agents differ in their operating thresholds:
 
 \begin{table}[h]
 \centering
@@ -368,7 +378,7 @@ The final output for each entity is a three-valued certainty label: \textsc{affi
 \section{Prolog-Based Consensus Mechanism}
 \label{sec:prolog}
 
-The Oncologist agent uses SWI-Prolog, accessed from Python via PySwip~\cite{pyswip2023}, to implement the consensus and decision logic. A dedicated \texttt{PrologEngine} class (\texttt{knowledge/prolog\_engine.py}) provides the Python--Prolog interface with the following capabilities:
+The Oncologist agent uses SWI-Prolog, accessed from Python via PySwip~\cite{pyswip2023}, to implement the consensus and decision logic. This neuro-symbolic integration aligns with modern reliable AI architectures~\cite{garcez2019neurosymbolic}, where symbolic logic verifies and explains sub-symbolic predictions. A dedicated \texttt{PrologEngine} class (\texttt{knowledge/prolog\_engine.py}) provides the Python--Prolog interface with the following capabilities:
 
 \begin{itemize}
     \item \texttt{query\_lung\_rads(size, texture)}: Returns Lung-RADS category and management recommendation.
@@ -407,7 +417,7 @@ Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\;
 \subsection{Disagreement Detection and Resolution}
 \label{subsec:disagreement}
 
-Disagreement is detected when $\sigma > 0.15$. Two resolution strategies are applied in order:
+Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.15$. The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Two resolution strategies are applied in order:
 
 \begin{enumerate}
     \item \textbf{CNN--NLP agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
@@ -424,7 +434,7 @@ Under strong disagreement (split decisions where no majority exists), the system
 
 A key limitation of static agent weights is the implicit assumption that every case offers the same quality and quantity of information in both modalities. In practice, some cases are accompanied by multiple high-quality X-ray projections but only a terse report, while others contain richly detailed reports but limited or low-quality imaging. Static weights cannot adapt to this per-case asymmetry.
 
-To address this, we replace the fixed weights with a \emph{dynamic, per-case weight assignment} based on an information-richness heuristic. The mechanism is implemented in a dedicated \texttt{DynamicWeightCalculator} module (\texttt{models/dynamic\_weights.py}), which serves as the \emph{single source of truth} for all agent weights, eliminating the previous triplication of weight definitions across the Python agent classes, the Prolog knowledge base, and the orchestrator display code.
+To address this, I replace the fixed weights with a \emph{dynamic, per-case weight assignment} based on an information-richness heuristic. The mechanism is implemented in a dedicated \texttt{DynamicWeightCalculator} module (\texttt{models/dynamic\_weights.py}), which serves as the \emph{single source of truth} for all agent weights, eliminating the previous triplication of weight definitions across the Python agent classes, the Prolog knowledge base, and the orchestrator display code.
 
 \subsubsection{Radiology Richness Score}
 
