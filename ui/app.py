@@ -43,7 +43,6 @@ st.set_page_config(
 
 # Import pages
 from ui.pages.case_analysis import render_case_analysis_page
-from ui.pages.batch_processing import render_batch_processing_page
 from ui.pages.evaluation import render_evaluation_page
 
 
@@ -90,9 +89,8 @@ def main():
     render_sidebar()
     
     # Tab-based navigation in main area
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2 = st.tabs([
         "🔬 Case Analysis",
-        "📦 Batch Processing", 
         "📊 Evaluation Dashboard"
     ])
     
@@ -100,9 +98,6 @@ def main():
         render_case_analysis_page()
     
     with tab2:
-        render_batch_processing_page()
-    
-    with tab3:
         render_evaluation_page()
 
 
