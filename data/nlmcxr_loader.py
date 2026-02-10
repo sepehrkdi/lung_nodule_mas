@@ -223,6 +223,52 @@ class NLMCXRLoader(BaseNoduleLoader):
                 valid_cases.append(case_id)
         return sorted(valid_cases)
 
+    def get_nodule_case_ids(self, limit: int = 50) -> List[str]:
+        """
+        Get list of case IDs where the report mentions a nodule.
+        
+        Applies NLP-based pre-filter to select cases with lung nodules.
+        
+        Args:
+            limit: Maximum number of cases to return (default: 50)
+            
+        Returns:
+            List of case IDs sorted alphabetically
+        """
+        nodule_cases = []
+        
+        # Iterate through all cases
+        sorted_ids = sorted(self._case_cache.keys())
+        
+        for case_id in sorted_ids:
+            if len(nodule_cases) >= limit:
+                break
+                
+            case = self._case_cache[case_id]
+            
+            # Check for valid images first
+            has_valid_image = False
+            for img_info in case.images:
+                file_path = self._find_image_file(img_info.image_id)
+                if file_path and file_path.exists():
+                    has_valid_image = True
+                    break
+            
+            if not has_valid_image:
+                continue
+                
+            # Check for nodule mention in report
+            # We use the existing logic but avoid full loading for speed
+            ground_truth, _ = self._extract_ground_truth(
+                case.findings, case.impression
+            )
+            
+            # If ground_truth is 1 (Abnormal/Nodule), add to list
+            if ground_truth == 1:
+                nodule_cases.append(case_id)
+                
+        return nodule_cases
+
     def load_case(
         self,
         case_id: str

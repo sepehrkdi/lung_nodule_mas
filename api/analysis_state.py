@@ -201,6 +201,18 @@ class AnalysisStateManager:
             state.status = "completed"
             state.updated_at = datetime.now().isoformat()
             
+            # Patch completed_agents weights with the dynamic per-case
+            # weights from the consensus findings, so the UI cards show
+            # dynamic weights instead of the static base weights.
+            dynamic_weight_lookup: Dict[str, float] = {}
+            for key in ("radiologist_findings", "pathologist_findings"):
+                for f in consensus_result.get(key, []):
+                    dynamic_weight_lookup[f["agent_name"]] = f["weight"]
+            
+            for agent_result in state.completed_agents:
+                if agent_result.agent_name in dynamic_weight_lookup:
+                    agent_result.weight = dynamic_weight_lookup[agent_result.agent_name]
+            
             logger.info(f"Session {session_id} completed with consensus")
             
             return True

@@ -188,14 +188,23 @@ class ExtendedMAS:
                         impression = metadata.get("impression", "")
                         report = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}"
                         
-                        self.cases.append({
-                            "nodule_id": case_id,
-                            "features": metadata.get("nlp_features", {}),
-                            "ground_truth": metadata.get("ground_truth", -1),
-                            "report": report,
-                            "images": images
-                        })
-                        count += 1
+                        # ALIGNMENT WITH REPORT: Apply NLP-based pre-filter
+                        # "select 30--50 image--report pairs whose reports mention lung nodules"
+                        ground_truth = metadata.get("ground_truth", -1)
+                        
+                        if ground_truth == 1:  # Only include cases with nodules
+                            self.cases.append({
+                                "nodule_id": case_id,
+                                "features": metadata.get("nlp_features", {}),
+                                "ground_truth": ground_truth,
+                                "report": report,
+                                "images": images
+                            })
+                            count += 1
+                            self._log(f"Added case {case_id} (count: {count}/50)")
+                        else:
+                            pass # Skip non-nodule cases
+                            
                     except Exception as e:
                         self._log(f"Failed to load case {case_id}: {e}")
                         continue

@@ -118,7 +118,9 @@ async def list_nodules():
     """List all available case IDs."""
     try:
         loader = get_loader()
-        case_ids = loader.get_case_ids()
+        # ALIGNMENT WITH REPORT: Use pre-filtered list of nodule cases
+        # Limit to 50 cases as per "30-50 image-report pairs" specification
+        case_ids = loader.get_nodule_case_ids(limit=50)
         return NoduleListResponse(
             nodule_ids=case_ids,
             total_count=len(case_ids)

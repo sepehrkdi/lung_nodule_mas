@@ -75,10 +75,29 @@ The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent s
 
 In standard clinical practice, the workflow for lung nodule management follows a hub-and-spoke model: radiologists analyze images and produce reports, pathologists analyze tissue or textual evidence, and the treating oncologist synthesizes all findings into a treatment decision~\cite{pillay2016mdt}. Direct communication between radiologists and pathologists is uncommon in routine practice---they work independently and send reports to the treating physician. This clinically accurate architecture is reflected in our system design, where all agents report to the central Oncologist agent rather than communicating peer-to-peer.
 
-\subsection{Dataset}
+\subsection{Dataset and Pre-processing}
 \label{subsec:dataset}
 
-The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. Each report is structured in XML format with fields for findings, impressions, and indications. From this collection, we apply an NLP-based pre-filter to select 30--50 cases whose reports explicitly mention pulmonary nodules, forming the evaluation subset. This subset size is consistent with prior clinical NLP validation studies---for instance, Chapman et al.\ used 42 reports for NegEx evaluation~\cite{chapman2001negex}.
+The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies, for instance, Chapman et al.\ used 42 reports for NegEx evaluation~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, we implemented an NLP-based pre-filter pipeline:
+
+\begin{enumerate}
+    \item \textbf{Ingestion:} The efficient \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
+    \item \textbf{Keyword Filtering:} A custom \texttt{MedicalNLPExtractor} analyzes the \texttt{FINDINGS} and \texttt{IMPRESSION} sections of each report for nodule-specific keywords (``nodule'', ``mass'', ``lesion'', ``opacity'').
+    \item \textbf{Negation Check:} A simplified NegEx-style rule filter excludes reports where these keywords appear only in negated contexts (e.g., ``no nodule'', ``without mass'').
+    \item \textbf{Subset Selection:} The first 50 cases satisfying these criteria (i.e., having at least one affirmed nodule mention) were selected to form the \emph{Actionable Nodule Subset}.
+\end{enumerate}
+
+This filtering process ensures that the multi-agent system is evaluated on cases where clinical intervention is potentially required (Ground Truth = 1/Abnormal).
+
+\subsection{Ground Truth Definition}
+\label{subsec:groundtruth}
+
+Two distinct forms of ground truth are used in this project:
+
+\begin{itemize}
+    \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=Abnormal/Suspicious, 0=Normal/Benign) is automatically derived from the original radiology reports. A case is labeled ``Abnormal'' if the report contains un-negated keywords mapping to Lung-RADS categories 3--4 (``suspicious'', ``malignant'', ``ill-defined''). This label serves as the reference for the Oncologist agent's final consensus decision.
+    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 50-case Actionable Nodule Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
+\end{itemize}
 
 \subsection{Contributions}
 \label{subsec:contributions}
@@ -541,13 +560,25 @@ The Oncologist generates a structured explanation for each decision, consisting 
 \subsection{Annotation Methodology}
 \label{subsec:annotation}
 
-Annotations were performed by the author following a predefined guideline based on Lung-RADS terminology and standard NLP annotation practices. The annotation task focused on linguistic phenomena (entity spans, negation scope, uncertainty markers) rather than clinical interpretation. This approach is consistent with prior clinical NLP validation studies where non-clinical annotators successfully annotated text spans using explicit guidelines~\cite{chapman2001negex, uzuner2011i2b2}.
+To evaluate the specific contribution of the NLP agents (Pathologist-1, P2, P3), the 50 selected reports were manually annotated. The annotation process focused on information extraction targets rather than clinical re-interpretation. This approach is consistent with prior clinical NLP validation studies where non-clinical annotators successfully annotated text spans using explicit guidelines~\cite{chapman2001negex, uzuner2011i2b2}.
 
-The annotation schema defines:
 \begin{itemize}
-    \item \textbf{Entity types:} \textsc{nodule\_mention}, \textsc{size}, \textsc{location}, \textsc{descriptor}
-    \item \textbf{Certainty modifiers:} \textsc{affirmed} (default), \textsc{negated}, \textsc{uncertain}
+    \item \textbf{Entity Spans:} All text spans corresponding to four key entity types were highlighted:
+    \begin{itemize}
+        \item \textsc{nodule}: The trigger term itself (e.g., ``nodule'', ``mass'').
+        \item \textsc{size}: Measurements (e.g., ``15 mm'', ``1.2 cm'').
+        \item \textsc{location}: Anatomical location (e.g., ``RUL'', ``left apex'').
+        \item \textsc{texture}: Morphological descriptors (e.g., ``spiculated'', ``calcified'').
+    \end{itemize}
+    \item \textbf{Attributes \& Certainty:} Each \textsc{nodule} entity was tagged with a certainty modifier:
+    \begin{itemize}
+        \item \textsc{affirmed}: The finding is present (e.g., ``nodule is seen'').
+        \item \textsc{negated}: The finding is absent (e.g., ``no nodule'').
+        \item \textsc{uncertain}: The finding is equivocal (e.g., ``possible nodule'').
+    \end{itemize}
 \end{itemize}
+
+These manual annotations serve as the ``Gold Standard'' for calculating the Precision, Recall, and F1-score of the Pathologist agents' extraction modules.
 
 \subsection{Metrics}
 \label{subsec:metrics}
