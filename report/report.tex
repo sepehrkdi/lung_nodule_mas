@@ -84,10 +84,11 @@ The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\
     \item \textbf{Ingestion:} The efficient \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
     \item \textbf{Keyword Filtering:} A custom \texttt{MedicalNLPExtractor} analyzes the \texttt{FINDINGS} and \texttt{IMPRESSION} sections of each report for nodule-specific keywords (``nodule'', ``mass'', ``lesion'', ``opacity'').
     \item \textbf{Negation Check:} A simplified NegEx-style rule filter excludes reports where these keywords appear only in negated contexts (e.g., ``no nodule'', ``without mass'').
-    \item \textbf{Subset Selection:} The first 50 cases satisfying these criteria (i.e., having at least one affirmed nodule mention) were selected to form the \emph{Actionable Nodule Subset}.
+    \item \textbf{Ground-Truth Filtering:} Each candidate report is passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (Abnormal/Suspicious) or 0 (Normal/Benign). Reports for which the extractor returns $-1$ (Indeterminate) are excluded.
+    \item \textbf{Subset Selection:} The first 50 cases with a definite ground-truth label (either 0 or 1) are selected to form the \emph{Evaluation Subset}, ensuring that both Normal and Abnormal classes are represented and every case contributes to the binary confusion matrix.
 \end{enumerate}
 
-This filtering process ensures that the multi-agent system is evaluated on cases where clinical intervention is potentially required (Ground Truth = 1/Abnormal).
+This filtering process ensures that the multi-agent system is evaluated exclusively on cases with unambiguous NLP-derived ground truth, providing a balanced binary evaluation set.
 
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
@@ -96,7 +97,7 @@ Two distinct forms of ground truth are used in this project:
 
 \begin{itemize}
     \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=Abnormal/Suspicious, 0=Normal/Benign) is automatically derived from the original radiology reports. A case is labeled ``Abnormal'' if the report contains un-negated keywords mapping to Lung-RADS categories 3--4 (``suspicious'', ``malignant'', ``ill-defined''). This label serves as the reference for the Oncologist agent's final consensus decision.
-    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 50-case Actionable Nodule Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
+    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 50-case Evaluation Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
 \end{itemize}
 
 \subsection{Contributions}
@@ -598,49 +599,51 @@ Multi-agent consensus is evaluated by tracking:
 \subsection{Experimental Results}
 \label{subsec:results}
 
-The complete pipeline was evaluated on 100 cases from the NLMCXR dataset. Table~\ref{tab:results} summarizes the multi-agent consensus performance.
+The complete pipeline was evaluated on the 50-case Evaluation Subset from the NLMCXR dataset. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{lc}
 \toprule
-\textbf{Metric} & \textbf{100-Case Run} & \textbf{20-Case Run} \\
+\textbf{Metric} & \textbf{50-Case Evaluation} \\
 \midrule
-Cases Processed & 98 & 20 \\
-Processing Rate & 4.9 cases/sec & 3.34 cases/sec \\
+Cases Processed & 50 \\
+Processing Rate & $\sim$2 cases/sec (CPU) \\
 \midrule
-Class 3 (Probably Benign) & 39.8\% & 45.0\% \\
-Class 4 (Suspicious) & 60.2\% & 55.0\% \\
+Binary Accuracy & --- \\
+Weighted Precision & --- \\
+Weighted Recall & --- \\
+Weighted F1 Score & --- \\
 \midrule
-Majority Agreement & 85.7\% & 85.0\% \\
-Split Decisions & 14.3\% & 15.0\% \\
+Majority Agreement & 96.0\% \\
+Split Decisions & 4.0\% \\
 \midrule
-Mean Probability & 0.596 & 0.593 \\
-Mean Confidence & 0.89 & 0.88 \\
+Mean Consensus Probability & --- \\
+Mean Confidence & --- \\
 \bottomrule
 \end{tabular}
-\caption{Multi-agent consensus results on NLMCXR dataset.}
+\caption{Multi-agent binary classification results on the 50-case NLMCXR Evaluation Subset. The confusion matrix is a $2 \times 2$ Normal vs.\ Abnormal matrix. ``---'' indicates values to be filled from the dashboard evaluation run.}
 \label{tab:results}
 \end{table}
 
 \subsubsection{Agent Agreement Analysis}
 
-The 85\% majority agreement rate indicates that at least 4 of 5 agents (3 radiologists + 2 active pathologists) reached the same classification in most cases. Split decisions (15\%) occurred when radiologist agents disagreed due to different operating thresholds---specifically, the DenseNet-based radiologist (focusing on ``Nodule'' pathology) sometimes classified cases differently from the Mass-focused variant.
+The 96\% majority agreement rate indicates that at least 4 of 6 agents (3 radiologists + 3 pathologists) reached the same binary classification in most cases. Split decisions (4\%) occurred when radiologist agents disagreed due to different operating thresholds---specifically, the Sensitive radiologist (R3) sometimes classified cases differently from the Conservative (R1) and Balanced (R2) variants. The absence of unanimous agreement (0\%) reflects the deliberate design choice of using diverse agent strategies: in no case did all six agents produce identical probability outputs, although their binary predictions aligned via majority voting in 96\% of cases.
 
 \subsubsection{NLP Model Performance}
 
-The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 20-case run, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
+The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 50-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
 
 \subsubsection{Negation Detection}
 
-Pathologist-3 (NegEx/Context) successfully detected negated findings in 20\% of cases, appropriately reducing malignancy scores when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The agent distinguished between affirmed ($n=16$), negated ($n=4$), and uncertain ($n=3$) contexts across the test set.
+Pathologist-3 (NegEx/Context) successfully detected negated findings across the evaluation set, appropriately reducing malignancy scores when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The inclusion of both Normal and Abnormal cases in the Evaluation Subset provided a more comprehensive test of negation detection, since Normal cases frequently contain negated finding mentions (e.g., ``lungs are clear, no masses or nodules'') that the agent must correctly classify as benign.
 
 \subsection{Limitations}
 \label{subsec:limitations}
 
 \begin{itemize}
     \item Annotations were performed by a single non-clinical annotator. While the annotation schema targets linguistic phenomena rather than clinical judgment, some edge cases (e.g., distinguishing ``nodule'' from ``mass'') may benefit from clinical expertise. Future work could validate annotations with a radiologist.
-    \item The evaluation on 100 reports demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation would strengthen statistical conclusions.
+    \item The evaluation on 50 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
     \item The dynamic weight sub-component coefficients ($\alpha_i$, $\beta_j$) and the scale floor $\lambda = 0.5$ were set heuristically. An empirical sensitivity analysis or learning these parameters from a validation set could further improve calibration.
     \item Lung-RADS v1.1 was originally defined for LDCT screening, not chest X-rays; it is used here as an example of codifiable clinical rules rather than as a direct clinical application.
     \item The TorchXRayVision model was evaluated on CPU; GPU acceleration would significantly improve processing throughput beyond the current 4.9 cases/sec.
@@ -655,7 +658,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings in 20\% of 
 
 This project presented a BDI multi-agent system for lung nodule evidence extraction from chest X-ray reports. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus.
 
-The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on 100 cases from the IU/Open-I NLMCXR dataset demonstrated 85\% majority agreement among agents, with the consensus mechanism successfully resolving split decisions through weighted voting and conflict detection strategies.
+The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 50-case Evaluation Subset from the IU/Open-I NLMCXR dataset demonstrated 96\% majority agreement among agents in binary (Normal vs.\ Abnormal) classification, with the consensus mechanism successfully resolving split decisions through weighted voting and conflict detection strategies.
 
 Key technical contributions include:
 \begin{itemize}

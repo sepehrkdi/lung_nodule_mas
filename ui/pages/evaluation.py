@@ -9,6 +9,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import time
 import plotly.figure_factory as ff
 import plotly.express as px
 import plotly.graph_objects as go
@@ -21,20 +22,30 @@ API_BASE_URL = "http://localhost:8000"
 def check_api_connection() -> bool:
     """Check if the API is available."""
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=2)
+        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
         return response.status_code == 200
     except:
         return False
 
 
-def get_metrics() -> Optional[Dict[str, Any]]:
-    """Fetch evaluation metrics from API."""
+def start_metrics_computation() -> bool:
+    """Kick off background metrics computation."""
     try:
-        response = requests.get(f"{API_BASE_URL}/metrics", timeout=120)
+        response = requests.post(f"{API_BASE_URL}/metrics/start", timeout=10)
+        return response.status_code == 200
+    except Exception as e:
+        st.error(f"Error starting metrics: {e}")
+    return False
+
+
+def poll_metrics_status() -> Optional[Dict[str, Any]]:
+    """Poll for metrics computation progress."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/metrics/status", timeout=10)
         if response.status_code == 200:
             return response.json()
-    except Exception as e:
-        st.error(f"Error fetching metrics: {e}")
+    except:
+        pass
     return None
 
 
@@ -60,20 +71,48 @@ def render_evaluation_page():
     
     # Warning about computation time
     st.warning("""
-    ⚠️ **Note**: Computing metrics requires analyzing all nodules in the dataset.
-    This may take several minutes depending on the dataset size and hardware.
+    ⚠️ **Note**: Computing metrics requires analyzing all 50 nodule cases.
+    This may take several minutes depending on hardware.
     """)
     
     # Compute metrics button
     if st.button("🔄 Compute Metrics", type="primary"):
-        with st.spinner("Computing metrics... This may take a few minutes."):
-            metrics = get_metrics()
+        if start_metrics_computation():
+            progress_bar = st.progress(0, text="Starting metrics computation...")
+            status_text = st.empty()
             
-            if metrics:
-                st.session_state.metrics = metrics
-                st.success("✅ Metrics computed successfully!")
-            else:
-                st.error("Failed to compute metrics")
+            while True:
+                status = poll_metrics_status()
+                if status is None:
+                    st.error("Lost connection to API")
+                    break
+                
+                state = status["status"]
+                processed = status.get("processed", 0)
+                total = status.get("total", 0)
+                
+                if total > 0:
+                    pct = processed / total
+                    progress_bar.progress(pct, text=f"Analyzing case {processed}/{total}...")
+                    status_text.caption(f"Processing... {processed} of {total} cases completed")
+                
+                if state == "completed":
+                    progress_bar.progress(1.0, text="Done!")
+                    status_text.empty()
+                    st.session_state.metrics = status.get("metrics")
+                    st.success("✅ Metrics computed successfully!")
+                    break
+                elif state == "error":
+                    progress_bar.empty()
+                    status_text.empty()
+                    st.error(f"Metrics computation failed: {status.get('error_message', 'Unknown error')}")
+                    break
+                
+                time.sleep(2)
+            
+            st.rerun()
+        else:
+            st.error("Failed to start metrics computation")
     
     # Display metrics if available
     if "metrics" in st.session_state and st.session_state.metrics:
@@ -120,7 +159,7 @@ def render_evaluation_page():
         st.header("🔢 Confusion Matrix")
         
         cm = np.array(metrics["confusion_matrix"])
-        labels = metrics.get("class_labels", ["1", "2", "3", "4", "5"])
+        labels = metrics.get("class_labels", ["Normal", "Abnormal"])
         
         # Create annotated heatmap
         fig = ff.create_annotated_heatmap(
@@ -132,10 +171,10 @@ def render_evaluation_page():
         )
         
         fig.update_layout(
-            title="Predicted vs Actual Malignancy Class",
-            xaxis_title="Predicted Class",
-            yaxis_title="Actual Class",
-            height=500
+            title="Predicted vs Actual Classification (Normal / Abnormal)",
+            xaxis_title="Predicted",
+            yaxis_title="Actual",
+            height=400
         )
         
         # Reverse y-axis to have Class 1 at top

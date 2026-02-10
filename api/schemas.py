@@ -133,7 +133,16 @@ class MetricsResponse(BaseModel):
     majority_count: int
     split_count: int
     confusion_matrix: List[List[int]]
-    class_labels: List[str] = ["Class 1", "Class 2", "Class 3", "Class 4", "Class 5"]
+    class_labels: List[str] = ["Normal", "Abnormal"]
+
+
+class MetricsStatusResponse(BaseModel):
+    """Response model for metrics computation progress."""
+    status: str  # "running", "completed", "error"
+    processed: int = 0
+    total: int = 0
+    metrics: Optional[MetricsResponse] = None
+    error_message: Optional[str] = None
 
 
 class HealthResponse(BaseModel):

@@ -15,7 +15,7 @@ import logging
 import io
 import json
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -39,6 +39,7 @@ from api.schemas import (
     BatchAnalysisRequest,
     BatchAnalysisResponse,
     MetricsResponse,
+    MetricsStatusResponse,
     HealthResponse,
 )
 from api.analysis_state import analysis_manager, AgentResult
@@ -468,88 +469,110 @@ async def start_batch_analysis(request: BatchAnalysisRequest, background_tasks: 
 
 
 # =============================================================================
-# METRICS ENDPOINTS
+# METRICS ENDPOINTS (async with polling for progress)
 # =============================================================================
 
-@app.get("/metrics", response_model=MetricsResponse, tags=["Metrics"])
-async def get_metrics():
-    """
-    Compute evaluation metrics from all analyzed cases.
-    
-    Note: This requires having run analyses first. Returns metrics based
-    on comparing predicted classes against ground truth malignancy scores.
-    """
+# In-memory state for metrics computation
+_metrics_state: Dict[str, Any] = {
+    "status": "idle",     # idle | running | completed | error
+    "processed": 0,
+    "total": 0,
+    "result": None,
+    "error": None,
+}
+
+async def _compute_metrics_background():
+    """Background task that computes metrics and updates _metrics_state."""
+    global _metrics_state
     try:
         from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-        
+        import concurrent.futures
+
         loader = get_loader()
         orchestrator = get_orchestrator()
-        
-        # Collect results for all nodules
+
         y_true = []
         y_pred = []
         unanimous_count = 0
         majority_count = 0
         split_count = 0
-        
-        # Use the same filtered 50-case subset as the nodule listing endpoint
+
         case_ids = loader.get_nodule_case_ids(limit=50)
-        
-        for nodule_id in case_ids:
+        _metrics_state["total"] = len(case_ids)
+        _metrics_state["processed"] = 0
+
+        loop = asyncio.get_event_loop()
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+        for idx, nodule_id in enumerate(case_ids):
             try:
                 images, metadata = loader.load_case(nodule_id)
-                
-                # Use real NLMCXR report
+
                 findings = metadata.get("findings", "")
                 impression = metadata.get("impression", "")
                 report = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
-                
-                # Build features
+
                 features = metadata.get("nlp_features", {})
                 features["ground_truth"] = metadata.get("ground_truth")
-                
+
                 image = images[0] if len(images) == 1 else images
-                
-                result = await orchestrator.analyze_case(
-                    case_id=nodule_id,
-                    image_array=image,
-                    report=report,
-                    features=features,
-                    case_metadata=metadata,  # Pass full metadata for dynamic weight computation
+
+                # Run CPU-heavy analysis in thread pool so the event loop
+                # remains free to serve /health and /metrics/status requests
+                def _run_analysis(cid, img, rpt, feat, meta):
+                    import asyncio as _aio
+                    _loop = _aio.new_event_loop()
+                    try:
+                        return _loop.run_until_complete(
+                            orchestrator.analyze_case(
+                                case_id=cid,
+                                image_array=img,
+                                report=rpt,
+                                features=feat,
+                                case_metadata=meta,
+                            )
+                        )
+                    finally:
+                        _loop.close()
+
+                result = await loop.run_in_executor(
+                    executor,
+                    _run_analysis, nodule_id, image, report, features, metadata
                 )
-                
+
                 ground_truth = metadata.get("ground_truth", -1)
-                if ground_truth != -1:  # Only include cases with ground truth
+                if ground_truth != -1:
                     y_true.append(ground_truth)
                     y_pred.append(1 if result.final_probability >= 0.5 else 0)
-                
+
                 if result.agreement_level == "unanimous":
                     unanimous_count += 1
                 elif result.agreement_level == "majority":
                     majority_count += 1
                 else:
                     split_count += 1
-                    
+
             except Exception as e:
                 logger.warning(f"Skipping nodule {nodule_id} in metrics: {e}")
-                continue
-        
+
+            _metrics_state["processed"] = idx + 1
+
         if len(y_true) == 0:
-            raise HTTPException(status_code=400, detail="No data available for metrics")
-        
-        # Compute metrics
-        accuracy = accuracy_score(y_true, y_pred)
-        precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
-        recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+            _metrics_state["status"] = "error"
+            _metrics_state["error"] = "No data available for metrics"
+            return
+
+        acc = accuracy_score(y_true, y_pred)
+        prec = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+        rec = recall_score(y_true, y_pred, average='weighted', zero_division=0)
         f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
-        
-        # Confusion matrix (5x5 for classes 1-5)
-        cm = confusion_matrix(y_true, y_pred, labels=[1, 2, 3, 4, 5])
-        
-        return MetricsResponse(
-            accuracy=accuracy,
-            precision=precision,
-            recall=recall,
+        # Binary confusion matrix: 0=Normal, 1=Abnormal
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+
+        _metrics_state["result"] = MetricsResponse(
+            accuracy=acc,
+            precision=prec,
+            recall=rec,
             f1_score=f1,
             total_cases=len(y_true),
             unanimous_count=unanimous_count,
@@ -557,12 +580,60 @@ async def get_metrics():
             split_count=split_count,
             confusion_matrix=cm.tolist(),
         )
-        
-    except HTTPException:
-        raise
+        _metrics_state["status"] = "completed"
+        logger.info("Metrics computation completed successfully")
+
     except Exception as e:
-        logger.error(f"Failed to compute metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Metrics computation failed: {e}")
+        _metrics_state["status"] = "error"
+        _metrics_state["error"] = str(e)
+
+
+@app.post("/metrics/start", tags=["Metrics"])
+async def start_metrics():
+    """
+    Start computing evaluation metrics in the background.
+    Poll /metrics/status for progress.
+    """
+    global _metrics_state
+    if _metrics_state["status"] == "running":
+        return {"message": "Metrics computation already running", "status": "running"}
+
+    _metrics_state = {
+        "status": "running",
+        "processed": 0,
+        "total": 0,
+        "result": None,
+        "error": None,
+    }
+    asyncio.ensure_future(_compute_metrics_background())
+    return {"message": "Metrics computation started", "status": "running"}
+
+
+@app.get("/metrics/status", response_model=MetricsStatusResponse, tags=["Metrics"])
+async def metrics_status():
+    """Poll for metrics computation progress."""
+    return MetricsStatusResponse(
+        status=_metrics_state["status"],
+        processed=_metrics_state["processed"],
+        total=_metrics_state["total"],
+        metrics=_metrics_state["result"],
+        error_message=_metrics_state.get("error"),
+    )
+
+
+@app.get("/metrics", response_model=MetricsResponse, tags=["Metrics"])
+async def get_metrics():
+    """
+    Return the last computed metrics (does NOT recompute).
+    Use POST /metrics/start to trigger computation.
+    """
+    if _metrics_state["status"] == "completed" and _metrics_state["result"]:
+        return _metrics_state["result"]
+    elif _metrics_state["status"] == "running":
+        raise HTTPException(status_code=202, detail="Metrics computation still in progress")
+    else:
+        raise HTTPException(status_code=400, detail="No metrics available. POST /metrics/start first.")
 
 
 # =============================================================================
