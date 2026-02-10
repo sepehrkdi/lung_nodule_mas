@@ -492,7 +492,8 @@ async def get_metrics():
         majority_count = 0
         split_count = 0
         
-        case_ids = loader.get_case_ids()
+        # Use the same filtered 50-case subset as the nodule listing endpoint
+        case_ids = loader.get_nodule_case_ids(limit=50)
         
         for nodule_id in case_ids:
             try:

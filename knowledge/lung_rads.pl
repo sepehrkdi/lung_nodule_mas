@@ -369,8 +369,8 @@ m_stage(N, 'm1c') :- metastasis(N, multiple_extrathoracic).
 all_recommendations(N, Recs) :-
     findall(R, recommendation(N, R), Recs).
 
-% Get full assessment
-full_assessment(N, Assessment) :-
+% Get Lung-RADS-only assessment (see multi_agent_consensus.pl for full_assessment/2)
+lung_rads_assessment(N, Assessment) :-
     nodule(N),
     (lung_rads_category(N, LungRads) -> true ; LungRads = unknown),
     (risk_level(N, Risk) -> true ; Risk = unknown),
@@ -440,7 +440,7 @@ likely_malignant(N) :-
  * ?- all_recommendations(n001, Recs).
  * Recs = [pet_ct_or_biopsy, consider_biopsy].
  * 
- * ?- full_assessment(n001, A).
+ * ?- lung_rads_assessment(n001, A).
  * A = assessment(nodule_id(n001), lung_rads('4B'), risk(high), 
  *                recommendations([pet_ct_or_biopsy, consider_biopsy])).
  */
