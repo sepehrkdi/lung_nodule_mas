@@ -610,25 +610,48 @@ The complete pipeline was evaluated on the 50-case Evaluation Subset from the NL
 Cases Processed & 50 \\
 Processing Rate & $\sim$2 cases/sec (CPU) \\
 \midrule
-Binary Accuracy & --- \\
-Weighted Precision & --- \\
-Weighted Recall & --- \\
-Weighted F1 Score & --- \\
+Binary Accuracy & 82.0\% \\
+Weighted Precision & 80.9\% \\
+Weighted Recall & 82.0\% \\
+Weighted F1 Score & 81.4\% \\
 \midrule
-Majority Agreement & 96.0\% \\
-Split Decisions & 4.0\% \\
-\midrule
-Mean Consensus Probability & --- \\
-Mean Confidence & --- \\
+Majority Agreement & 100\% \\
+Split Decisions & 0\% \\
 \bottomrule
 \end{tabular}
-\caption{Multi-agent binary classification results on the 50-case NLMCXR Evaluation Subset. The confusion matrix is a $2 \times 2$ Normal vs.\ Abnormal matrix. ``---'' indicates values to be filled from the dashboard evaluation run.}
+\caption{Multi-agent binary classification results on the 50-case NLMCXR Evaluation Subset.}
 \label{tab:results}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Predicted Normal} & \textbf{Predicted Abnormal} \\
+\midrule
+\textbf{Actual Normal} ($n=43$) & 39 (TN) & 4 (FP) \\
+\textbf{Actual Abnormal} ($n=7$) & 5 (FN) & 2 (TP) \\
+\bottomrule
+\end{tabular}
+\caption{Binary confusion matrix (Normal vs.\ Abnormal) on the 50-case Evaluation Subset. The dataset is imbalanced: 86\% Normal, 14\% Abnormal.}
+\label{tab:confusion}
 \end{table}
 
 \subsubsection{Agent Agreement Analysis}
 
-The 96\% majority agreement rate indicates that at least 4 of 6 agents (3 radiologists + 3 pathologists) reached the same binary classification in most cases. Split decisions (4\%) occurred when radiologist agents disagreed due to different operating thresholds---specifically, the Sensitive radiologist (R3) sometimes classified cases differently from the Conservative (R1) and Balanced (R2) variants. The absence of unanimous agreement (0\%) reflects the deliberate design choice of using diverse agent strategies: in no case did all six agents produce identical probability outputs, although their binary predictions aligned via majority voting in 96\% of cases.
+All 50 cases achieved majority agreement (100\%), meaning at least 4 of 6 agents agreed on the binary classification in every case; no split decisions occurred. However, unanimous agreement (all 6 agents producing the same binary prediction) was never observed (0\%). This is expected given the deliberate diversity of agent strategies: the three radiologists operate at different sensitivity thresholds, and the three pathologists use different NLP approaches, so their individual probability outputs naturally vary even when the majority vote converges.
+
+\subsubsection{Confusion Matrix Analysis}
+
+The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (43 Normal, 7 Abnormal):
+
+\begin{itemize}
+    \item \textbf{Normal class specificity:} 39/43 = 90.7\%. The system correctly classifies the vast majority of normal cases, with only 4 false positives.
+    \item \textbf{Abnormal class sensitivity:} 2/7 = 28.6\%. The system detects only 2 of 7 abnormal cases, missing 5 (false negatives). This low sensitivity is a concern in a clinical screening context where missed abnormalities carry high cost.
+    \item \textbf{Class imbalance effect:} The 86/14 Normal/Abnormal split means the overall 82\% accuracy is largely driven by correct Normal predictions. The weighted F1 score (81.4\%) partially accounts for this by weighting per-class F1 by class frequency.
+\end{itemize}
+
+The low abnormal-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
 
 \subsubsection{NLP Model Performance}
 
@@ -658,7 +681,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 
 This project presented a BDI multi-agent system for lung nodule evidence extraction from chest X-ray reports. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus.
 
-The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 50-case Evaluation Subset from the IU/Open-I NLMCXR dataset demonstrated 96\% majority agreement among agents in binary (Normal vs.\ Abnormal) classification, with the consensus mechanism successfully resolving split decisions through weighted voting and conflict detection strategies.
+The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 50-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 82\% binary classification accuracy with 100\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (90.7\%) for Normal cases but lower sensitivity (28.6\%) for Abnormal cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
 
 Key technical contributions include:
 \begin{itemize}
