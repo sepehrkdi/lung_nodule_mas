@@ -38,27 +38,7 @@
 
 I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs whose reports mention lung nodules, and I will annotate them for evaluation of my NLP outputs (entities + attributes + negation/uncertainty).
 
-\textbf{Agents and quantification:} I will implement 3 agent types with 7 total instances:
 
-\begin{itemize}
-    \item \textbf{Radiologists (3 BDI agents):} each wraps an external Python action that returns a ``nodule suspicion'' score from a pre-trained CNN (DenseNet-121 pre-trained on ChestX-ray14~\cite{wang2017chestxray14, huang2020densenet}, with three operating points: R1 = conservative/high-specificity, R2 = balanced, R3 = sensitive/high-recall, simulating clinical inter-reader variability). No CV training will be done.
-
-    \item \textbf{Pathologists (3 BDI agents):} these are the main NLP contribution. Each Pathologist calls my Python NLP pipeline and outputs structured findings extracted from reports.
-    \begin{itemize}
-        \item \textbf{Pathologist-1:} high-precision rules/regex + section-based extractor (focus on robust mention/size patterns).
-        \item \textbf{Pathologist-2:} spaCy/scispaCy-based extractor with pattern rules and terminology mapping (focus on generalization and synonym handling).
-        \item \textbf{Pathologist-3:} context specialist focused on negation and uncertainty scope (NegEx-style triggers + uncertainty cues such as ``possible'', ``cannot exclude''), producing certainty labels that the Oncologist can use during conflict resolution.
-    \end{itemize}
-    scispaCy~\cite{neumann2019scispacy} is chosen because it is designed for biomedical/scientific text and integrates with spaCy's pipeline components.
-
-    \item \textbf{Oncologist (1 BDI agent):} integrates all expert outputs (3 Radiologists + 3 Pathologists) using Prolog (SWI-Prolog called from Python via PySwip~\cite{pyswip2023}). It performs conflict detection and resolution via weighted voting with expert reliability $\times$ reported confidence, tie-breaking rules, and conservative recommendation under strong disagreement, and produces the final decision plus an explanation (``which experts agreed/disagreed and why the rule fired'').
-\end{itemize}
-
-\textbf{Dataset:} I will use the Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi} and select 30--50 English image--report pairs whose reports explicitly mention pulmonary nodules (e.g., keyword filtering for ``nodule'', ``nodular'', ``nodular opacity''). Each case will be processed end-to-end: X-ray $\rightarrow$ Radiologists, report $\rightarrow$ Pathologists, fused by Oncologist. I will implement a script to run the full MAS on the dataset and log each expert's extracted features and confidence, detected disagreements, and Prolog decision and explanation.
-
-\textbf{Papers/tools to study:} I will study Pons et al.~\cite{pons2016nlpradiology} to ground the NLP pipeline choices (sectioning, tokenization, normalization, syntactic/semantic processing, and the importance of negation). I will analyze SPADE-BDI documentation~\cite{spadebdi2023} for BDI plans and messaging patterns with external actions, and I will consult the SWI-Prolog documentation for implementing structured rule bases and aggregation rules for voting/conflict resolution.
-
-\textbf{Medical sources:} The Oncologist's reasoning layer will encode a decision scheme grounded in clinical staging/assessment concepts, using publicly documented medical standards. For structured decision criteria, I will reference Lung-RADS v1.1~\cite{acr2019lungrads} as an example of explicit rule-like categories and follow-up recommendations. For staging terminology, I will reference the 8th edition TNM staging summaries~\cite{amin2017ajcc} to ensure the rule base uses medically consistent staging vocabulary and thresholds.
 
 \subsection{The Kind of the Proposal}
 \label{subsec:kind}
@@ -84,7 +64,7 @@ This project addresses the problem of \emph{lung nodule evidence extraction and 
 
 \begin{enumerate}
     \item \textbf{Natural Language Processing (NLP):} Extracting structured nodule attributes (size, location, texture, descriptors), detecting mentions, and determining negation/uncertainty status from free-text radiology reports.
-    \item \textbf{Computer Vision (CV):} Obtaining nodule suspicion scores from chest X-ray images using a pre-trained convolutional neural network.
+    \item \textbf{Computer Vision (CV):} Obtaining nodule suspicion scores from chest X-ray images using the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, leveraging models pretrained on massive chest X-ray datasets.
     \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, implementing weighted consensus, conflict detection, and clinical recommendation generation.
 \end{enumerate}
 
@@ -210,7 +190,7 @@ The system follows a hub-and-spoke architecture with three layers, mirroring the
 \subsubsection{Radiologist Agents (R1--R3)}
 \label{subsubsec:radiologists}
 
-The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. Each radiologist agent wraps a pre-trained DenseNet-121~\cite{huang2020densenet} CNN, originally trained on ChestX-ray14~\cite{wang2017chestxray14}. No CV training is performed. The three agents differ in their operating thresholds:
+The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. Each radiologist agent utilizes the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, employing a DenseNet-121 architecture~\cite{huang2020densenet} pretrained on a comprehensive aggregation of open chest X-ray datasets (including NIH, CheXpert, MIMIC-CXR, and PadChest). This ensures the features are domain-specific to thoracic pathology. The agents specifically monitor the model's output probability for the ``Nodule'' or ``Mass'' pathology classes. No additional CV training is performed; we rely on these robust frozen weights. The three agents differ in their functioning logic (using the model probability vs.\ heuristic feature-based fallbacks) and operating thresholds:
 
 \begin{table}[h]
 \centering
