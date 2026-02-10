@@ -36,7 +36,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs whose reports mention lung nodules, and I will annotate them for evaluation of my NLP outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs and automatically derive binary ground-truth labels (Normal/Abnormal) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
 
 
 
@@ -110,7 +110,7 @@ The main contributions of this project are:
     \item A custom NLP pipeline for lung nodule evidence extraction implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
     \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and explanation generation.
     \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
-    \item An end-to-end evaluation on real clinical reports with manually annotated entity-level ground truth.
+    \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification and manually annotated entity-level ground truth for NLP extraction assessment.
 \end{enumerate}
 
 
@@ -414,7 +414,7 @@ Disagreement is detected when $\sigma > 0.15$. Two resolution strategies are app
     \item \textbf{Rule-based tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
 \end{enumerate}
 
-The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) Lung-RADS category assignment with clinical recommendations and TNM staging where applicable.
+The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) thresholding the consensus probability into a binary decision (Normal vs.\ Abnormal). Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
 
 
 Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
@@ -518,7 +518,7 @@ P3 (Context)  & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
 \subsection{Clinical Recommendations}
 \label{subsec:recommendations}
 
-The Prolog knowledge base encodes Lung-RADS v1.1~\cite{acr2019lungrads} categories and their associated recommendations:
+Although the primary classification task is binary (Normal vs.\ Abnormal), the Prolog knowledge base also encodes Lung-RADS v1.1~\cite{acr2019lungrads} categories as supplementary clinical recommendations. These categories are generated alongside the binary decision to provide actionable follow-up guidance:
 
 \begin{table}[h]
 \centering
@@ -545,9 +545,9 @@ TNM staging~\cite{amin2017ajcc} is applied when applicable, with T-stage determi
 
 The Oncologist generates a structured explanation for each decision, consisting of:
 \begin{itemize}
-    \item Which agents classified the case as suspicious vs.\ benign.
+    \item The binary classification (Normal vs.\ Abnormal) and which agents contributed to each side.
     \item The resolution strategy applied and why (e.g., ``CNN-NLP agreement strategy used because radiologists and pathologists reached consistent conclusions'').
-    \item The Lung-RADS category and corresponding recommendation.
+    \item The supplementary Lung-RADS category and corresponding clinical recommendation.
     \item Whether disagreement was detected and which agents disagreed.
 \end{itemize}
 
