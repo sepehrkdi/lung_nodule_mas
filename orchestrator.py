@@ -70,6 +70,13 @@ from knowledge.prolog_engine import (
     PrologQueryError,
 )
 
+# Import dynamic weight calculator
+from models.dynamic_weights import (
+    DynamicWeightCalculator,
+    BASE_WEIGHTS,
+    get_base_weight,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,6 +118,7 @@ class ConsensusResult:
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     prolog_reasoning: Dict[str, Any] = field(default_factory=dict)
     thinking_process: List[Dict[str, str]] = field(default_factory=list)
+    weight_rationale: Dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -143,16 +151,41 @@ class PrologConsensusEngine:
         
         logger.info("Prolog consensus engine initialized successfully")
     
+    def _update_prolog_weights(self, weights: Dict[str, float]) -> None:
+        """
+        Update Prolog KB with dynamic per-case weights.
+        
+        Retracts old agent_weight/2 facts and asserts new ones so that
+        Prolog's calculate_consensus uses the same dynamic weights as Python.
+        """
+        for agent_name, weight in weights.items():
+            try:
+                self.prolog.retractall(f"agent_weight({agent_name}, _)")
+            except Exception:
+                pass  # May not exist yet
+            try:
+                self.prolog.assertz(f"agent_weight({agent_name}, {weight})")
+            except Exception as e:
+                logger.warning(f"Failed to assert weight for {agent_name}: {e}")
+    
     def compute_consensus(
         self,
         nodule_id: str,
         radiologist_findings: List[AgentFinding],
-        pathologist_findings: List[AgentFinding]
+        pathologist_findings: List[AgentFinding],
+        dynamic_weights: Optional[Dict[str, float]] = None
     ) -> Dict[str, Any]:
         """
         Compute consensus using Prolog weighted voting.
         
         STRICT MODE: Uses Prolog only, no fallback.
+        
+        Args:
+            nodule_id: Case identifier
+            radiologist_findings: Findings from radiologist agents
+            pathologist_findings: Findings from pathologist agents
+            dynamic_weights: Per-case dynamic weights computed by
+                DynamicWeightCalculator. If None, uses BASE_WEIGHTS.
         
         Raises:
             PrologQueryError: If consensus computation fails
@@ -161,6 +194,11 @@ class PrologConsensusEngine:
         
         if not all_findings:
             raise PrologQueryError("No findings provided for consensus")
+        
+        # Apply dynamic weights to findings
+        weights = dynamic_weights or BASE_WEIGHTS
+        for f in all_findings:
+            f.weight = weights.get(f.agent_name, get_base_weight(f.agent_name))
         
         # Convert findings to format expected by Prolog engine
         prolog_findings = [
@@ -173,21 +211,16 @@ class PrologConsensusEngine:
             for f in all_findings
         ]
         
+        # Update Prolog KB with dynamic weights before consensus
+        self._update_prolog_weights(weights)
+        
         # Use Prolog engine's compute_consensus method
         result = self.prolog.compute_consensus(nodule_id, prolog_findings)
         
         # Generate BDI Thinking Process
         thinking_process = []
         
-        # Define weights to match Prolog KB
-        weights = {
-            "radiologist_densenet": 1.0,
-            "radiologist_resnet": 1.0,
-            "radiologist_rulebased": 0.7,
-            "pathologist_regex": 0.8,
-            "pathologist_spacy": 0.9,
-            "pathologist_context": 0.5 # Default
-        }
+        # Use dynamic weights (already applied to findings)
         
         # 1. Perception
         weight_sum = 0
@@ -197,9 +230,7 @@ class PrologConsensusEngine:
         scores = []
         
         for f in all_findings:
-            w = weights.get(f.agent_name, 0.5)
-            # Update weight in finding object if not set
-            f.weight = w
+            w = f.weight  # Already set to dynamic weight above
             
             p = f.probability
             weighted_prob_sum += p * w
@@ -355,6 +386,9 @@ class MultiAgentOrchestrator:
         # Initialize Prolog consensus engine
         self.consensus_engine = PrologConsensusEngine(consensus_kb_path)
         
+        # Initialize dynamic weight calculator
+        self.weight_calculator = DynamicWeightCalculator()
+        
         # Statistics
         self.stats = {
             "cases_processed": 0,
@@ -388,12 +422,14 @@ class MultiAgentOrchestrator:
         report: Optional[str] = None,
         features: Optional[Dict[str, Any]] = None,
         image_metadata: Optional[List[Dict[str, Any]]] = None,  # Per-image metadata for aggregation
+        case_metadata: Optional[Dict[str, Any]] = None,  # Full case metadata for dynamic weights
         on_agent_complete: Optional[Callable[[str, Dict[str, Any]], Awaitable[None]]] = None
     ) -> ConsensusResult:
         """
         Analyze a single case with all 6 agents.
 
         Supports both single-image and multi-image (NLMCXR) cases.
+        Uses dynamic weight assignment based on per-case information richness.
 
         Args:
             case_id: Unique identifier for the case
@@ -404,13 +440,37 @@ class MultiAgentOrchestrator:
             report: Radiology report text
             features: Pre-extracted features or metadata
             image_metadata: Per-image metadata (view_type, etc.) for multi-image aggregation
+            case_metadata: Full case metadata dict from data loader, used by
+                          DynamicWeightCalculator to compute per-case weights.
+                          If None, a minimal metadata dict is synthesized from
+                          the other arguments.
             on_agent_complete: Optional async callback called when each agent finishes.
                                Signature: async def callback(agent_name: str, result: dict)
 
         Returns:
-            ConsensusResult with combined decision
+            ConsensusResult with combined decision and weight_rationale
         """
         logger.info(f"Analyzing case {case_id} with 6 agents...")
+
+        # --- Dynamic Weight Computation ---
+        # Build or use case_metadata for the weight calculator
+        if case_metadata is None:
+            # Synthesize minimal metadata from available arguments
+            num_images = len(image_array) if isinstance(image_array, list) else (1 if image_array is not None else 0)
+            case_metadata = {
+                "case_id": case_id,
+                "num_images": num_images,
+                "images_metadata": image_metadata or [],
+                "findings": report or "",
+                "impression": "",
+                "indication": "",
+                "comparison": "",
+                "nlp_features": features or {},
+            }
+
+        dynamic_weights, weight_rationale = self.weight_calculator.compute_weights(
+            case_metadata
+        )
 
         # Detect if multi-image
         is_multi_image = isinstance(image_array, list)
@@ -487,9 +547,10 @@ class MultiAgentOrchestrator:
             pathologist_results, "pathologist"
         )
         
-        # Compute consensus
+        # Compute consensus with dynamic weights
         consensus = self.consensus_engine.compute_consensus(
-            case_id, radiologist_findings, pathologist_findings
+            case_id, radiologist_findings, pathologist_findings,
+            dynamic_weights=dynamic_weights
         )
         
         # Determine agreement level
@@ -511,7 +572,8 @@ class MultiAgentOrchestrator:
             agreement_level=agreement_level,
             disagreement_agents=disagreement_agents,
             prolog_reasoning=consensus,
-            thinking_process=consensus.get("thinking_process", [])
+            thinking_process=consensus.get("thinking_process", []),
+            weight_rationale=weight_rationale
         )
         
         logger.info(
@@ -557,7 +619,7 @@ class MultiAgentOrchestrator:
                 agent_name=agent.name,
                 agent_type=agent_type,
                 approach=agent.APPROACH,
-                weight=agent.WEIGHT,
+                weight=get_base_weight(agent.name),  # Placeholder; overridden by dynamic weights in consensus
                 probability=prob,
                 predicted_class=agent_findings.get("predicted_class", 3),
                 details=agent_findings
@@ -604,7 +666,7 @@ class MultiAgentOrchestrator:
                 agent_name=agent.name,
                 agent_type=agent_type,
                 approach=agent.APPROACH,
-                weight=agent.WEIGHT,
+                weight=get_base_weight(agent.name),  # Placeholder; overridden by dynamic weights in consensus
                 probability=prob,
                 predicted_class=agent_findings.get("predicted_class", 3),
                 details=agent_findings
@@ -670,11 +732,12 @@ class MultiAgentOrchestrator:
             logger.info(f"Processing case {i+1}/{len(cases)}")
             
             result = await self.analyze_case(
-                nodule_id=case.get("nodule_id", f"case_{i}"),
+                case_id=case.get("nodule_id", f"case_{i}"),
                 image_path=case.get("image_path"),
                 image_array=case.get("image_array"),
                 report=case.get("report"),
-                features=case.get("features")
+                features=case.get("features"),
+                case_metadata=case.get("case_metadata")
             )
             results.append(result)
         
@@ -731,7 +794,8 @@ class MultiAgentOrchestrator:
                     for f in result.pathologist_findings
                 ],
                 "prolog_reasoning": result.prolog_reasoning,
-                "thinking_process": result.thinking_process
+                "thinking_process": result.thinking_process,
+                "weight_rationale": result.weight_rationale
             })
         
         with open(output_path, 'w') as f:

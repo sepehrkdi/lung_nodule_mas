@@ -37,6 +37,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
+from models.dynamic_weights import BASE_WEIGHTS, get_base_weight
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class PathologistBase(MedicalAgentBase):
     
     AGENT_TYPE = "pathologist"
     APPROACH = "base"
-    WEIGHT = 0.8
+    WEIGHT = 0.8  # Base weight — dynamically scaled per-case by DynamicWeightCalculator
     
     def __init__(self, name: str, asl_file: Optional[str] = None):
         if asl_file is None:
@@ -234,7 +235,7 @@ class PathologistRegex(PathologistBase):
     
     AGENT_TYPE = "pathologist"
     APPROACH = "regex"
-    WEIGHT = 0.8
+    WEIGHT = 0.8  # Base weight — dynamically scaled per-case
     
     # Size patterns
     SIZE_PATTERNS = [
@@ -390,7 +391,7 @@ class PathologistSpacy(PathologistBase):
     
     AGENT_TYPE = "pathologist"
     APPROACH = "spacy_ner"
-    WEIGHT = 0.9
+    WEIGHT = 0.9  # Base weight — dynamically scaled per-case
     
     # Medical entity types to look for
     MEDICAL_ENTITIES = [
@@ -632,7 +633,7 @@ class PathologistContext(PathologistBase):
     
     AGENT_TYPE = "pathologist"
     APPROACH = "context"
-    WEIGHT = 0.9  # Higher weight for certainty assessment
+    WEIGHT = 0.9  # Base weight — dynamically scaled per-case
     
     # Entity patterns to analyze
     ENTITY_PATTERNS = [

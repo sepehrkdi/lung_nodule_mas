@@ -35,6 +35,17 @@ class AgentFindingResponse(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
+class WeightRationaleResponse(BaseModel):
+    """Response model for dynamic weight rationale."""
+    radiology_richness: float = 0.5
+    pathology_richness: float = 0.5
+    radiology_components: Dict[str, float] = Field(default_factory=dict)
+    pathology_components: Dict[str, float] = Field(default_factory=dict)
+    dynamic_weights: Dict[str, float] = Field(default_factory=dict)
+    base_weights: Dict[str, float] = Field(default_factory=dict)
+    scale_floor: float = 0.5
+
+
 class ConsensusResultResponse(BaseModel):
     """Response model for consensus result."""
     nodule_id: str
@@ -47,6 +58,7 @@ class ConsensusResultResponse(BaseModel):
     pathologist_findings: List[AgentFindingResponse] = Field(default_factory=list)
     lung_rads_category: Optional[str] = None
     recommendation: Optional[str] = None
+    weight_rationale: Optional[WeightRationaleResponse] = None
 
 
 class AnalysisStateResponse(BaseModel):

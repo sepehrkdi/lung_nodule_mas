@@ -175,7 +175,23 @@ def render_agent_card(
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-top: 8px;">
                         <span style="font-size: 0.85em; color: #888;">Weight:</span>
-                        <span style="font-size: 0.85em; color: #888;">{weight:.1f}</span>
+                        <span style="font-size: 0.85em; color: #555; font-weight: bold;">{weight:.2f}</span>
+                    </div>
+                    <div style="
+                        background-color: #e9ecef;
+                        border-radius: 3px;
+                        height: 4px;
+                        overflow: hidden;
+                        margin-top: 3px;
+                    ">
+                        <div style="
+                            background-color: #17a2b8;
+                            width: {min(weight * 100, 100)}%;
+                            height: 100%;
+                        "></div>
+                    </div>
+                    <div style="text-align: right; font-size: 0.7em; color: #aaa; margin-top: 2px;">
+                        dynamic (per-case)
                     </div>
                 </div>
             </div>
@@ -381,10 +397,134 @@ def render_consensus_panel(consensus: Dict[str, Any]):
         st.markdown("---")
         st.warning(f"⚠️ **Disagreement detected** among agents: {', '.join(disagreement_agents)}")
     
+    # Show Dynamic Weight Rationale
+    weight_rationale = consensus.get("weight_rationale", {})
+    if weight_rationale:
+        render_weight_rationale(weight_rationale)
+    
     # Render Thinking Process (BDI)
     print(f"DEBUG: Consensus keys: {list(consensus.keys())}")
     if "thinking_process" in consensus:
         render_thinking_process(consensus["thinking_process"])
+
+
+def render_weight_rationale(rationale: Dict[str, Any]):
+    """
+    Render the dynamic weight rationale panel, showing how per-case
+    information richness influenced agent weights.
+    
+    Args:
+        rationale: Weight rationale dict from DynamicWeightCalculator
+    """
+    st.markdown("---")
+    st.subheader("⚖️ Dynamic Weight Assignment")
+    
+    rad_richness = rationale.get("radiology_richness", 0.5)
+    path_richness = rationale.get("pathology_richness", 0.5)
+    rad_components = rationale.get("radiology_components", {})
+    path_components = rationale.get("pathology_components", {})
+    dynamic_weights = rationale.get("dynamic_weights", {})
+    base_weights = rationale.get("base_weights", {})
+    
+    with st.expander("See how agent weights were adapted for this case", expanded=False):
+        rcol1, rcol2 = st.columns(2)
+        
+        with rcol1:
+            st.markdown(f"""
+            <div style="
+                border: 2px solid #4A90D9;
+                border-radius: 10px;
+                padding: 15px;
+                background: linear-gradient(135deg, #e8f0fe 0%, #ffffff 100%);
+            ">
+                <div style="font-weight: bold; color: #4A90D9; margin-bottom: 8px;">
+                    🔬 Radiology Richness: {rad_richness:.1%}
+                </div>
+                <div style="
+                    background-color: #e9ecef;
+                    border-radius: 5px;
+                    height: 10px;
+                    overflow: hidden;
+                    margin-bottom: 10px;
+                ">
+                    <div style="
+                        background-color: #4A90D9;
+                        width: {rad_richness*100}%;
+                        height: 100%;
+                    "></div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for comp_name, comp_val in rad_components.items():
+                label = comp_name.replace("_", " ").title()
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin: 3px 0;">
+                    <span style="color: #666;">{label}:</span>
+                    <span style="color: #333; font-weight: bold;">{comp_val:.2f}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with rcol2:
+            st.markdown(f"""
+            <div style="
+                border: 2px solid #7BC47F;
+                border-radius: 10px;
+                padding: 15px;
+                background: linear-gradient(135deg, #e8f8e8 0%, #ffffff 100%);
+            ">
+                <div style="font-weight: bold; color: #7BC47F; margin-bottom: 8px;">
+                    📝 Pathology Richness: {path_richness:.1%}
+                </div>
+                <div style="
+                    background-color: #e9ecef;
+                    border-radius: 5px;
+                    height: 10px;
+                    overflow: hidden;
+                    margin-bottom: 10px;
+                ">
+                    <div style="
+                        background-color: #7BC47F;
+                        width: {path_richness*100}%;
+                        height: 100%;
+                    "></div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for comp_name, comp_val in path_components.items():
+                label = comp_name.replace("_", " ").title()
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin: 3px 0;">
+                    <span style="color: #666;">{label}:</span>
+                    <span style="color: #333; font-weight: bold;">{comp_val:.2f}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Weight comparison table
+        st.markdown("##### Agent Weight Adjustments")
+        weight_data = []
+        for agent_name in sorted(dynamic_weights.keys()):
+            base_w = base_weights.get(agent_name, 0.5)
+            dyn_w = dynamic_weights[agent_name]
+            change = dyn_w - base_w
+            change_str = f"+{change:.3f}" if change >= 0 else f"{change:.3f}"
+            agent_type = "🔬 Rad" if "radiologist" in agent_name else "📝 Path"
+            display_name = agent_name.replace("radiologist_", "").replace("pathologist_", "")
+            weight_data.append({
+                "Type": agent_type,
+                "Agent": display_name,
+                "Base": f"{base_w:.2f}",
+                "Dynamic": f"{dyn_w:.3f}",
+                "Change": change_str,
+            })
+        
+        if weight_data:
+            import pandas as pd
+            df = pd.DataFrame(weight_data)
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def render_thinking_process(steps: List[Dict[str, str]]):

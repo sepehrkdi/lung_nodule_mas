@@ -303,7 +303,7 @@ class ExtendedMAS:
         
         # Run orchestrator
         consensus = await self.orchestrator.analyze_case(
-            nodule_id=nodule_id,
+            case_id=nodule_id,
             features=features,
             report=report
         )

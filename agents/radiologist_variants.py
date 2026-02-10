@@ -38,6 +38,7 @@ import numpy as np
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
 from models.aggregation import get_aggregator
 from models.classifier import NoduleClassifier
+from models.dynamic_weights import BASE_WEIGHTS, get_base_weight
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class RadiologistBase(MedicalAgentBase):
     # Agent metadata (override in subclasses)
     AGENT_TYPE = "radiologist"
     APPROACH = "base"
-    WEIGHT = 1.0
+    WEIGHT = 1.0  # Base weight — dynamically scaled per-case by DynamicWeightCalculator
     AGGREGATION_STRATEGY = "weighted_average"  # Default aggregation for multi-image
 
     def __init__(self, name: str, asl_file: Optional[str] = None):
@@ -347,7 +348,7 @@ class RadiologistDenseNet(RadiologistBase):
     
     AGENT_TYPE = "radiologist"
     APPROACH = "densenet121_xrv"  # TorchXRayVision
-    WEIGHT = 1.0
+    WEIGHT = 1.0  # Base weight — dynamically scaled per-case
     
     # Operating point threshold (affects probability-to-class conversion)
     THRESHOLD = 0.5  # Balanced by default
@@ -480,7 +481,7 @@ class RadiologistResNet(RadiologistBase):
     
     AGENT_TYPE = "radiologist"
     APPROACH = "densenet121_xrv_mass"  # Focuses on Mass/Opacity
-    WEIGHT = 1.0
+    WEIGHT = 1.0  # Base weight — dynamically scaled per-case
     
     def __init__(self, name: str = "radiologist_resnet", asl_file: Optional[str] = None):
         super().__init__(name=name, asl_file=asl_file)
@@ -615,7 +616,7 @@ class RadiologistRules(RadiologistBase):
     
     AGENT_TYPE = "radiologist"
     APPROACH = "rule_based"
-    WEIGHT = 0.7
+    WEIGHT = 0.7  # Base weight — dynamically scaled per-case
     
     # Lung-RADS based rules
     SIZE_RISK_RULES = [

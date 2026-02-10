@@ -300,6 +300,7 @@ async def run_analysis_task(session_id: str, nodule_id: str):
             report=report,
             features=features,
             image_metadata=image_metadata,
+            case_metadata=metadata,  # Pass full metadata for dynamic weight computation
             on_agent_complete=on_agent_complete
         )
         
@@ -337,6 +338,7 @@ async def run_analysis_task(session_id: str, nodule_id: str):
             ],
             "prolog_reasoning": result.prolog_reasoning,
             "thinking_process": result.thinking_process,
+            "weight_rationale": result.weight_rationale,
         }
         
         # Add Lung-RADS category based on final class
@@ -509,7 +511,8 @@ async def get_metrics():
                     case_id=nodule_id,
                     image_array=image,
                     report=report,
-                    features=features
+                    features=features,
+                    case_metadata=metadata,  # Pass full metadata for dynamic weight computation
                 )
                 
                 ground_truth = metadata.get("ground_truth", -1)

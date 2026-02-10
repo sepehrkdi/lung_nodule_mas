@@ -38,6 +38,11 @@ agent_type(pathologist_spacy, pathologist, nlp).
 
 % Agent weights for consensus voting
 % Higher weight = more influence on final decision
+% NOTE: These are DEFAULT/FALLBACK weights.
+% At runtime, DynamicWeightCalculator (models/dynamic_weights.py)
+% computes per-case weights based on information richness and
+% asserts them into the KB, overriding these defaults.
+:- dynamic agent_weight/2.
 agent_weight(radiologist_densenet, 1.0).
 agent_weight(radiologist_resnet, 1.0).
 agent_weight(radiologist_rules, 0.7).
