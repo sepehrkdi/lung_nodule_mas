@@ -36,7 +36,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from free-text chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs whose reports mention lung nodules, and I will annotate them for evaluation of my NLP outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs whose reports mention lung nodules, and I will annotate them for evaluation of my NLP outputs (entities + attributes + negation/uncertainty).
 
 \textbf{Agents and quantification:} I will implement 3 agent types with 7 total instances:
 
@@ -78,7 +78,7 @@ The degree of difficulty for this project is hard.
 \section{Introduction}
 \label{sec:intro}
 
-Lung cancer is the leading cause of cancer-related death worldwide, and early detection of pulmonary nodules is critical for improving patient outcomes. Radiology reports offer a rich source of structured and unstructured clinical information, yet extracting actionable evidence from free-text reports remains a challenging NLP task. Simultaneously, medical imaging with deep learning has shown promise for automated nodule detection, but individual models vary in their sensitivity and specificity.
+Lung cancer is the leading cause of cancer-related death worldwide, and early detection of pulmonary nodules is critical for improving patient outcomes. Radiology reports offer a rich source of structured and unstructured clinical information, yet extracting actionable evidence from free-text\footnote{free-text reports are reports that are not structured in a way that can be easily processed by a computer} reports remains a challenging NLP task. Simultaneously, medical imaging with deep learning has shown promise for automated nodule detection, but individual models vary in their sensitivity and specificity.
 
 This project addresses the problem of \emph{lung nodule evidence extraction and fusion} by combining three complementary AI paradigms within a multi-agent architecture:
 

@@ -411,41 +411,20 @@ class PathologistSpacy(PathologistBase):
         self._nlp_loaded = False
         
     def _load_nlp(self):
-        """Lazy load spaCy model."""
+        """Load spaCy medical model (required)."""
         if self._nlp is not None:
             return
-            
-        try:
-            # Try scispaCy first (medical NLP)
-            import spacy
-            try:
-                self._nlp = spacy.load("en_core_sci_sm")
-                logger.info(f"[{self.name}] Loaded scispaCy medical model")
-            except OSError:
-                # Fall back to standard English model
-                try:
-                    self._nlp = spacy.load("en_core_web_sm")
-                    logger.info(f"[{self.name}] Loaded standard spaCy model")
-                except OSError:
-                    logger.warning(f"[{self.name}] No spaCy model available")
-                    self._nlp = None
-                    
-            if self._nlp:
-                self._nlp_loaded = True
-                self.add_belief(Belief("nlp_loaded", ("spacy", True)))
-                
-        except ImportError:
-            logger.warning(f"[{self.name}] spaCy not installed")
-            self._nlp = None
+
+        import spacy
+        self._nlp = spacy.load("en_core_sci_sm")
+        self._nlp_loaded = True
+        self.add_belief(Belief("nlp_loaded", ("spacy", True)))
+        logger.info(f"[{self.name}] Loaded scispaCy medical model")
     
     def _analyze_report(self, report: str) -> Dict[str, Any]:
         """Analyze report using spaCy NER + rules."""
         self._load_nlp()
-        
-        if self._nlp:
-            return self._spacy_analysis(report)
-        else:
-            return self._fallback_analysis(report)
+        return self._spacy_analysis(report)
     
     def _spacy_analysis(self, report: str) -> Dict[str, Any]:
         """Analyze using spaCy NLP pipeline."""
@@ -604,40 +583,6 @@ class PathologistSpacy(PathologistBase):
         
         return found
     
-    def _fallback_analysis(self, report: str) -> Dict[str, Any]:
-        """Fallback analysis without spaCy."""
-        import re
-        
-        report_lower = report.lower()
-        
-        # Basic regex extraction
-        size_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mm|cm)", report_lower)
-        size_mm = float(size_match.group(1)) if size_match else 10.0
-        if size_match and "cm" in report_lower[size_match.start():size_match.end()+5]:
-            size_mm *= 10
-        
-        # Texture
-        texture = "solid"
-        if "ground" in report_lower:
-            texture = "ground_glass"
-        elif "part" in report_lower and "solid" in report_lower:
-            texture = "part_solid"
-        
-        # Malignancy terms
-        suspicious = [t for t in self.MALIGNANCY_INDICATORS["high"] + 
-                      self.MALIGNANCY_INDICATORS["moderate"] if t in report_lower]
-        benign = [t for t in self.MALIGNANCY_INDICATORS["low"] if t in report_lower]
-        
-        return {
-            "size_mm": size_mm,
-            "texture": texture,
-            "location": "unspecified",
-            "entities": [],
-            "malignancy_score": 0.5 + len(suspicious) * 0.1 - len(benign) * 0.1,
-            "suspicious_terms": suspicious,
-            "benign_terms": benign,
-            "approach": "fallback"
-        }
     
     def _estimate_malignancy(self, findings: Dict[str, Any]) -> float:
         """Override to use spaCy's malignancy score."""
@@ -712,17 +657,12 @@ class PathologistContext(PathologistBase):
         self._load_nlp_extensions()
     
     def _load_nlp_extensions(self):
-        """Load NLP extension modules."""
-        try:
-            from nlp.negation_detector import NegExDetector
-            from nlp.report_parser import ReportParser
-            self._negex_detector = NegExDetector()
-            self._report_parser = ReportParser()
-            logger.info(f"[{self.name}] Loaded NegEx detector and ReportParser")
-        except ImportError as e:
-            logger.warning(f"[{self.name}] NLP extensions not available: {e}")
-            self._negex_detector = None
-            self._report_parser = None
+        """Load NLP extension modules (required)."""
+        from nlp.negation_detector import NegExDetector
+        from nlp.report_parser import ReportParser
+        self._negex_detector = NegExDetector()
+        self._report_parser = ReportParser()
+        logger.info(f"[{self.name}] Loaded NegEx detector and ReportParser")
     
     def _analyze_report(self, report: str) -> Dict[str, Any]:
         """
@@ -731,8 +671,6 @@ class PathologistContext(PathologistBase):
         Returns:
             Dict with certainty analysis per entity and overall assessment.
         """
-        if not self._negex_detector:
-            return self._fallback_analysis(report)
         
         findings = {
             "entity_certainties": [],
@@ -876,41 +814,6 @@ class PathologistContext(PathologistBase):
                 return loc
         return "unspecified"
     
-    def _fallback_analysis(self, report: str) -> Dict[str, Any]:
-        """Fallback when NLP extensions not available."""
-        import re
-        
-        report_lower = report.lower()
-        
-        # Simple negation check
-        negation_patterns = [
-            r'\bno\s+(?:evidence\s+of\s+)?(?:nodule|mass|lesion)',
-            r'\bwithout\s+(?:nodule|mass|lesion)',
-            r'\bnegative\s+for\s+(?:nodule|mass)',
-        ]
-        
-        uncertainty_patterns = [
-            r'\bpossible\s+(?:nodule|mass)',
-            r'\bcannot\s+exclude\s+(?:nodule|mass)',
-            r'\bquestionable\s+(?:nodule|mass)',
-        ]
-        
-        is_negated = any(re.search(p, report_lower) for p in negation_patterns)
-        is_uncertain = any(re.search(p, report_lower) for p in uncertainty_patterns)
-        
-        overall = "negated" if is_negated else ("uncertain" if is_uncertain else "affirmed")
-        
-        return {
-            "entity_certainties": [],
-            "overall_certainty": overall,
-            "negated_count": 1 if is_negated else 0,
-            "uncertain_count": 1 if is_uncertain else 0,
-            "affirmed_count": 0 if (is_negated or is_uncertain) else 1,
-            "size_mm": self._extract_size(report),
-            "texture": self._extract_texture(report),
-            "location": self._extract_location(report),
-            "approach": "context_fallback"
-        }
     
     def _estimate_malignancy(self, findings: Dict[str, Any]) -> float:
         """

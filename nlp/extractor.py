@@ -40,13 +40,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 
 # Import new NLP modules
-try:
-    from nlp.report_parser import ReportParser, ParsedReport
-    from nlp.negation_detector import NegExDetector, Certainty, EntityCertainty
-    HAS_NLP_EXTENSIONS = True
-except ImportError:
-    HAS_NLP_EXTENSIONS = False
-    print("[NLPExtractor] NLP extensions not available. Using basic extraction.")
+from nlp.report_parser import ReportParser, ParsedReport
+from nlp.negation_detector import NegExDetector, Certainty, EntityCertainty
 
 
 @dataclass
@@ -268,49 +263,25 @@ class MedicalNLPExtractor:
         self.nlp = None
         self.use_scispacy = use_scispacy
         
-        # NEW: Initialize section parser and negation detector
-        if HAS_NLP_EXTENSIONS:
-            self.report_parser = ReportParser()
-            self.negation_detector = NegExDetector()
-        else:
-            self.report_parser = None
-            self.negation_detector = None
+        # Initialize section parser and negation detector
+        self.report_parser = ReportParser()
+        self.negation_detector = NegExDetector()
         
         if use_scispacy:
             self._load_spacy_model()
     
     def _load_spacy_model(self) -> None:
         """
-        Load spaCy/scispaCy model for NLP processing.
+        Load spaCy/scispaCy model for NLP processing (required).
         
         EDUCATIONAL NOTE:
         scispaCy provides biomedical-trained models:
         - en_core_sci_sm: Small, efficient, general biomedical
         - en_ner_bc5cdr_md: Trained on BC5CDR corpus (diseases/chemicals)
         """
-        try:
-            import spacy
-            
-            # Try scispaCy models in order of preference
-            model_names = [
-                'en_core_sci_sm',      # General biomedical
-                'en_ner_bc5cdr_md',    # Disease/Chemical NER
-                'en_core_web_sm',      # Fallback to general English
-            ]
-            
-            for model_name in model_names:
-                try:
-                    self.nlp = spacy.load(model_name)
-                    print(f"[NLPExtractor] Loaded spaCy model: {model_name}")
-                    return
-                except OSError:
-                    continue
-            
-            print("[NLPExtractor] No spaCy model found. Using regex-only extraction.")
-            print("To install: pip install scispacy && pip install en_core_sci_sm")
-            
-        except ImportError:
-            print("[NLPExtractor] spaCy not installed. Using regex-only extraction.")
+        import spacy
+        self.nlp = spacy.load('en_core_sci_sm')
+        print(f"[NLPExtractor] Loaded spaCy model: en_core_sci_sm")
     
     def extract(self, text: str) -> ExtractionResult:
         """
@@ -636,21 +607,13 @@ class MedicalNLPExtractor:
         - Hyphenated terms (well-defined, ground-glass)
         - Numbers with units (15mm)
         """
-        if self.nlp:
-            doc = self.nlp(text)
-            return [token.text for token in doc]
-        else:
-            # Simple whitespace tokenization as fallback
-            return text.split()
+        doc = self.nlp(text)
+        return [token.text for token in doc]
     
     def get_sentences(self, text: str) -> List[str]:
         """Split text into sentences."""
-        if self.nlp:
-            doc = self.nlp(text)
-            return [sent.text for sent in doc.sents]
-        else:
-            # Simple sentence splitting
-            return re.split(r'[.!?]+', text)
+        doc = self.nlp(text)
+        return [sent.text for sent in doc.sents]
     
     def get_noun_phrases(self, text: str) -> List[str]:
         """
@@ -660,10 +623,8 @@ class MedicalNLPExtractor:
         Noun phrases often contain the key medical concepts:
         "solid nodule", "right upper lobe", "marked spiculation"
         """
-        if self.nlp:
-            doc = self.nlp(text)
-            return [chunk.text for chunk in doc.noun_chunks]
-        return []
+        doc = self.nlp(text)
+        return [chunk.text for chunk in doc.noun_chunks]
     
     def analyze_structure(self, text: str) -> Dict[str, Any]:
         """

@@ -133,46 +133,24 @@ class PathologistAgent(MedicalAgentBase):
     
     def _action_load_nlp(self) -> bool:
         """
-        Internal action: Load the spaCy NLP model.
+        Internal action: Load the spaCy NLP model (required).
         
         Called from ASL: .load_nlp
         
         Returns:
-            True if successful, False otherwise
+            True if successful
         """
-        try:
-            # Try to load scispaCy
-            try:
-                import spacy
-                self._nlp = spacy.load("en_core_sci_sm")
-                logger.info(f"[{self.name}] Loaded scispaCy model")
-            except OSError:
-                # Fall back to basic English model
-                try:
-                    import spacy
-                    self._nlp = spacy.load("en_core_web_sm")
-                    logger.warning(
-                        f"[{self.name}] scispaCy not found, using en_core_web_sm"
-                    )
-                except OSError:
-                    # Use rule-based fallback
-                    self._nlp = None
-                    logger.warning(f"[{self.name}] No spaCy model, using rule-based NLP")
-            
-            self._nlp_loaded = True
-            
-            # Update beliefs
-            self.add_belief(Belief("nlp_loaded", (True,)))
-            model_name = "en_core_sci_sm" if self._nlp else "rule_based"
-            self.add_belief(Belief("nlp_model", (model_name,)))
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"[{self.name}] Failed to load NLP: {e}")
-            self.add_belief(Belief("nlp_error", (str(e),)))
-            self._nlp_loaded = True  # Still use rule-based
-            return True
+        import spacy
+        self._nlp = spacy.load("en_core_sci_sm")
+        logger.info(f"[{self.name}] Loaded scispaCy model")
+        
+        self._nlp_loaded = True
+        
+        # Update beliefs
+        self.add_belief(Belief("nlp_loaded", (True,)))
+        self.add_belief(Belief("nlp_model", ("en_core_sci_sm",)))
+        
+        return True
     
     def _action_extract_entities(
         self,
