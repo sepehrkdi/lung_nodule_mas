@@ -61,6 +61,7 @@ def render_sidebar():
     **Pathologists:**
     - Regex Parser (W=0.8)
     - spaCy NER (W=0.9)
+    - Context Analyzer (W=0.9)
     """)
 
 

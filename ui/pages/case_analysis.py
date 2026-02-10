@@ -203,9 +203,9 @@ def render_case_analysis_page():
             use_container_width=True
         )
     
-    with analyze_col2:
-        if st.session_state.analyzing:
-            st.info("⏳ Analysis in progress... Results will appear below as agents complete.")
+    # with analyze_col2:
+    #     if st.session_state.analyzing:
+    #         st.info("⏳ Analysis in progress... Results will appear below as agents complete.")
     
     # Start analysis
     if analyze_button and not st.session_state.analyzing:
@@ -232,14 +232,7 @@ def render_case_analysis_page():
             if status.get("status") == "completed":
                 st.session_state.analyzing = False
                 st.session_state.analysis_complete = True
-                
-                # Show consensus
-                consensus = status.get("consensus")
-                if consensus:
-                    st.markdown("---")
-                    render_consensus_panel(consensus)
-                
-                st.success("✅ Analysis complete!")
+                st.rerun()
                 
             elif status.get("status") == "error":
                 st.session_state.analyzing = False
@@ -255,6 +248,7 @@ def render_case_analysis_page():
     
     # Show previous results if analysis is complete
     elif st.session_state.analysis_complete and st.session_state.last_status:
+        st.success("✅ Analysis complete!")
         status = st.session_state.last_status
         completed_agents = status.get("completed_agents", [])
         render_agent_panel(completed_agents)
