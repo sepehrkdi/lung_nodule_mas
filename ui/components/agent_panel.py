@@ -91,6 +91,16 @@ def get_class_label(predicted_class: int) -> str:
     return labels.get(predicted_class, "Unknown")
 
 
+def get_classification_category(predicted_class: int) -> Dict[str, str]:
+    """Get benign/indeterminate/malignant category for a predicted class."""
+    if predicted_class <= 2:
+        return {"label": "Benign", "color": "#28a745", "icon": "✅"}
+    elif predicted_class == 3:
+        return {"label": "Indeterminate", "color": "#ffc107", "icon": "⚠️"}
+    else:
+        return {"label": "Malignant", "color": "#dc3545", "icon": "🔴"}
+
+
 def render_agent_card(
     agent_name: str,
     finding: Optional[Dict[str, Any]] = None,
@@ -299,12 +309,13 @@ def render_agent_panel(
             render_agent_card(agent_name, finding, is_completed)
 
 
-def render_consensus_panel(consensus: Dict[str, Any]):
+def render_consensus_panel(consensus: Dict[str, Any], ground_truth_info: Optional[Dict[str, Any]] = None):
     """
     Render the final consensus result panel.
     
     Args:
         consensus: Consensus result dictionary
+        ground_truth_info: Optional dict with 'ground_truth' (0/1/-1) and 'ground_truth_label'
     """
     st.subheader("🎯 Oncologist Consensus Result")
     
@@ -317,6 +328,7 @@ def render_consensus_panel(consensus: Dict[str, Any]):
     
     class_color = get_class_color(final_class)
     class_label = get_class_label(final_class)
+    category = get_classification_category(final_class)
     
     # Agreement badge
     agreement_colors = {
@@ -342,6 +354,16 @@ def render_consensus_panel(consensus: Dict[str, Any]):
                 Class {final_class}
             </div>
             <div style="font-size: 1em; color: #333;">{class_label}</div>
+            <div style="margin-top: 8px;">
+                <span style="
+                    background-color: {category['color']};
+                    color: white;
+                    padding: 3px 12px;
+                    border-radius: 12px;
+                    font-size: 0.9em;
+                    font-weight: bold;
+                ">{category['icon']} {category['label']}</span>
+            </div>
             <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
                 Probability: <strong>{final_prob:.1%}</strong>
             </div>
@@ -390,6 +412,86 @@ def render_consensus_panel(consensus: Dict[str, Any]):
             </div>
         </div>
         """, unsafe_allow_html=True)
+    
+    # Show ground truth comparison if available
+    if ground_truth_info:
+        gt_value = ground_truth_info.get("ground_truth")
+        gt_label = ground_truth_info.get("ground_truth_label", "unknown")
+        
+        if gt_value is not None and gt_value != -1:
+            # Map ground truth to category
+            gt_display = "Abnormal" if gt_value == 1 else "Normal"
+            gt_color = "#dc3545" if gt_value == 1 else "#28a745"
+            gt_icon = "🔴" if gt_value == 1 else "✅"
+            
+            # Determine if prediction matches ground truth
+            # Benign (class 1-2) maps to Normal (0), Malignant (class 4-5) maps to Abnormal (1)
+            if final_class <= 2:
+                pred_binary = 0  # Normal
+            elif final_class >= 4:
+                pred_binary = 1  # Abnormal
+            else:
+                pred_binary = -1  # Indeterminate - can't directly compare
+            
+            if pred_binary == -1:
+                match_icon = "⚠️"
+                match_text = "Indeterminate — cannot directly compare"
+                match_color = "#ffc107"
+            elif pred_binary == gt_value:
+                match_icon = "✅"
+                match_text = "Prediction matches ground truth"
+                match_color = "#28a745"
+            else:
+                match_icon = "❌"
+                match_text = "Prediction does NOT match ground truth"
+                match_color = "#dc3545"
+            
+            st.markdown("---")
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, #f0f4f8 0%, #ffffff 100%);
+                border: 2px solid #b0bec5;
+                border-radius: 15px;
+                padding: 20px;
+            ">
+                <div style="font-size: 1.1em; font-weight: bold; color: #333; margin-bottom: 15px;">
+                    📊 Ground Truth Comparison
+                </div>
+                <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.85em; color: #666;">Prediction</div>
+                        <div style="
+                            font-size: 1.3em; font-weight: bold;
+                            color: {category['color']};
+                            margin-top: 4px;
+                        ">{category['icon']} {category['label']}</div>
+                        <div style="font-size: 0.8em; color: #888;">Class {final_class}</div>
+                    </div>
+                    <div style="font-size: 2em; color: #999;">vs</div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.85em; color: #666;">Ground Truth</div>
+                        <div style="
+                            font-size: 1.3em; font-weight: bold;
+                            color: {gt_color};
+                            margin-top: 4px;
+                        ">{gt_icon} {gt_display}</div>
+                        <div style="font-size: 0.8em; color: #888;">NLP-derived from report</div>
+                    </div>
+                </div>
+                <div style="
+                    text-align: center; margin-top: 15px;
+                    padding: 8px 16px;
+                    background-color: {match_color}22;
+                    border: 1px solid {match_color};
+                    border-radius: 10px;
+                    color: {match_color};
+                    font-weight: bold;
+                ">{match_icon} {match_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif gt_value == -1:
+            st.markdown("---")
+            st.info("📊 **Ground Truth:** Indeterminate — the NLP analysis could not derive a clear label from the report text.")
     
     # Show disagreement details if any
     disagreement_agents = consensus.get("disagreement_agents", [])

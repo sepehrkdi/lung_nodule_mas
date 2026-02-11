@@ -257,7 +257,16 @@ def render_case_analysis_page():
         consensus = status.get("consensus")
         if consensus:
             st.markdown("---")
-            render_consensus_panel(consensus)
+            # Pass ground truth info for comparison display
+            ground_truth_info = None
+            if features:
+                gt = features.get("malignancy")
+                if gt is not None:
+                    ground_truth_info = {
+                        "ground_truth": gt,
+                        "ground_truth_label": features.get("malignancy_label", "unknown"),
+                    }
+            render_consensus_panel(consensus, ground_truth_info=ground_truth_info)
 
 
 if __name__ == "__main__":
