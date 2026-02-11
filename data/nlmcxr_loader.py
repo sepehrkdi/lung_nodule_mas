@@ -4,9 +4,11 @@ NLMCXR Data Loader
 Multi-image data loader for the NLMCXR chest X-ray dataset.
 Supports loading cases with multiple views (PA, Lateral, etc.).
 Extracts ground truth labels from radiology reports using NLP.
+Includes NLP-richness scoring to select cases with meaningful extractable content.
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 import numpy as np
@@ -269,6 +271,139 @@ class NLMCXRLoader(BaseNoduleLoader):
                 
         return labeled_cases
 
+    # =========================================================================
+    # NLP RICHNESS SCORING
+    # =========================================================================
+
+    # Target medical entity patterns for richness scoring
+    _TARGET_ENTITY_PATTERN = re.compile(
+        r'\b(nodule|nodules|mass|masses|opacity|opacities|lesion|lesions|'
+        r'consolidation|granuloma|granulomas|atelectasis|tumor|neoplasm|carcinoma)\b',
+        re.IGNORECASE
+    )
+
+    # Simple negation scope: entity preceded within 4 words by negation trigger
+    _NEGATION_PREFIX_PATTERN = re.compile(
+        r'\b(no|without|negative\s+for|absence\s+of|ruled\s+out|'
+        r'no\s+evidence\s+of|deny|denies)\b',
+        re.IGNORECASE
+    )
+
+    # Anatomical location patterns
+    _LOCATION_PATTERN = re.compile(
+        r'\b(upper|middle|lower|right|left)\s+(lobe|lung|hilum|hilus|base|apex)\b',
+        re.IGNORECASE
+    )
+
+    @staticmethod
+    def compute_nlp_richness(case: NLMCXRCase) -> Tuple[float, Dict[str, Any]]:
+        """
+        Compute a multi-factor NLP richness score for a case.
+
+        Scores each case on 6 binary criteria (each worth 1 point):
+          1. Text length: len(findings + impression) >= 80
+          2. Non-normal MeSH: any mesh_major tag that is NOT just 'normal'
+          3. Target entity present: regex match for clinical entities
+          4. Entity NOT fully negated: at least one entity outside negation scope
+          5. Both sections non-empty: findings and impression both have content
+          6. Anatomical location specified: anatomy + laterality pattern
+
+        Args:
+            case: Parsed NLMCXRCase object
+
+        Returns:
+            Tuple of (score 0-6, breakdown dict)
+        """
+        breakdown = {}
+        combined_text = f"{case.findings} {case.impression}".strip()
+
+        # 1. Text length
+        breakdown['text_length'] = 1.0 if len(combined_text) >= 80 else 0.0
+
+        # 2. Non-normal MeSH
+        has_pathology_mesh = any(
+            tag.lower() != 'normal' for tag in case.mesh_major
+        ) if case.mesh_major else False
+        breakdown['non_normal_mesh'] = 1.0 if has_pathology_mesh else 0.0
+
+        # 3. Target entity present
+        entity_matches = list(NLMCXRLoader._TARGET_ENTITY_PATTERN.finditer(combined_text))
+        breakdown['has_target_entity'] = 1.0 if entity_matches else 0.0
+
+        # 4. Entity NOT fully negated (at least one affirmed entity)
+        has_affirmed_entity = False
+        if entity_matches:
+            for match in entity_matches:
+                # Check ~40 chars before the entity for negation triggers
+                start = max(0, match.start() - 40)
+                preceding = combined_text[start:match.start()]
+                if not NLMCXRLoader._NEGATION_PREFIX_PATTERN.search(preceding):
+                    has_affirmed_entity = True
+                    break
+        breakdown['has_affirmed_entity'] = 1.0 if has_affirmed_entity else 0.0
+
+        # 5. Both sections non-empty
+        both_filled = bool(case.findings.strip()) and bool(case.impression.strip())
+        breakdown['both_sections'] = 1.0 if both_filled else 0.0
+
+        # 6. Anatomical location specified
+        has_location = bool(NLMCXRLoader._LOCATION_PATTERN.search(combined_text))
+        breakdown['has_location'] = 1.0 if has_location else 0.0
+
+        score = sum(breakdown.values())
+        return score, breakdown
+
+    def get_nlp_rich_case_ids(
+        self,
+        min_score: float = 3.0,
+        limit: int = 50,
+        require_valid_image: bool = True
+    ) -> List[str]:
+        """
+        Get case IDs filtered by NLP richness score.
+
+        Selects cases where the radiology report contains enough extractable
+        NLP content for meaningful agent analysis. Cases are sorted by
+        richness score descending (richest first).
+
+        Args:
+            min_score: Minimum richness score (0-6) to include. Default 3.0.
+            limit: Maximum number of cases to return.
+            require_valid_image: If True, only include cases with at least one image file.
+
+        Returns:
+            List of (case_id) sorted by richness score descending.
+        """
+        scored_cases = []
+
+        for case_id, case in self._case_cache.items():
+            # Check image availability
+            if require_valid_image:
+                has_valid_image = False
+                for img_info in case.images:
+                    file_path = self._find_image_file(img_info.image_id)
+                    if file_path and file_path.exists():
+                        has_valid_image = True
+                        break
+                if not has_valid_image:
+                    continue
+
+            score, breakdown = self.compute_nlp_richness(case)
+            if score >= min_score:
+                scored_cases.append((case_id, score, breakdown))
+
+        # Sort by score descending, then by case_id for deterministic order
+        scored_cases.sort(key=lambda x: (-x[1], x[0]))
+
+        selected = [case_id for case_id, _, _ in scored_cases[:limit]]
+
+        logger.info(
+            f"NLP richness filter: {len(scored_cases)} cases scored >= {min_score} "
+            f"(out of {len(self._case_cache)} total), returning top {len(selected)}"
+        )
+
+        return selected
+
     def load_case(
         self,
         case_id: str
@@ -351,6 +486,8 @@ class NLMCXRLoader(BaseNoduleLoader):
             "impression": case.impression,
             "indication": case.indication,
             "comparison": case.comparison,
+            "mesh_major": case.mesh_major,
+            "mesh_automatic": case.mesh_automatic,
             "missing_images": missing_images,
             # Ground truth derived from report text via NLP
             "ground_truth": ground_truth,

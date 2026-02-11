@@ -34,30 +34,66 @@ class NLMCXRCase:
     impression: str = ""   # Report IMPRESSION section
     indication: str = ""   # Report INDICATION section
     comparison: str = ""   # Report COMPARISON section
+    mesh_major: List[str] = field(default_factory=list)    # MeSH <major> annotations
+    mesh_automatic: List[str] = field(default_factory=list) # MeSH <automatic> annotations
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-def classify_view(caption: str) -> str:
+def classify_view(caption: str, image_id: str = "", image_index: int = -1) -> str:
     """
-    Classify view type from image caption.
+    Classify view type from image metadata.
+
+    In NLMCXR, all images in a case share the same caption (e.g.,
+    "PA and lateral chest x-ray"), so caption alone cannot distinguish
+    views. We use a priority-based strategy:
+
+    1. Image ID suffix (most reliable for NLMCXR):
+       - Suffix ``-1001`` → Frontal (first image in the figure)
+       - Suffix ``-2001`` → Lateral (second image)
+       - Suffix ``-3001`` and above → additional views
+    2. Image index within the case (0 → Frontal, 1 → Lateral)
+    3. Caption text (fallback for non-NLMCXR data)
 
     Args:
         caption: Image caption string
+        image_id: NLMCXR image ID (e.g., "CXR10_IM-0002-1001")
+        image_index: Zero-based position of the image in the case
 
     Returns:
         View type: "PA", "Lateral", "AP", "Frontal", or "Unknown"
     """
+    # --- Strategy 1: Image ID suffix (NLMCXR convention) ---
+    if image_id:
+        # Extract the last numeric suffix: e.g., "CXR10_IM-0002-1001" → "1001"
+        import re
+        suffix_match = re.search(r'-(\d{4})$', image_id)
+        if suffix_match:
+            suffix = int(suffix_match.group(1))
+            if suffix == 1001:
+                return "Frontal"   # First image = frontal PA view
+            elif suffix == 2001:
+                return "Lateral"   # Second image = lateral view
+            # Suffix >= 3001: ambiguous, fall through to index strategy
+
+    # --- Strategy 2: Image index ---
+    if image_index >= 0:
+        if image_index == 0:
+            return "Frontal"
+        elif image_index == 1:
+            return "Lateral"
+
+    # --- Strategy 3: Caption-based (fallback for non-NLMCXR data) ---
     if not caption:
         return "Unknown"
 
     caption_lower = caption.lower()
 
-    # Check for specific view types
+    # When caption mentions both PA and lateral, we can't distinguish
     if "pa" in caption_lower and "lateral" not in caption_lower:
         return "PA"
-    elif "lateral" in caption_lower:
+    elif "lateral" in caption_lower and "pa" not in caption_lower:
         return "Lateral"
-    elif "ap" in caption_lower:
+    elif "ap " in caption_lower or caption_lower.startswith("ap"):
         return "AP"
     elif "frontal" in caption_lower:
         return "Frontal"
@@ -108,7 +144,7 @@ def parse_nlmcxr_xml(xml_path: Path) -> Optional[NLMCXRCase]:
 
         # Extract images from <parentImage id="...">
         parent_images = root.findall('.//parentImage')
-        for parent_img in parent_images:
+        for img_idx, parent_img in enumerate(parent_images):
             image_id = parent_img.get('id')
             if not image_id:
                 continue
@@ -129,8 +165,8 @@ def parse_nlmcxr_xml(xml_path: Path) -> Optional[NLMCXRCase]:
             modality_elem = parent_img.find('.//imgModality')
             modality = modality_elem.text if modality_elem is not None else "7"
 
-            # Classify view type from caption
-            view_type = classify_view(caption)
+            # Classify view type using image ID suffix, index, and caption
+            view_type = classify_view(caption, image_id=image_id, image_index=img_idx)
 
             # Create image object
             image = NLMCXRImage(
@@ -144,10 +180,22 @@ def parse_nlmcxr_xml(xml_path: Path) -> Optional[NLMCXRCase]:
 
             case.images.append(image)
 
+        # Extract MeSH terms from <MeSH> element
+        mesh_elem = root.find('.//MeSH')
+        if mesh_elem is not None:
+            for major in mesh_elem.findall('major'):
+                if major.text and major.text.strip():
+                    case.mesh_major.append(major.text.strip())
+            for auto in mesh_elem.findall('automatic'):
+                if auto.text and auto.text.strip():
+                    case.mesh_automatic.append(auto.text.strip())
+
         # Store metadata
         case.metadata = {
             'xml_path': str(xml_path),
-            'num_images': len(case.images)
+            'num_images': len(case.images),
+            'mesh_major': case.mesh_major,
+            'mesh_automatic': case.mesh_automatic
         }
 
         return case

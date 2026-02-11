@@ -170,7 +170,7 @@ class ExtendedMAS:
             logger.info(f"[ExtendedMAS] {message}")
     
     def _load_data(self) -> None:
-        """Load case data based on source."""
+        """Load case data based on source, using NLP richness filtering."""
         self.cases = []
         
         if self.data_source == "nlmcxr":
@@ -178,9 +178,18 @@ class ExtendedMAS:
                 from data.nlmcxr_loader import NLMCXRLoader
                 loader = NLMCXRLoader()
                 
+                # Use NLP richness filtering instead of naive ground_truth filter.
+                # This selects cases where the radiology report contains enough
+                # extractable content (entities, measurements, anatomy) for the
+                # pathologist regex/spaCy agents to find meaningful information,
+                # rather than falling back to hardcoded defaults.
+                nlp_rich_ids = loader.get_nlp_rich_case_ids(
+                    min_score=3.0,
+                    limit=self.max_cases
+                )
+                
                 count = 0
-                count = 0
-                for case_id in loader.get_case_ids():
+                for case_id in nlp_rich_ids:
                     if count >= self.max_cases:
                         break
                     
@@ -192,29 +201,23 @@ class ExtendedMAS:
                         impression = metadata.get("impression", "")
                         report = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}"
                         
-                        # ALIGNMENT WITH REPORT: Apply NLP-based pre-filter
-                        # "select 30--50 image--report pairs whose reports mention lung nodules"
                         ground_truth = metadata.get("ground_truth", -1)
                         
-                        if ground_truth == 1:  # Only include cases with nodules
-                            self.cases.append({
-                                "nodule_id": case_id,
-                                "features": metadata.get("nlp_features", {}),
-                                "ground_truth": ground_truth,
-                                "report": report,
-                                "images": images
-                            })
-                            count += 1
-                            count += 1
-                            self._log(f"Added case {case_id} (count: {count}/{self.max_cases})")
-                        else:
-                            pass # Skip non-nodule cases
+                        self.cases.append({
+                            "nodule_id": case_id,
+                            "features": metadata.get("nlp_features", {}),
+                            "ground_truth": ground_truth,
+                            "report": report,
+                            "images": images
+                        })
+                        count += 1
+                        self._log(f"Added case {case_id} (count: {count}/{self.max_cases})")
                             
                     except Exception as e:
                         self._log(f"Failed to load case {case_id}: {e}")
                         continue
                         
-                self._log(f"Loaded {len(self.cases)} cases from NLMCXR")
+                self._log(f"Loaded {len(self.cases)} NLP-rich cases from NLMCXR")
             except Exception as e:
                 self._log(f"Failed to load NLMCXR: {e}, using sample data")
                 self._create_sample_cases()
@@ -323,7 +326,9 @@ class ExtendedMAS:
         )
         
         # Extract individual findings
-        size_mm = features.get("size_mm", 10)
+        size_mm = features.get("size_mm")
+        if size_mm is None:
+            size_mm = 10  # Fallback only for Lung-RADS display
         lung_rads = self._prob_to_lungrads(consensus.final_probability, size_mm)
         recommendation = self._get_recommendation(lung_rads, consensus.final_probability)
         

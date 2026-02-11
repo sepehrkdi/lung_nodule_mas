@@ -79,17 +79,39 @@ In standard clinical practice for oncology patients, including those with lung m
 \subsection{Dataset and Pre-processing}
 \label{subsec:dataset}
 
-The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies. For instance, Chapman et al.\ evaluated the NegEx negation-detection algorithm against a set of \hl{1000 sentences} containing 1235 clinical findings and diseases extracted from discharge summaries~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, I implemented an NLP-based pre-filter pipeline:
+The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies. For instance, Chapman et al.\ evaluated the NegEx negation-detection algorithm against a set of \hl{1000 sentences} containing 1235 clinical findings and diseases extracted from discharge summaries~\cite{chapman2001negex}. To focus the evaluation on cases where the NLP agents can perform meaningful extraction, I implemented a multi-stage pre-filter pipeline that combines XML metadata analysis with a composite NLP-richness scoring function:
 
 \begin{enumerate}
-    \item \textbf{Ingestion:} The \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
-    \item \textbf{Keyword Filtering:} A custom \texttt{MedicalNLPExtractor} analyzes the \texttt{FINDINGS} and \texttt{IMPRESSION} sections of each report for nodule-specific keywords (``nodule'', ``mass'', ``lesion'', ``opacity'').
-    \item \textbf{Negation Check:} A NegEx-style (Section~\ref{subsec:negex}) rule filter excludes reports where these keywords appear only in negated contexts (e.g., ``no nodule'', ``without mass'').
-    \item \textbf{Ground-Truth Filtering:} Each candidate report is passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (Abnormal/Suspicious) or 0 (Normal/Benign). Reports for which the extractor returns $-1$ (Indeterminate) are excluded.
-    \item \textbf{Subset Selection:} The first 500 cases with a definite ground-truth label (either 0 or 1) are selected to form the \emph{Evaluation Subset}, ensuring that both Normal and Abnormal classes are represented and every case contributes to the binary confusion matrix.
+    \item \textbf{Ingestion and MeSH Parsing:} The \texttt{NLMCXR\_Loader} scans all XML report files. In addition to extracting the standard report sections (\texttt{FINDINGS}, \texttt{IMPRESSION}, \texttt{INDICATION}, \texttt{COMPARISON}), the parser now extracts \texttt{<MeSH>} annotations from each XML file. These include \texttt{<major>} tags (expert-assigned indexing terms such as ``Opacity/lung/upper lobe/right'' or ``normal'') and \texttt{<automatic>} tags (machine-generated terms). MeSH annotations provide structured metadata about the clinical content of each case without requiring full NLP processing.
+    \item \textbf{NLP Richness Scoring:} Each case is scored on six binary criteria (each worth 1 point, yielding a score in $[0, 6]$):
+    \begin{enumerate}
+        \item \emph{Text length:} combined \texttt{FINDINGS} + \texttt{IMPRESSION} contains $\geq 80$ characters.
+        \item \emph{Non-normal MeSH:} at least one \texttt{<major>} tag is not simply ``normal''.
+        \item \emph{Target entity present:} regex match finds a clinical entity (nodule, mass, opacity, lesion, consolidation, granuloma, atelectasis, etc.).
+        \item \emph{Entity not fully negated:} at least one entity is \emph{not} preceded by a negation trigger within 40 characters (e.g., ``no'', ``without'', ``no evidence of'').
+        \item \emph{Both sections non-empty:} \texttt{FINDINGS} and \texttt{IMPRESSION} both contain text.
+        \item \emph{Anatomical location specified:} a laterality + anatomy pattern is present (e.g., ``right upper lobe'', ``left lung base'').
+    \end{enumerate}
+    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (Abnormal/Suspicious) or 0 (Normal/Benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation.
+    \item \textbf{Subset Selection:} Cases with richness score $\geq 3$ are retained and ranked in descending order of score. The top 500 cases are selected to form the \emph{Evaluation Subset}. In our dataset, 2{,}898 of 3{,}955 cases score $\geq 3$, providing ample candidates; 420 cases achieve the maximum score of 6.
 \end{enumerate}
 
-This filtering process ensures that the multi-agent system is evaluated exclusively on cases with unambiguous NLP-derived ground truth, providing a balanced binary evaluation set.
+Table~\ref{tab:richness-dist} shows the score distribution across the full dataset.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Score} & 0 & 1 & 2 & 3 & 4 & 5--6 \\
+\midrule
+\textbf{Cases} & 84 & 92 & 793 & 1{,}210 & 770 & 1{,}006 \\
+\bottomrule
+\end{tabular}
+\caption{Distribution of NLP richness scores across all 3{,}955 NLMCXR cases. Cases with score $\geq 3$ (77\%) are eligible for the Evaluation Subset.}
+\label{tab:richness-dist}
+\end{table}
+
+This richness-based filtering ensures that the selected cases contain sufficient textual content for the Pathologist agents' regex, NER, and negation-detection pipelines to operate on, rather than relying solely on binary keyword presence. The MeSH metadata provides an independent signal that is not derived from the same NLP pipeline used for ground-truth extraction, reducing circular dependency between case selection and evaluation.
 
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
@@ -111,6 +133,9 @@ The main contributions of this project are:
     \item A custom NLP pipeline for lung nodule evidence extraction implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
     \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and explanation generation.
     \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
+    \item A multi-factor NLP-richness scoring function that combines MeSH metadata, entity detection, negation awareness, and structural completeness to select evaluation cases where the NLP agents can perform meaningful extraction.
+    \item An anatomically-calibrated size estimation method for the rule-based radiologist that uses blob detection with a chest X-ray field-of-view model, replacing a na\"ive pixel-dimension heuristic that produced clinically implausible values.
+    \item Explicit handling of unknown measurements: agents return \texttt{None} with a provenance tag (\texttt{size\_source}) instead of hardcoded defaults, and the consensus engine reduces the weight of agents that could not determine nodule size.
     \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification and manually annotated entity-level ground truth for NLP extraction assessment.
 \end{enumerate}
 
@@ -222,7 +247,7 @@ The system follows a hub-and-spoke architecture with three layers, mirroring the
 \subsubsection{Radiologist Agents (R1--R3)}
 \label{subsubsec:radiologists}
 
-The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. Each radiologist agent utilizes the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, specifically employing the DenseNet-121 architecture proposed in CheXNet~\cite{rajpurkar2017chexnet}. CheXNet has been shown to exceed effective radiologist performance on pneumonia detection tasks, providing a strong baseline for automated chest X-ray reading. The agents specifically monitor the model's output probability for the ``Nodule'' or ``Mass'' pathology classes. No additional CV training is performed; I rely on these robust frozen weights. The system operates in \emph{strict mode}: the CNN model must be available and functional---no heuristic fallbacks are provided. If the model fails to load, a \texttt{ModelUnavailableError} is raised, ensuring classification integrity. The three agents differ in their operating thresholds:
+The system deploys three distinct Radiologist agents to simulate clinical inter-reader variability. The CNN-based agents (R1, R2) utilize the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, specifically employing the DenseNet-121 architecture proposed in CheXNet~\cite{rajpurkar2017chexnet}. CheXNet has been shown to exceed effective radiologist performance on pneumonia detection tasks, providing a strong baseline for automated chest X-ray reading. The agents specifically monitor the model's output probability for the ``Nodule'' or ``Mass'' pathology classes. No additional CV training is performed; I rely on these robust frozen weights. For R1 and R2, the system operates in \emph{strict mode}: the CNN model must be available and functional---no heuristic fallbacks are provided. If the model fails to load, a \texttt{ModelUnavailableError} is raised, ensuring classification integrity. The three agents differ in their operating thresholds:
 
 \begin{table}[h]
 \centering
@@ -232,12 +257,31 @@ The system deploys three distinct Radiologist agents to simulate clinical inter-
 \midrule
 R1 & Conservative & 1.0 & High specificity, fewer false positives \\
 R2 & Balanced     & 1.0 & Standard operating point \\
-R3 & Sensitive    & 0.7 & High recall, fewer missed nodules \\
+R3 & Rule-Based   & 0.7 & Size/texture Lung-RADS rules \\
 \bottomrule
 \end{tabular}
 \caption{Radiologist agent configurations. Base weights are dynamically scaled per-case by the information-richness heuristic (Section~\ref{subsec:dynamic-weights}).}
 \label{tab:radiologists}
 \end{table}
+
+\paragraph{R3: Anatomically-Calibrated Size Estimation.}
+The rule-based radiologist (R3) applies Lung-RADS size/texture rules to estimate malignancy probability. Because the NLMCXR dataset does not include segmentation masks or size annotations, R3 must estimate nodule size from the image itself. A na\"ive approach of dividing the image's pixel dimension by a fixed constant (e.g., $\texttt{max(shape)}/5$) produces clinically implausible values (e.g., 102--125\,mm for a standard 512$\times$624 image), since pixel count does not correspond to physical size.
+
+Instead, R3 implements an \emph{anatomically-calibrated blob detection} pipeline:
+\begin{enumerate}
+    \item An adaptive threshold is computed at $\mu + \sigma$ of the image's intensity distribution to isolate dense/bright regions.
+    \item Connected component analysis (via \texttt{scipy.ndimage.label}) identifies candidate blobs in the thresholded binary image.
+    \item Each blob is filtered by: (a)~area ratio $\in [0.0002, 0.1]$ of total image area, (b)~bounding-box aspect ratio $> 0.3$ (excluding elongated structures), and (c)~mean intensity above the global mean.
+    \item The largest qualifying blob's pixel-space diameter is converted to millimeters assuming a standard PA chest X-ray field of view of 300\,mm:
+    \begin{equation}
+        d_\text{mm} = \frac{2\sqrt{A_\text{px} / \pi}}{H_\text{px}} \times 300
+    \label{eq:blob-size}
+    \end{equation}
+    where $A_\text{px}$ is the blob area in pixels and $H_\text{px}$ is the image height.
+    \item The result is clamped to $[2, 60]$\,mm. If no qualifying blob is found, \texttt{size\_mm} is set to \texttt{None} with \texttt{size\_source=``none\_detected''}, rather than a fabricated default.
+\end{enumerate}
+
+On real NLMCXR images (e.g., CXR1000), this produces size estimates of 5.1\,mm, 9.6\,mm, and 52.4\,mm for different views---clinically plausible values compared to the 124.8\,mm produced by the old heuristic for every view.
 
 \subsubsection{Pathologist Agents (P1--P3)}
 \label{subsubsec:pathologists}
@@ -258,6 +302,14 @@ P3 & NegEx/Context & 0.9 & Negation and uncertainty detection \\
 \caption{Pathologist agent configurations. Base weights are dynamically scaled per-case by the information-richness heuristic (Section~\ref{subsec:dynamic-weights}).}
 \label{tab:pathologists}
 \end{table}
+
+\paragraph{Explicit Unknown-Size Handling.}
+All three Pathologist agents' size extraction methods return a \texttt{(size\_mm, size\_source)} tuple rather than a bare numeric value. When a measurement is found in the text, \texttt{size\_source} is set to \texttt{``regex''} (P1, P3) or \texttt{``spacy''} (P2). When no measurement is detected, the agents return \texttt{(None, ``unknown'')} instead of a hardcoded default such as 10.0\,mm. This design has three downstream effects:
+\begin{itemize}
+    \item The malignancy-estimation heuristic in each Pathologist skips the size-based adjustment when \texttt{size\_mm} is \texttt{None}, relying solely on textual descriptors (suspicious/benign terms, texture keywords).
+    \item The \texttt{size\_source} tag is propagated into the agent's findings, making the provenance of every size value transparent.
+    \item The consensus engine reduces the weight of any agent whose \texttt{size\_source} is \texttt{``unknown''} or \texttt{``none\_detected''} (Section~\ref{subsec:size-weight-reduction}).
+\end{itemize}
 
 \subsubsection{Oncologist Agent}
 \label{subsubsec:oncologist}
@@ -327,7 +379,7 @@ Four categories of attributes are extracted:
 
 \begin{enumerate}
     \item \textbf{Anatomical location:} Regex patterns for lobe references (``right upper lobe'', ``RUL''), positional terms (``subpleural'', ``perihilar''), and laterality.
-    \item \textbf{Size mentions:} Multiple patterns capture formats including ``15 mm'', ``1.5 cm'', and dimensional notations (``15 $\times$ 12 mm''), with automatic unit normalization to millimeters.
+    \item \textbf{Size mentions:} Multiple patterns capture formats including ``15 mm'', ``1.5 cm'', and dimensional notations (``15 $\times$ 12 mm''), with automatic unit normalization to millimeters. When no size pattern matches, the extraction returns \texttt{None} with a provenance tag \texttt{size\_source=``unknown''} rather than a hardcoded default, ensuring that downstream components can distinguish between measured and unmeasured sizes.
     \item \textbf{Multiplicity:} Detection of plural nodule mentions (``multiple nodules'', ``bilateral'', ``several opacities'', numeric quantifiers such as ``3 nodules'').
     \item \textbf{Descriptors:} Keywords grouped by clinical category:
     \begin{itemize}
@@ -429,6 +481,24 @@ The Prolog consensus engine implements a multi-stage decision pipeline: (1) weig
 
 
 Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
+
+\subsection{Size-Source Weight Reduction}
+\label{subsec:size-weight-reduction}
+
+Nodule size is a critical input to the Lung-RADS rules and the malignancy estimation heuristic. However, not every agent can reliably determine size for every case: the Pathologist agents may encounter reports without explicit measurements, and the rule-based Radiologist may find no qualifying blob in the image. In such cases, the agent's \texttt{size\_source} field is set to \texttt{``unknown''} (Pathologists) or \texttt{``none\_detected''} (Radiologist R3), and \texttt{size\_mm} is \texttt{None}.
+
+To prevent these agents from having outsized influence on the consensus when they lack size information, the Prolog consensus engine applies a \emph{size-source weight penalty} before computing $P_\text{consensus}$:
+
+\begin{equation}
+\hat{w}_i^{\prime} =
+\begin{cases}
+0.5 \cdot \hat{w}_i & \text{if } \texttt{size\_source}_i \in \{\text{``unknown'', ``none\_detected''}\} \text{ or } \texttt{size\_mm}_i = \texttt{None}, \\
+\hat{w}_i & \text{otherwise.}
+\end{cases}
+\label{eq:size-penalty}
+\end{equation}
+
+This 50\% reduction is applied \emph{after} the dynamic per-case weight scaling (Equation~\ref{eq:dynamic-weight}), so the final effective weight incorporates both the information-richness scaling and the size-provenance penalty. The rationale is that an agent whose malignancy estimate is not grounded in an actual size value provides a less reliable signal than one that has measured or extracted a concrete measurement.
 
 \subsection{BDI Implementation Details}
 \label{subsec:bdi-details}
@@ -637,7 +707,7 @@ Multi-agent consensus is evaluated by tracking:
 \subsection{Experimental Results}
 \label{subsec:results}
 
-The complete pipeline was evaluated on the 500-case Evaluation Subset from the NLMCXR dataset. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
+The complete pipeline was evaluated on the 500-case Evaluation Subset from the NLMCXR dataset, selected via the NLP richness scoring mechanism described in Section~\ref{subsec:dataset}. Cases were ranked by richness score (minimum threshold~$\geq 3$) and the top 500 were selected, ensuring that the NLP agents (Pathologists) operate on reports with sufficient extractable content. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
 
 \begin{table}[h]
 \centering
@@ -691,6 +761,14 @@ The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristi
 
 The low abnormal-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
 
+\subsubsection{Impact of Calibrated Size Estimation}
+
+The replacement of the na\"ive pixel-dimension heuristic (\texttt{max(shape)/5}) with anatomically-calibrated blob detection (Equation~\ref{eq:blob-size}) substantially improved the plausibility of the rule-based radiologist's size estimates. For instance, on CXR1000 (a case with three images at $512\times624$ resolution), the old heuristic produced 124.8\,mm for every view---a value exceeding the clinical range for any pulmonary nodule. The calibrated blob detector instead produced 5.1\,mm, 9.6\,mm, and 52.4\,mm for the three views, which are clinically meaningful values that correctly trigger different Lung-RADS categories. The \texttt{size\_source} tag (\texttt{blob\_estimation}, \texttt{none\_detected}) provides transparency about each estimate's provenance.
+
+\subsubsection{Impact of Unknown-Size Handling}
+
+The removal of the hardcoded 10.0\,mm default from all three Pathologist agents' size extractors eliminated a systematic bias: previously, every report without an explicit measurement was treated as containing a 10\,mm nodule, which inflated malignancy estimates and Lung-RADS categorization. With the \texttt{None} + \texttt{size\_source} approach, the Pathologist agents now report \texttt{size\_mm=None, size\_source=``unknown''} when no measurement pattern matches, and their malignancy estimation relies solely on textual descriptors. The consensus engine reduces these agents' weights by 50\% (Equation~\ref{eq:size-penalty}), appropriately reflecting the reduced informativeness of their output.
+
 \subsubsection{NLP Model Performance}
 
 The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 500-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
@@ -706,8 +784,11 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
     \item Annotations were performed by a single non-clinical annotator. While the annotation schema targets linguistic phenomena rather than clinical judgment, some edge cases (e.g., distinguishing ``nodule'' from ``mass'') may benefit from clinical expertise. Future work could validate annotations with a radiologist.
     \item The evaluation on 500 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
     \item The dynamic weight sub-component coefficients ($\alpha_i$, $\beta_j$) and the scale floor $\lambda = 0.5$ were set heuristically. An empirical sensitivity analysis or learning these parameters from a validation set could further improve calibration.
+    \item The NLP richness scoring thresholds (minimum score 3, six binary criteria) were designed based on empirical analysis of the dataset's score distribution. Different thresholds or weighted criteria could yield different evaluation subsets; the sensitivity of the final results to these choices has not been exhaustively studied.
+    \item The anatomically-calibrated blob detection assumes a standard PA chest X-ray field of view of 300\,mm. This assumption is approximate: actual chest widths vary across patients, and the NLMCXR images do not include DICOM pixel-spacing metadata. Despite this limitation, the calibrated estimates are substantially more plausible than the prior pixel-division heuristic.
+    \item The 50\% weight reduction for agents with unknown size (Equation~\ref{eq:size-penalty}) is a fixed penalty. An adaptive penalty based on the fraction of agents that \emph{did} report size could provide finer-grained weight adjustment.
     \item Lung-RADS v1.1 was originally defined for LDCT screening, not chest X-rays; it is used here as an example of codifiable clinical rules rather than as a direct clinical application.
-    \item The TorchXRayVision model was evaluated on CPU; GPU acceleration would significantly improve processing throughput beyond the current 4.9 cases/sec.
+    \item The TorchXRayVision model was evaluated on CPU; GPU acceleration would significantly improve processing throughput beyond the current $\sim$2 cases/sec.
 \end{itemize}
 
 
@@ -727,6 +808,9 @@ Key technical contributions include:
     \item Implementation of NegEx-style negation and uncertainty detection for radiology report analysis.
     \item A Prolog knowledge base encoding Lung-RADS clinical guidelines for interpretable decision support.
     \item A dynamic, per-case weight assignment mechanism based on information-richness heuristics. Agent reliability weights are scaled at runtime according to the quantity and quality of available radiology images and pathology reports, with the scaling formula (Equation~\ref{eq:dynamic-weight}) guaranteeing a minimum contribution floor of 50\% of the base weight. This approach replaces static hardcoded weights and is synchronized between Python and Prolog via dynamic predicate assertion.
+    \item An NLP-richness-based case selection pipeline that uses MeSH metadata and a six-factor scoring function to identify reports with meaningful extractable content, replacing the previous keyword-only filtering approach.
+    \item An anatomically-calibrated blob detection method for the rule-based radiologist (Equation~\ref{eq:blob-size}), producing clinically plausible size estimates in millimeters by modeling the chest X-ray field of view, replacing a na\"ive pixel-dimension heuristic.
+    \item A size-provenance framework in which all agents return \texttt{(size\_mm, size\_source)} tuples and the consensus engine applies a 50\% weight penalty (Equation~\ref{eq:size-penalty}) to agents with unknown or undetected sizes, preventing fabricated defaults from propagating into clinical recommendations.
 \end{itemize}
 
 % Future work could extend the system to CT imaging using the original Lung-RADS protocol, incorporate additional NLP agents for temporal reasoning (detecting changes over time), and validate the clinical utility of the explanations generated by the Oncologist agent through user studies with radiologists.

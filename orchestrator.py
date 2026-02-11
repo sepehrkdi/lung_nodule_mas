@@ -199,6 +199,19 @@ class PrologConsensusEngine:
         weights = dynamic_weights or BASE_WEIGHTS
         for f in all_findings:
             f.weight = weights.get(f.agent_name, get_base_weight(f.agent_name))
+            
+            # Reduce weight by 50% when agent could not determine size
+            # (size_source='unknown' or size_mm is None in details).
+            # This prevents agents that fell back to defaults from having
+            # outsized influence on the consensus.
+            size_source = f.details.get("size_source", "")
+            size_mm = f.details.get("size_mm")
+            if size_source == "unknown" or (size_source == "none_detected") or (size_mm is None):
+                f.weight *= 0.5
+                logger.debug(
+                    f"Weight reduced for {f.agent_name}: size unknown "
+                    f"(size_source={size_source}), weight={f.weight:.3f}"
+                )
         
         # Convert findings to format expected by Prolog engine
         prolog_findings = [

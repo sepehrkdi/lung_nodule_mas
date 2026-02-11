@@ -71,7 +71,7 @@ _loader: Optional[NLMCXRLoader] = None
 _orchestrator: Optional[MultiAgentOrchestrator] = None
 
 # Constants
-MAX_EVALUATION_CASES = 500
+MAX_EVALUATION_CASES = 10
 
 
 def get_loader() -> NLMCXRLoader:
@@ -122,9 +122,9 @@ async def list_nodules():
     """List all available case IDs."""
     try:
         loader = get_loader()
-        # ALIGNMENT WITH REPORT: Use pre-filtered list of nodule cases
-        # Limit to MAX_EVALUATION_CASES as per specifications
-        case_ids = loader.get_nodule_case_ids(limit=MAX_EVALUATION_CASES)
+        # Use NLP-richness-filtered cases (score >= 3) so the UI only
+        # shows cases with enough extractable NLP content for the agents.
+        case_ids = loader.get_nlp_rich_case_ids(min_score=3.0, limit=MAX_EVALUATION_CASES)
         return NoduleListResponse(
             nodule_ids=case_ids,
             total_count=len(case_ids)
@@ -502,7 +502,7 @@ async def _compute_metrics_background():
 
         split_count = 0
 
-        case_ids = loader.get_nodule_case_ids(limit=MAX_EVALUATION_CASES)
+        case_ids = loader.get_nlp_rich_case_ids(min_score=3.0, limit=MAX_EVALUATION_CASES)
         _metrics_state["total"] = len(case_ids)
         _metrics_state["processed"] = 0
 

@@ -68,7 +68,7 @@ class PathologistBase(MedicalAgentBase):
         self.internal_actions["extract_all"] = self._action_extract_all
         
         # Individual extractors (for detailed plans)
-        self.internal_actions["extract_size"] = lambda t, i="": (self._analyze_report(t).get("size_mm", 10),)
+        self.internal_actions["extract_size"] = lambda t, i="": (self._analyze_report(t).get("size_mm"),)
         self.internal_actions["extract_texture"] = lambda t, i="": (self._analyze_report(t).get("texture", "solid"),)
         self.internal_actions["extract_margin"] = lambda t, i="": ("smooth",) # Placeholder
         self.internal_actions["extract_spiculation"] = lambda t, i="": (1,) # Placeholder
@@ -97,7 +97,9 @@ class PathologistBase(MedicalAgentBase):
         logger.info(f"[{self.name}] Analyzing text for {nodule_id}")
         findings = self._analyze_report(text)
         
-        size = findings.get("size_mm", 10.0)
+        size = findings.get("size_mm")
+        if size is None:
+            size = 0.0  # BDI action must return a number; 0.0 signals unknown
         texture = findings.get("texture", "solid")
         margin = "smooth" # Not currently extracted by variants
         spic = 1 # Not currently extracted
@@ -123,16 +125,18 @@ class PathologistBase(MedicalAgentBase):
         """Estimate malignancy probability from extracted findings."""
         prob = 0.5  # Base probability
         
-        # Size-based adjustment
-        size = findings.get("size_mm", 10)
-        if size < 6:
-            prob -= 0.2
-        elif size < 8:
-            prob -= 0.1
-        elif size < 15:
-            prob += 0.1
-        else:
-            prob += 0.25
+        # Size-based adjustment (skip if size unknown)
+        size = findings.get("size_mm")
+        if size is not None:
+            if size < 6:
+                prob -= 0.2
+            elif size < 8:
+                prob -= 0.1
+            elif size < 15:
+                prob += 0.1
+            else:
+                prob += 0.25
+        # If size is None, don't adjust — stay at base probability
         
         # Texture adjustment
         texture = findings.get("texture", "").lower()
@@ -189,12 +193,15 @@ class PathologistBase(MedicalAgentBase):
     
     def _generate_report_from_features(self, features: Dict[str, Any]) -> str:
         """Generate synthetic report from features."""
-        size = features.get("size_mm", features.get("diameter_mm", 10))
+        size = features.get("size_mm", features.get("diameter_mm"))
         texture = features.get("texture", "solid")
         location = features.get("location", "right upper lobe")
         malignancy = features.get("malignancy", 3)
         
-        findings = f"A {size:.0f}mm {texture} nodule is identified in the {location}."
+        if size is not None:
+            findings = f"A {size:.0f}mm {texture} nodule is identified in the {location}."
+        else:
+            findings = f"A {texture} nodule is identified in the {location}."
         
         if malignancy >= 4:
             impression = "Suspicious for malignancy. Recommend further evaluation."
@@ -316,8 +323,11 @@ class PathologistRegex(PathologistBase):
         """Analyze report using regex patterns."""
         report_lower = report.lower()
         
+        size_mm, size_source = self._extract_size(report_lower)
+        
         findings = {
-            "size_mm": self._extract_size(report_lower),
+            "size_mm": size_mm,
+            "size_source": size_source,
             "texture": self._extract_texture(report_lower),
             "location": self._extract_location(report_lower),
             "suspicious_terms": self._find_terms(report_lower, self.SUSPICIOUS_PATTERNS),
@@ -325,9 +335,10 @@ class PathologistRegex(PathologistBase):
             "approach": "regex"
         }
         
+        size_str = f"{findings['size_mm']}mm" if findings['size_mm'] is not None else "unknown"
         logger.info(
             f"[{self.name}] Regex extraction: "
-            f"size={findings['size_mm']}mm, "
+            f"size={size_str} ({size_source}), "
             f"texture={findings['texture']}, "
             f"suspicious={len(findings['suspicious_terms'])}, "
             f"benign={len(findings['benign_terms'])}"
@@ -335,8 +346,8 @@ class PathologistRegex(PathologistBase):
         
         return findings
     
-    def _extract_size(self, text: str) -> float:
-        """Extract nodule size in mm."""
+    def _extract_size(self, text: str) -> Tuple[Optional[float], str]:
+        """Extract nodule size in mm. Returns (size_mm, size_source)."""
         for pattern in self.SIZE_PATTERNS:
             matches = re.findall(pattern, text)
             if matches:
@@ -344,8 +355,8 @@ class PathologistRegex(PathologistBase):
                 # Check if cm (multiply by 10)
                 if "cm" in text[text.find(matches[0]):text.find(matches[0])+10]:
                     size *= 10
-                return size
-        return 10.0  # Default
+                return size, "regex"
+        return None, "unknown"
     
     def _extract_texture(self, text: str) -> str:
         """Extract nodule texture."""
@@ -442,7 +453,7 @@ class PathologistSpacy(PathologistBase):
             })
         
         # Extract size using dependency parsing
-        size_mm = self._extract_size_spacy(doc)
+        size_mm, size_source = self._extract_size_spacy(doc)
         
         # Determine texture from context
         texture = self._extract_texture_spacy(doc)
@@ -455,6 +466,7 @@ class PathologistSpacy(PathologistBase):
         
         findings = {
             "size_mm": size_mm,
+            "size_source": size_source,
             "texture": texture,
             "location": location,
             "entities": entities,
@@ -465,16 +477,17 @@ class PathologistSpacy(PathologistBase):
             "approach": "spacy_ner"
         }
         
+        size_str = f"{size_mm}mm" if size_mm is not None else "unknown"
         logger.info(
             f"[{self.name}] spaCy analysis: "
-            f"size={size_mm}mm, texture={texture}, "
+            f"size={size_str} ({size_source}), texture={texture}, "
             f"entities={len(entities)}, malignancy_score={malignancy_score:.2f}"
         )
         
         return findings
     
-    def _extract_size_spacy(self, doc) -> float:
-        """Extract size using spaCy's token analysis."""
+    def _extract_size_spacy(self, doc) -> Tuple[Optional[float], str]:
+        """Extract size using spaCy's token analysis. Returns (size_mm, size_source)."""
         import re
         
         # Look for number + unit patterns
@@ -485,12 +498,12 @@ class PathologistSpacy(PathologistBase):
                     next_token = doc[i + 1].text.lower()
                     if next_token in ["mm", "millimeter", "millimeters"]:
                         try:
-                            return float(token.text)
+                            return float(token.text), "spacy"
                         except ValueError:
                             pass
                     elif next_token in ["cm", "centimeter", "centimeters"]:
                         try:
-                            return float(token.text) * 10
+                            return float(token.text) * 10, "spacy"
                         except ValueError:
                             pass
         
@@ -500,9 +513,9 @@ class PathologistSpacy(PathologistBase):
             size = float(matches[0])
             if "cm" in doc.text.lower():
                 size *= 10
-            return size
+            return size, "regex_fallback"
         
-        return 10.0
+        return None, "unknown"
     
     def _extract_texture_spacy(self, doc) -> str:
         """Extract texture using semantic analysis."""
@@ -589,14 +602,16 @@ class PathologistSpacy(PathologistBase):
         """Override to use spaCy's malignancy score."""
         base_prob = findings.get("malignancy_score", 0.5)
         
-        # Adjust based on size
-        size = findings.get("size_mm", 10)
-        if size < 6:
-            base_prob -= 0.15
-        elif size < 8:
-            base_prob -= 0.05
-        elif size >= 15:
-            base_prob += 0.15
+        # Adjust based on size (skip if unknown)
+        size = findings.get("size_mm")
+        if size is not None:
+            if size < 6:
+                base_prob -= 0.15
+            elif size < 8:
+                base_prob -= 0.05
+            elif size >= 15:
+                base_prob += 0.15
+        # If size is None, don't adjust
         
         return min(max(base_prob, 0.05), 0.95)
 
@@ -720,7 +735,9 @@ class PathologistContext(PathologistBase):
         findings["overall_certainty"] = self._determine_overall_certainty(findings)
         
         # Extract basic features for malignancy estimation
-        findings["size_mm"] = self._extract_size(report)
+        size_mm, size_source = self._extract_size(report)
+        findings["size_mm"] = size_mm
+        findings["size_source"] = size_source
         findings["texture"] = self._extract_texture(report)
         findings["location"] = self._extract_location(report)
         
@@ -777,16 +794,16 @@ class PathologistContext(PathologistBase):
         else:
             return "affirmed"  # Default if no entities found
     
-    def _extract_size(self, text: str) -> float:
-        """Extract nodule size."""
+    def _extract_size(self, text: str) -> Tuple[Optional[float], str]:
+        """Extract nodule size. Returns (size_mm, size_source)."""
         import re
         match = re.search(r'(\d+(?:\.\d+)?)\s*(?:mm|millimeter)', text, re.I)
         if match:
-            return float(match.group(1))
+            return float(match.group(1)), "regex"
         match = re.search(r'(\d+(?:\.\d+)?)\s*(?:cm|centimeter)', text, re.I)
         if match:
-            return float(match.group(1)) * 10
-        return 10.0
+            return float(match.group(1)) * 10, "regex"
+        return None, "unknown"
     
     def _extract_texture(self, text: str) -> str:
         """Extract texture."""

@@ -108,12 +108,35 @@ class WeightedAverageAggregation(AggregationStrategy):
 
         # Derive weights from view types if not provided
         if weights is None:
-            weights = [
-                WeightedAverageAggregation.VIEW_WEIGHTS.get(
-                    meta.get("view_type", "Unknown"), 0.5
+            if image_metadata and len(image_metadata) >= len(probabilities):
+                weights = [
+                    WeightedAverageAggregation.VIEW_WEIGHTS.get(
+                        meta.get("view_type", "Unknown"), 0.5
+                    )
+                    for meta in image_metadata
+                ]
+            else:
+                # Fallback: equal weights when metadata is missing or
+                # shorter than probabilities (prevents zip truncation)
+                logger.warning(
+                    f"WeightedAverage: metadata length "
+                    f"({len(image_metadata) if image_metadata else 0}) != "
+                    f"probabilities length ({len(probabilities)}). "
+                    f"Using equal weights."
                 )
-                for meta in image_metadata
-            ]
+                weights = [1.0] * len(probabilities)
+
+        # Ensure weights and probabilities are the same length
+        if len(weights) != len(probabilities):
+            logger.warning(
+                f"WeightedAverage: weight/probability length mismatch "
+                f"({len(weights)} vs {len(probabilities)}). Padding weights."
+            )
+            # Pad or truncate weights to match probabilities
+            if len(weights) < len(probabilities):
+                weights.extend([0.5] * (len(probabilities) - len(weights)))
+            else:
+                weights = weights[:len(probabilities)]
 
         # Compute weighted average
         total_weight = sum(weights)

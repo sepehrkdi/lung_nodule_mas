@@ -136,10 +136,10 @@ class RadiologistBase(MedicalAgentBase):
             # For now, we use a shared heuristic extraction
             image = self._prepare_image(image_data)
             
-            # Simple heuristics for BDI demo
-            size_mm = 10.0 # Default
+            # Size from request metadata, or None if not available
+            size_mm = None
             if isinstance(image_data, dict):
-                 size_mm = image_data.get("size_mm", 10.0)
+                 size_mm = image_data.get("size_mm")
             
             # Texture heuristic from image noise
             texture = "solid"
@@ -152,7 +152,7 @@ class RadiologistBase(MedicalAgentBase):
             return (size_mm, texture, shape)
         except Exception as e:
             logger.error(f"[{self.name}] Feature extraction error: {e}")
-            return (10.0, "unknown", "unknown")
+            return (None, "unknown", "unknown")
 
         
     @abstractmethod
@@ -645,44 +645,159 @@ class RadiologistRules(RadiologistBase):
         # Extract features from image
         features = self._extract_features(image)
         
-        size_mm = features.get("size_mm", 10)
+        size_mm = features.get("size_mm")
         texture = features.get("texture", "solid")
+        size_source = features.get("size_source", "unknown")
         
-        # Apply rules
-        probability = self._apply_rules(size_mm, texture)
-        
-        # Log reasoning
-        logger.info(
-            f"[{self.name}] Rule-based: size={size_mm:.1f}mm, "
-            f"texture={texture} -> prob={probability:.3f}"
-        )
+        if size_mm is None:
+            # No blob detected — return neutral probability with low confidence
+            probability = 0.5
+            logger.info(
+                f"[{self.name}] Rule-based: no size detected "
+                f"(size_source={size_source}), returning neutral prob={probability:.3f}"
+            )
+        else:
+            # Apply rules
+            probability = self._apply_rules(size_mm, texture)
+            logger.info(
+                f"[{self.name}] Rule-based: size={size_mm:.1f}mm ({size_source}), "
+                f"texture={texture} -> prob={probability:.3f}"
+            )
         
         return (probability, self._prob_to_class(probability))
     
     def _extract_features(self, image: np.ndarray) -> Dict[str, Any]:
-        """Extract features from image for rule application."""
+        """
+        Extract features from image for rule application.
+        
+        Uses anatomically-calibrated blob detection instead of raw pixel
+        dimensions. Assumes a standard PA chest X-ray field-of-view of
+        ~300mm (30cm chest width) to convert detected region sizes from
+        pixels to millimeters.
+        
+        When no qualifying blob is found, size_mm is set to None and
+        size_source to 'none_detected', allowing downstream consensus
+        to reduce this agent's weight rather than using a nonsensical value.
+        """
         if len(image.shape) == 3:
             gray = np.mean(image, axis=-1)
         else:
-            gray = image
-            
-        # Estimate size from image dimensions
-        size_mm = max(image.shape[:2]) / 5.0
+            gray = image.copy()
         
-        # Estimate texture from intensity variance
-        std = np.std(gray) / 255.0
+        # --- Texture estimation from intensity variance ---
+        # Normalize to 0-255 uint8 range for thresholding 
+        if gray.max() <= 1.0:
+            gray_u8 = (gray * 255).astype(np.uint8)
+            std = np.std(gray)  # Already 0-1 range
+        else:
+            gray_u8 = gray.astype(np.uint8)
+            std = np.std(gray) / 255.0
+        
         if std > 0.3:
             texture = "ground_glass"
         elif std > 0.15:
             texture = "part_solid"
         else:
             texture = "solid"
+        
+        # --- Anatomically-calibrated size estimation via blob detection ---
+        # Standard PA chest X-ray field of view ≈ 300mm (30cm)
+        CXR_FOV_MM = 300.0
+        image_height = max(image.shape[0], 1)
+        
+        size_mm = None
+        size_source = "none_detected"
+        
+        try:
+            # Adaptive threshold to find dense/bright regions
+            mean_val = np.mean(gray_u8)
+            std_val = max(np.std(gray_u8), 1.0)
+            # Use a threshold that isolates the upper intensity tail
+            # For medical CXR, suspicious dense regions are brighter than
+            # the majority of lung tissue
+            threshold = min(255, int(mean_val + 1.0 * std_val))
             
+            binary = (gray_u8 > threshold).astype(np.uint8)
+            
+            # Connected component analysis (scipy-free: manual flood fill approach)
+            # Use numpy-based labeling with simple scan
+            from scipy import ndimage
+            labeled, num_features = ndimage.label(binary)
+            
+            if num_features > 0:
+                best_size_px = None
+                total_area = image.shape[0] * image.shape[1]
+                
+                for label_id in range(1, min(num_features + 1, 100)):  # Cap at 100 blobs
+                    component = (labeled == label_id)
+                    area = np.sum(component)
+                    
+                    # Filter: area between 0.0002 and 0.1 of total image
+                    # (0.0002 ≈ a 6mm nodule on 512x512 CXR with 300mm FOV)
+                    area_ratio = area / total_area
+                    if area_ratio < 0.0002 or area_ratio > 0.1:
+                        continue
+                    
+                    # Check circularity: perimeter-based approximation
+                    # Erode by 1 pixel, perimeter ≈ area - eroded_area
+                    rows, cols = np.where(component)
+                    if len(rows) < 4:
+                        continue
+                    
+                    height_span = rows.max() - rows.min() + 1
+                    width_span = cols.max() - cols.min() + 1
+                    if height_span == 0 or width_span == 0:
+                        continue
+                    
+                    # Bounding box aspect ratio as circularity proxy
+                    aspect = min(height_span, width_span) / max(height_span, width_span)
+                    if aspect < 0.3:
+                        continue  # Too elongated
+                    
+                    # Check intensity: blob mean should be above overall mean
+                    blob_mean = np.mean(gray_u8[component])
+                    if blob_mean < mean_val:
+                        continue
+                    
+                    # Track the largest qualifying blob
+                    if best_size_px is None or area > best_size_px:
+                        best_size_px = area
+                
+                if best_size_px is not None:
+                    # Convert blob area to equivalent diameter in mm
+                    # diameter_px = 2 * sqrt(area / pi)
+                    diameter_px = 2.0 * np.sqrt(best_size_px / np.pi)
+                    size_mm = (diameter_px / image_height) * CXR_FOV_MM
+                    
+                    # Clamp to clinically plausible range [2mm, 60mm]
+                    size_mm = float(np.clip(size_mm, 2.0, 60.0))
+                    size_source = "blob_estimation"
+        
+        except ImportError:
+            # scipy not available — use simple intensity-based estimate
+            logger.warning(
+                f"[{self.name}] scipy unavailable for blob detection, "
+                "using intensity-based size estimate"
+            )
+            # Fraction of pixels above threshold as size proxy
+            mean_val = np.mean(gray_u8)
+            bright_fraction = np.mean(gray_u8 > mean_val + 0.5 * np.std(gray_u8))
+            if bright_fraction > 0.01:
+                # Map bright fraction to a plausible size range
+                estimated_diameter_frac = np.sqrt(bright_fraction)
+                size_mm = float(np.clip(
+                    estimated_diameter_frac * CXR_FOV_MM, 2.0, 60.0
+                ))
+                size_source = "intensity_estimation"
+        except Exception as e:
+            logger.warning(f"[{self.name}] Blob detection failed: {e}")
+
         return {
             "size_mm": size_mm,
+            "size_source": size_source,
             "texture": texture,
-            "mean_intensity": np.mean(gray) / 255.0,
-            "std_intensity": std
+            "mean_intensity": float(np.mean(gray)) / (255.0 if gray.max() > 1.0 else 1.0),
+            "std_intensity": float(std)
         }
     
     def _apply_rules(self, size_mm: float, texture: Union[str, int]) -> float:
@@ -749,6 +864,7 @@ class RadiologistRules(RadiologistBase):
                     "malignancy_probability": probability,
                     "predicted_class": predicted_class,
                     "size_mm": size_mm,
+                    "size_source": "features",
                     "texture": texture
                 }
             }
