@@ -44,8 +44,7 @@ pyswip>=0.3.0
 # ===========================================
 # Medical Imaging Dataset
 # ===========================================
-pylidc>=0.2.3
-# Note: LIDC-IDRI data requires separate download from TCIA
+# Note: NLMCXR data is used for evaluation
 # See data/prepare_dataset.py for instructions
 
 # ===========================================

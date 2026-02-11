@@ -68,35 +68,27 @@ ALL_AGENTS = [
 
 
 def get_class_color(predicted_class: int) -> str:
-    """Get color based on malignancy class."""
+    """Get color based on binary classification (0=benign, 1=malignant)."""
     colors = {
-        1: "#28a745",  # Green - Highly Unlikely
-        2: "#5cb85c",  # Light Green - Moderately Unlikely
-        3: "#ffc107",  # Yellow - Indeterminate
-        4: "#fd7e14",  # Orange - Moderately Suspicious
-        5: "#dc3545",  # Red - Highly Suspicious
+        0: "#28a745",  # Green - Benign
+        1: "#dc3545",  # Red - Malignant
     }
     return colors.get(predicted_class, "#6c757d")
 
 
 def get_class_label(predicted_class: int) -> str:
-    """Get label for malignancy class."""
+    """Get label for binary class."""
     labels = {
-        1: "Highly Unlikely",
-        2: "Moderately Unlikely", 
-        3: "Indeterminate",
-        4: "Moderately Suspicious",
-        5: "Highly Suspicious",
+        0: "Benign",
+        1: "Malignant",
     }
     return labels.get(predicted_class, "Unknown")
 
 
 def get_classification_category(predicted_class: int) -> Dict[str, str]:
-    """Get benign/indeterminate/malignant category for a predicted class."""
-    if predicted_class <= 2:
+    """Get benign/malignant category for a predicted class."""
+    if predicted_class == 0:
         return {"label": "Benign", "color": "#28a745", "icon": "✅"}
-    elif predicted_class == 3:
-        return {"label": "Indeterminate", "color": "#ffc107", "icon": "⚠️"}
     else:
         return {"label": "Malignant", "color": "#dc3545", "icon": "🔴"}
 
@@ -126,7 +118,7 @@ def render_agent_card(
         # Card styling based on status
         if is_completed and finding:
             prob = finding.get("probability", 0.5)
-            pred_class = finding.get("predicted_class", 3)
+            pred_class = finding.get("predicted_class", 0)
             weight = finding.get("weight", 1.0)
             
             class_color = get_class_color(pred_class)

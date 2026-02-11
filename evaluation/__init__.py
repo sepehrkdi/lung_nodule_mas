@@ -6,13 +6,12 @@ Metrics and visualization for model and system evaluation.
 
 Provides:
 - Binary classification metrics (benign vs malignant)
-- Multi-class staging evaluation
 - Agent interaction analysis
 
 EDUCATIONAL PURPOSE:
 - Classification Metrics: Accuracy, Precision, Recall, F1
 - ROC/AUC Analysis: Probability-based evaluation
-- Confusion Matrix: Multi-class performance visualization
+- Confusion Matrix: Binary performance visualization
 """
 
 from .metrics import (

@@ -559,23 +559,22 @@ get_all_findings(NoduleId, Findings) :-
 
 
 /* ============================================================
- * SECTION 10: PROBABILITY TO CLASS MAPPING
+ * SECTION 10: PROBABILITY TO CLASS MAPPING (BINARY)
  * ============================================================
+ * Using binary classification: 0 = benign, 1 = malignant
  */
 
-% Convert probability to malignancy class (1-5)
-probability_to_class(Prob, 1) :- Prob < 0.2.
-probability_to_class(Prob, 2) :- Prob >= 0.2, Prob < 0.4.
-probability_to_class(Prob, 3) :- Prob >= 0.4, Prob < 0.6.
-probability_to_class(Prob, 4) :- Prob >= 0.6, Prob < 0.8.
-probability_to_class(Prob, 5) :- Prob >= 0.8.
+% Convert probability to binary class (threshold 0.5)
+probability_to_class(Prob, 0) :- Prob < 0.5.
+probability_to_class(Prob, 1) :- Prob >= 0.5.
 
-% Convert class to risk level
-class_to_risk(1, low).
-class_to_risk(2, low).
-class_to_risk(3, intermediate).
-class_to_risk(4, high).
-class_to_risk(5, high).
+% Class label for display
+class_label(0, benign).
+class_label(1, malignant).
+
+% Convert class to risk level (binary)
+class_to_risk(0, low).
+class_to_risk(1, high).
 
 
 /* ============================================================

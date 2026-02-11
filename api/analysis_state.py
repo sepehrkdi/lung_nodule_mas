@@ -162,7 +162,7 @@ class AnalysisStateManager:
                 approach=result.get("approach", "unknown"),
                 weight=result.get("weight", 1.0),
                 probability=prob,
-                predicted_class=findings.get("predicted_class", 3),
+                predicted_class=findings.get("predicted_class", 0),
                 details=findings,
             )
             

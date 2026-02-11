@@ -347,17 +347,14 @@ async def run_analysis_task(session_id: str, nodule_id: str):
             "weight_rationale": result.weight_rationale,
         }
         
-        # Add Lung-RADS category based on final class
-        lung_rads_map = {1: "1", 2: "2", 3: "3", 4: "4A", 5: "4B"}
-        consensus_dict["lung_rads_category"] = lung_rads_map.get(result.final_class, "3")
+        # Add classification label based on binary class
+        class_label_map = {0: "Benign", 1: "Malignant"}
+        consensus_dict["final_label"] = class_label_map.get(result.final_class, "Unknown")
         
-        # Add recommendation
+        # Add recommendation based on binary classification
         recommendations = {
-            1: "No further follow-up needed for this nodule.",
-            2: "Annual low-dose CT screening recommended.",
-            3: "Short-term follow-up CT in 6 months recommended.",
-            4: "Short-term follow-up CT in 3 months or PET-CT recommended.",
-            5: "Tissue sampling (biopsy) or surgical consultation recommended.",
+            0: "Likely benign. Annual low-dose CT screening recommended.",
+            1: "Suspicious for malignancy. Tissue sampling (biopsy) or further evaluation recommended.",
         }
         consensus_dict["recommendation"] = recommendations.get(result.final_class, "Clinical correlation recommended.")
         

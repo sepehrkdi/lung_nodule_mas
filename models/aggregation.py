@@ -39,26 +39,31 @@ class AggregationStrategy:
         raise NotImplementedError
 
 
-def class_from_probability(probability: float) -> int:
+def class_from_probability(probability: float, threshold: float = 0.5) -> int:
     """
-    Convert probability to Lung-RADS class (1-5).
+    Convert probability to binary classification (benign vs malignant).
 
     Args:
         probability: Malignancy probability [0, 1]
+        threshold: Decision boundary (default 0.5)
 
     Returns:
-        Class from 1 (benign) to 5 (highly suspicious)
+        0 for benign, 1 for malignant
     """
-    if probability < 0.2:
-        return 1  # Highly Unlikely
-    elif probability < 0.4:
-        return 2  # Moderately Unlikely
-    elif probability < 0.6:
-        return 3  # Indeterminate
-    elif probability < 0.8:
-        return 4  # Moderately Suspicious
-    else:
-        return 5  # Highly Suspicious
+    return 1 if probability >= threshold else 0
+
+
+def class_label(predicted_class: int) -> str:
+    """
+    Get human-readable label for predicted class.
+
+    Args:
+        predicted_class: 0 or 1
+
+    Returns:
+        'Benign' or 'Malignant'
+    """
+    return "Malignant" if predicted_class == 1 else "Benign"
 
 
 class WeightedAverageAggregation(AggregationStrategy):
@@ -109,21 +114,38 @@ class WeightedAverageAggregation(AggregationStrategy):
         # Derive weights from view types if not provided
         if weights is None:
             if image_metadata and len(image_metadata) >= len(probabilities):
-                weights = [
-                    WeightedAverageAggregation.VIEW_WEIGHTS.get(
+                weights = []
+                for meta in image_metadata:
+                    # Base weight from view type
+                    view_weight = WeightedAverageAggregation.VIEW_WEIGHTS.get(
                         meta.get("view_type", "Unknown"), 0.5
                     )
-                    for meta in image_metadata
-                ]
+                    
+                    # Adjust weight based on extracted features (if available)
+                    # Boost weight if we have size information from successful feature extraction
+                    if meta.get("size_mm") is not None and meta.get("size_source") == "blob_estimation":
+                        # Increase confidence when we have good feature extraction
+                        view_weight *= 1.1
+                    elif meta.get("size_source") == "none_detected":
+                        # Reduce confidence when no nodule detected
+                        view_weight *= 0.7
+                    
+                    weights.append(view_weight)
             else:
                 # Fallback: equal weights when metadata is missing or
                 # shorter than probabilities (prevents zip truncation)
-                logger.warning(
-                    f"WeightedAverage: metadata length "
-                    f"({len(image_metadata) if image_metadata else 0}) != "
-                    f"probabilities length ({len(probabilities)}). "
-                    f"Using equal weights."
-                )
+                if len(image_metadata) == 0:
+                    logger.warning(
+                        f"WeightedAverage: Empty metadata list for {len(probabilities)} images. "
+                        f"Using equal weights. Check that image_metadata is being passed through the pipeline."
+                    )
+                else:
+                    logger.warning(
+                        f"WeightedAverage: metadata length "
+                        f"({len(image_metadata) if image_metadata else 0}) != "
+                        f"probabilities length ({len(probabilities)}). "
+                        f"Using equal weights."
+                    )
                 weights = [1.0] * len(probabilities)
 
         # Ensure weights and probabilities are the same length

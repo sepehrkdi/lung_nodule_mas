@@ -419,9 +419,10 @@ class OncologistAgent(MedicalAgentBase):
             prob = data.get("malignancy_probability") or data.get("probability", 0)
             cls = data.get("predicted_class", "?")
             
+            cls_label = "Malignant" if cls == 1 else "Benign" if cls == 0 else "?"
             steps.append({
                 "step": "Perception",
-                "description": f"I perceive a finding from {agent}: Class {cls} (Prob: {prob:.1%})",
+                "description": f"I perceive a finding from {agent}: {cls_label} (Prob: {prob:.1%})",
                 "type": "belief"
             })
             
@@ -610,13 +611,13 @@ if __name__ == "__main__":
     radiologist_findings = [
         {
             "malignancy_probability": 0.65,
-            "predicted_class": 4,
+            "predicted_class": 1,
             "estimated_size_mm": 12,
             "texture": "part_solid"
         },
         {
             "malignancy_probability": 0.72,
-            "predicted_class": 4,
+            "predicted_class": 1,
             "estimated_size_mm": 13,
             "texture": "part_solid"
         }

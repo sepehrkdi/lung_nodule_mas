@@ -447,8 +447,9 @@ class ExtendedMAS:
         print("=" * 70)
         
         for r in self.results:
-            gt_str = f"GT: {r.ground_truth}" if r.ground_truth else "GT: N/A"
-            print(f"\n{r.nodule_id}: Class {r.final_class} "
+            gt_str = f"GT: {'Malignant' if r.ground_truth == 1 else 'Benign' if r.ground_truth == 0 else 'N/A'}" if r.ground_truth is not None else "GT: N/A"
+            class_label = "Malignant" if r.final_class == 1 else "Benign"
+            print(f"\n{r.nodule_id}: {class_label} "
                   f"(prob={r.final_probability:.3f}) | {gt_str}")
             print(f"  Lung-RADS: {r.lung_rads} | {r.recommendation}")
             print(f"  Agreement: {r.agreement_level} | Confidence: {r.confidence:.3f}")
@@ -532,7 +533,7 @@ async def demo_mode():
         result = await mas.process_single_case(case)
         
         print(f"\n--- Case: {result.nodule_id} ---")
-        print(f"Final Class: {result.final_class} "
+        print(f"Final Class: {'Malignant' if result.final_class == 1 else 'Benign'} "
               f"(probability: {result.final_probability:.3f})")
         print(f"Agreement: {result.agreement_level}")
         print(f"Lung-RADS: {result.lung_rads}")

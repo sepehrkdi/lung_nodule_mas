@@ -389,18 +389,9 @@ class SPADEMedicalMAS:
         """
         return asyncio.run(self.process_all_async())
     
-    def _prob_to_class(self, prob: float) -> int:
-        """Convert probability to malignancy class 1-5."""
-        if prob < 0.2:
-            return 1
-        elif prob < 0.4:
-            return 2
-        elif prob < 0.6:
-            return 3
-        elif prob < 0.8:
-            return 4
-        else:
-            return 5
+    def _prob_to_class(self, prob: float, threshold: float = 0.5) -> int:
+        """Convert probability to binary class (0=benign, 1=malignant)."""
+        return 1 if prob >= threshold else 0
     
     def _empty_result(self, nodule_id: str, processing_time: float) -> ProcessingResult:
         """Create empty result for failed processing."""

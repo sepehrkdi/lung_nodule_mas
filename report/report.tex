@@ -319,7 +319,7 @@ The Oncologist agent integrates all outputs using SWI-Prolog (accessed via PySwi
     \item Dynamic weight computation: before each case, the Oncologist invokes a \texttt{DynamicWeightCalculator} (Section~\ref{subsec:dynamic-weights}) to produce per-case weights $\hat{w}_i$ from the base weights $w_i$ and the information richness of the available data.
     \item Weighted voting: $P_\text{final} = \frac{\sum_{i} \hat{w}_i \cdot c_i \cdot p_i}{\sum_{i} \hat{w}_i \cdot c_i}$ where $\hat{w}_i$ is the \emph{dynamic} per-case agent weight, $c_i$ the reported confidence, and $p_i$ the malignancy probability.
     \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.15.
-    \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) use rule-based agent as tiebreaker; (3) conservative recommendation under strong disagreement.
+    \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) use rule-based agent as tiebreaker; (3) conservative recommendation under strong disagreement (Standard Deviation > 0.08).
     \item Explanation generation: a natural-language summary of which experts agreed/disagreed, the dynamic weight rationale, and which Prolog rule fired.
 \end{itemize}
 

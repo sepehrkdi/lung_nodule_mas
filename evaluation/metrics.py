@@ -13,17 +13,11 @@ This module demonstrates evaluation metrics for medical AI systems:
    - F1 Score: Harmonic mean of precision and recall
    - Specificity: True negatives / actual negatives
 
-2. MULTI-CLASS EVALUATION:
-   - 5-class accuracy (malignancy 1-5)
-   - Confusion matrix
-   - Per-class metrics
-
-3. BINARY EVALUATION:
-   - Benign (1-2) vs Malignant (4-5)
-   - Indeterminate (3) excluded
+2. BINARY EVALUATION:
+   - Benign (0) vs Malignant (1)
    - Clinical relevance: detecting cancer
 
-4. ROC ANALYSIS:
+3. ROC ANALYSIS:
    - Receiver Operating Characteristic curve
    - Area Under Curve (AUC)
    - Optimal threshold selection
@@ -76,17 +70,11 @@ class EvaluationMetrics:
     
     This class computes comprehensive evaluation metrics:
     
-    1. 5-Class Evaluation:
-       - Malignancy levels 1-5
-       - Confusion matrix
-       - Per-class accuracy
+    1. Binary Evaluation:
+       - Benign (0) vs Malignant (1)
+       - Clinical decision boundary at 0.5
     
-    2. Binary Evaluation:
-       - Benign (1-2) vs Malignant (4-5)
-       - Excludes indeterminate (3)
-       - Clinical decision boundary
-    
-    3. Ranking Metrics:
+    2. Ranking Metrics:
        - ROC curve
        - AUC score
        - Probability calibration
@@ -106,8 +94,8 @@ class EvaluationMetrics:
         Compute all evaluation metrics.
         
         Args:
-            ground_truth: List of true malignancy labels (1-5)
-            predictions: List of predicted labels (1-5)
+            ground_truth: List of true labels (0=benign, 1=malignant)
+            predictions: List of predicted labels (0=benign, 1=malignant)
             probabilities: Optional list of malignancy probabilities
             
         Returns:
@@ -118,10 +106,7 @@ class EvaluationMetrics:
         
         results = {}
         
-        # 5-class evaluation
-        results["five_class"] = self.five_class_evaluation(gt, pred)
-        
-        # Binary evaluation
+        # Binary evaluation (primary)
         results["binary"] = self.binary_evaluation(gt, pred)
         
         # Probability-based metrics
@@ -140,19 +125,17 @@ class EvaluationMetrics:
         predictions: np.ndarray
     ) -> Dict[str, Any]:
         """
-        Evaluate multi-class prediction.
+        Evaluate multi-class prediction (legacy, kept for compatibility).
         
-        EDUCATIONAL NOTE:
-        For systems that support multi-class output (e.g., Lung-RADS categories),
-        this evaluates per-class precision, recall, and F1 scores.
-        
-        Note: For NLMCXR with binary ground truth, use binary_evaluation instead.
+        NOTE: The primary classification is now binary (benign vs malignant).
+        This method is retained for cases where Lung-RADS category
+        information is still available.
         """
         # Overall accuracy
         accuracy = np.mean(ground_truth == predictions)
         
-        # Per-class metrics
-        classes = [1, 2, 3, 4, 5]
+        # Per-class metrics — use classes present in data
+        classes = sorted(set(ground_truth.tolist()) | set(predictions.tolist()))
         per_class = {}
         
         for c in classes:
@@ -215,17 +198,16 @@ class EvaluationMetrics:
         predictions: np.ndarray
     ) -> Dict[str, Any]:
         """
-        Evaluate binary (normal vs abnormal) prediction.
+        Evaluate binary (benign vs malignant) prediction.
         
         EDUCATIONAL NOTE:
-        For clinical decisions, we often care about:
-        - Can we detect abnormalities? (Sensitivity/Recall)
+        For clinical decisions, we care about:
+        - Can we detect malignancy? (Sensitivity/Recall)
         - Are we creating false alarms? (Specificity)
         
         Ground truth mapping:
-        - Normal/benign: 0
-        - Abnormal/suspicious: 1
-        - Indeterminate: -1 (excluded)
+        - Benign: 0
+        - Malignant: 1
         """
         # Create binary masks (exclude indeterminate = -1)
         mask = (ground_truth != -1) & (predictions != -1)
@@ -281,9 +263,8 @@ class EvaluationMetrics:
         - Are probabilities calibrated? (Brier score)
         """
         # Binary ground truth for ROC
-        mask = ground_truth != 3
-        gt_bin = (ground_truth[mask] >= 4).astype(int)
-        probs = probabilities[mask]
+        gt_bin = (ground_truth >= 1).astype(int)
+        probs = probabilities
         
         if len(gt_bin) < 2:
             return {"error": "Insufficient samples for probability evaluation"}
@@ -388,7 +369,7 @@ class EvaluationMetrics:
         self,
         ground_truth: np.ndarray,
         predictions: np.ndarray,
-        n_classes: int = 5
+        n_classes: int = 2
     ) -> np.ndarray:
         """
         Compute confusion matrix.
@@ -397,15 +378,15 @@ class EvaluationMetrics:
         Confusion matrix shows the distribution of predictions
         vs ground truth. Diagonal elements are correct predictions.
         
-        For 5-class:
-        Row = True class (1-5)
-        Column = Predicted class (1-5)
+        For binary classification:
+        Row = True class (0=benign, 1=malignant)
+        Column = Predicted class (0=benign, 1=malignant)
         """
         cm = np.zeros((n_classes, n_classes), dtype=int)
         
         for gt, pred in zip(ground_truth, predictions):
-            if 1 <= gt <= n_classes and 1 <= pred <= n_classes:
-                cm[gt - 1, pred - 1] += 1
+            if 0 <= gt < n_classes and 0 <= pred < n_classes:
+                cm[gt, pred] += 1
         
         return cm
     
@@ -468,10 +449,12 @@ class EvaluationMetrics:
         if cm:
             lines.append("\nCONFUSION MATRIX:")
             lines.append("-" * 40)
-            lines.append("      Predicted")
-            lines.append("True   1    2    3    4    5")
+            lines.append("           Predicted")
+            lines.append("True   Benign  Malignant")
+            row_labels = ["Benign", "Malignant"]
             for i, row in enumerate(cm):
-                row_str = f"  {i+1}  " + "  ".join(f"{v:3d}" for v in row)
+                label = row_labels[i] if i < len(row_labels) else str(i)
+                row_str = f"  {label:10}  " + "  ".join(f"{v:3d}" for v in row)
                 lines.append(row_str)
         
         lines.append("\n" + "=" * 60)
@@ -814,20 +797,20 @@ if __name__ == "__main__":
     # Demo with synthetic data
     print("=== Evaluation Metrics Demo ===\n")
     
-    # Synthetic ground truth and predictions
+    # Synthetic ground truth and predictions (binary: 0=benign, 1=malignant)
     np.random.seed(42)
     n_samples = 100
     
-    # Generate ground truth with class imbalance
-    ground_truth = np.random.choice([1, 2, 3, 4, 5], size=n_samples, p=[0.15, 0.2, 0.3, 0.2, 0.15])
+    # Generate binary ground truth
+    ground_truth = np.random.choice([0, 1], size=n_samples, p=[0.6, 0.4])
     
     # Generate predictions with some noise
     predictions = ground_truth.copy()
-    noise_indices = np.random.choice(n_samples, size=20, replace=False)
-    predictions[noise_indices] = np.random.choice([1, 2, 3, 4, 5], size=20)
+    noise_indices = np.random.choice(n_samples, size=15, replace=False)
+    predictions[noise_indices] = 1 - predictions[noise_indices]  # Flip
     
     # Generate probabilities
-    probabilities = (predictions - 1) / 4 + np.random.uniform(-0.2, 0.2, n_samples)
+    probabilities = predictions.astype(float) + np.random.uniform(-0.3, 0.3, n_samples)
     probabilities = np.clip(probabilities, 0.01, 0.99)
     
     # Evaluate

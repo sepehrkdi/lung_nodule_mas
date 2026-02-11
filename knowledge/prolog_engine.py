@@ -398,7 +398,7 @@ class PrologEngine:
             findings: List of agent findings, each with:
                 - agent_name: Name of the agent
                 - probability: Malignancy probability (0-1)
-                - predicted_class: Predicted class (1-5)
+                - predicted_class: Predicted class (0=benign, 1=malignant)
                 - weight: Agent weight (optional, defaults to 1.0)
                 
         Returns:
@@ -419,7 +419,7 @@ class PrologEngine:
             for finding in findings:
                 agent = finding.get("agent_name", "unknown")
                 prob = finding.get("probability", 0.5)
-                pred_class = finding.get("predicted_class", 3)
+                pred_class = finding.get("predicted_class", 0)
                 
                 self.assertz(
                     f"agent_finding({nodule_id}, {agent}, {prob}, {pred_class})"
@@ -450,17 +450,8 @@ class PrologEngine:
                     weighted_prob = 0.5
                     confidence = 0.0
             
-            # Determine predicted class from probability
-            if weighted_prob < 0.2:
-                pred_class = 1
-            elif weighted_prob < 0.4:
-                pred_class = 2
-            elif weighted_prob < 0.6:
-                pred_class = 3
-            elif weighted_prob < 0.8:
-                pred_class = 4
-            else:
-                pred_class = 5
+            # Determine predicted class from probability (binary)
+            pred_class = 1 if weighted_prob >= 0.5 else 0
             
             # Clean up
             self.retractall(f"agent_finding({nodule_id}, _, _, _)")
@@ -645,9 +636,9 @@ if __name__ == "__main__":
         # Test consensus
         print("\n3. Testing multi-agent consensus...")
         findings = [
-            {"agent_name": "radiologist_densenet", "probability": 0.7, "predicted_class": 4},
-            {"agent_name": "radiologist_resnet", "probability": 0.65, "predicted_class": 4},
-            {"agent_name": "pathologist_spacy", "probability": 0.6, "predicted_class": 3},
+            {"agent_name": "radiologist_densenet", "probability": 0.7, "predicted_class": 1},
+            {"agent_name": "radiologist_resnet", "probability": 0.65, "predicted_class": 1},
+            {"agent_name": "pathologist_spacy", "probability": 0.6, "predicted_class": 1},
         ]
         consensus = engine.compute_consensus("test_nodule", findings)
         print(f"   Consensus: prob={consensus['probability']:.3f}, "

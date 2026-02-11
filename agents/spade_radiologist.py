@@ -158,7 +158,7 @@ class RadiologistAgent(MedicalAgentBase):
         
         if self._classifier is None:
             logger.warning(f"[{self.name}] Classifier not available")
-            return (0.5, 3)  # Default to indeterminate
+            return (0.5, 0)  # Default to benign
         
         # Handle different image input types
         image = self._prepare_image(image_data)
@@ -168,7 +168,7 @@ class RadiologistAgent(MedicalAgentBase):
             result = self._classifier.classify(image)
             
             probability = result.get("malignancy_probability", 0.5)
-            predicted_class = result.get("predicted_class", 3)
+            predicted_class = result.get("predicted_class", 0)
             
             # Add beliefs about classification
             self.add_belief(Belief(
@@ -186,7 +186,7 @@ class RadiologistAgent(MedicalAgentBase):
             
         except Exception as e:
             logger.error(f"[{self.name}] Classification error: {e}")
-            return (0.5, 3)
+            return (0.5, 0)
     
     def _action_extract_features(
         self,

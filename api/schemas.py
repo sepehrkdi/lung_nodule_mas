@@ -30,7 +30,8 @@ class AgentFindingResponse(BaseModel):
     approach: str
     weight: float
     probability: float
-    predicted_class: int
+    predicted_class: int  # 0 = benign, 1 = malignant
+    predicted_label: str = ""  # "Benign" or "Malignant"
     details: Dict[str, Any] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
@@ -50,7 +51,8 @@ class ConsensusResultResponse(BaseModel):
     """Response model for consensus result."""
     nodule_id: str
     final_probability: float
-    final_class: int
+    final_class: int  # 0 = benign, 1 = malignant
+    final_label: str = ""  # "Benign" or "Malignant"
     confidence: float
     agreement_level: str
     disagreement_agents: List[str] = Field(default_factory=list)
@@ -85,8 +87,8 @@ class NoduleFeaturesResponse(BaseModel):
     """Response model for nodule features."""
     nodule_id: str
     diameter_mm: Optional[float] = None
-    malignancy: Optional[int] = None
-    malignancy_label: Optional[str] = None
+    malignancy: Optional[int] = None  # 0 = benign, 1 = malignant
+    malignancy_label: Optional[str] = None  # "Benign" or "Malignant"
     texture: Optional[str] = None  # String for NLMCXR (e.g., "solid", "ground_glass")
     texture_label: Optional[str] = None
     margin: Optional[str] = None  # String for NLMCXR
@@ -133,7 +135,7 @@ class MetricsResponse(BaseModel):
     majority_count: int
     split_count: int
     confusion_matrix: List[List[int]]
-    class_labels: List[str] = ["Normal", "Abnormal"]
+    class_labels: List[str] = ["Benign", "Malignant"]
 
 
 class MetricsStatusResponse(BaseModel):

@@ -108,8 +108,8 @@ class NLMCXRLoader(BaseNoduleLoader):
         Extract ground truth label from radiology report text using NLP.
         
         Ground truth mapping (binary classification):
-        - 1: Abnormal/suspicious (nodules, masses, suspicious findings)
-        - 0: Normal/benign (no significant findings, stable, benign)
+        - 1: Malignant (nodules, masses, suspicious findings)
+        - 0: Benign (no significant findings, stable, benign)
         - -1: Indeterminate (cannot determine from text)
         
         Args:
@@ -133,9 +133,9 @@ class NLMCXRLoader(BaseNoduleLoader):
             
             # Map assessment to binary label
             if assessment in ['highly_suspicious', 'moderately_suspicious']:
-                ground_truth = 1  # Abnormal
+                ground_truth = 1  # Malignant
             elif assessment in ['benign', 'probably_benign']:
-                ground_truth = 0  # Normal
+                ground_truth = 0  # Benign
             elif assessment == 'indeterminate':
                 ground_truth = -1  # Indeterminate
             else:
@@ -156,7 +156,7 @@ class NLMCXRLoader(BaseNoduleLoader):
             text: Combined report text
             
         Returns:
-            Ground truth label (1=abnormal, 0=normal, -1=indeterminate)
+            Ground truth label (1=malignant, 0=benign, -1=indeterminate)
         """
         text_lower = text.lower()
         
@@ -200,8 +200,8 @@ class NLMCXRLoader(BaseNoduleLoader):
     def _ground_truth_label(ground_truth: int) -> str:
         """Convert numeric ground truth to descriptive label."""
         return {
-            1: "abnormal",
-            0: "normal",
+            1: "malignant",
+            0: "benign",
             -1: "indeterminate"
         }.get(ground_truth, "unknown")
 

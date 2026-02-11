@@ -265,26 +265,51 @@ class RadiologistBase(MedicalAgentBase):
         # Classify each image independently
         probabilities = []
         classes = []
+        # Enrich metadata with per-image extracted features
+        enriched_metadata = []
 
         for i, img in enumerate(images):
             try:
                 prob, cls = self._classify(img)
                 probabilities.append(prob)
                 classes.append(cls)
+                
+                # Create enriched metadata for this image
+                meta = image_metadata[i].copy() if i < len(image_metadata) else {}
+                
+                # Add extracted features to metadata (for rule-based agent)
+                if hasattr(self, '_extract_features'):
+                    try:
+                        features = self._extract_features(img)
+                        meta.update({
+                            'size_mm': features.get('size_mm'),
+                            'size_source': features.get('size_source', 'unknown'),
+                            'texture': features.get('texture', 'unknown'),
+                            'mean_intensity': features.get('mean_intensity'),
+                            'std_intensity': features.get('std_intensity')
+                        })
+                    except Exception as feat_err:
+                        logger.debug(f"[{self.name}] Feature extraction failed for image {i}: {feat_err}")
+                
+                enriched_metadata.append(meta)
+                
                 logger.debug(
-                    f"[{self.name}] Image {i} ({image_metadata[i].get('view_type', 'Unknown') if i < len(image_metadata) else 'Unknown'}): "
+                    f"[{self.name}] Image {i} ({meta.get('view_type', 'Unknown')}): "
                     f"prob={prob:.3f}, class={cls}"
                 )
             except Exception as e:
                 logger.error(f"[{self.name}] Error classifying image {i}: {e}")
                 # Use default values for failed images
                 probabilities.append(0.5)
-                classes.append(3)
+                classes.append(0)
+                # Add minimal metadata
+                meta = image_metadata[i].copy() if i < len(image_metadata) else {}
+                enriched_metadata.append(meta)
 
-        # Aggregate predictions
+        # Aggregate predictions with enriched metadata
         aggregator = get_aggregator(self.AGGREGATION_STRATEGY)
         agg_prob, agg_class, aggregation_details = aggregator.aggregate(
-            probabilities, classes, image_metadata
+            probabilities, classes, enriched_metadata
         )
 
         logger.info(
@@ -312,7 +337,9 @@ class RadiologistBase(MedicalAgentBase):
                 "per_image_results": [
                     {
                         "image_idx": i,
-                        "view_type": image_metadata[i].get("view_type", "Unknown") if i < len(image_metadata) else "Unknown",
+                        "view_type": enriched_metadata[i].get("view_type", "Unknown") if i < len(enriched_metadata) else "Unknown",
+                        "size_mm": enriched_metadata[i].get("size_mm") if i < len(enriched_metadata) else None,
+                        "texture": enriched_metadata[i].get("texture", "unknown") if i < len(enriched_metadata) else "unknown",
                         "probability": probabilities[i],
                         "predicted_class": classes[i]
                     }
@@ -451,13 +478,9 @@ class RadiologistDenseNet(RadiologistBase):
     
     # STRICT MODE: _fallback_classify removed - CNN model is required
     
-    def _prob_to_class(self, prob: float) -> int:
-        """Convert probability to malignancy class 1-5."""
-        if prob < 0.2: return 1
-        elif prob < 0.4: return 2
-        elif prob < 0.6: return 3
-        elif prob < 0.8: return 4
-        else: return 5
+    def _prob_to_class(self, prob: float, threshold: float = 0.5) -> int:
+        """Convert probability to binary class (0=benign, 1=malignant)."""
+        return 1 if prob >= threshold else 0
 
 
 # =============================================================================
@@ -583,12 +606,9 @@ class RadiologistResNet(RadiologistBase):
     
     # STRICT MODE: _fallback_classify removed - CNN model is required
     
-    def _prob_to_class(self, prob: float) -> int:
-        if prob < 0.2: return 1
-        elif prob < 0.4: return 2
-        elif prob < 0.6: return 3
-        elif prob < 0.8: return 4
-        else: return 5
+    def _prob_to_class(self, prob: float, threshold: float = 0.5) -> int:
+        """Convert probability to binary class (0=benign, 1=malignant)."""
+        return 1 if prob >= threshold else 0
 
 
 # =============================================================================
@@ -829,12 +849,9 @@ class RadiologistRules(RadiologistBase):
         else:
             return 0.80
     
-    def _prob_to_class(self, prob: float) -> int:
-        if prob < 0.2: return 1
-        elif prob < 0.4: return 2
-        elif prob < 0.6: return 3
-        elif prob < 0.8: return 4
-        else: return 5
+    def _prob_to_class(self, prob: float, threshold: float = 0.5) -> int:
+        """Convert probability to binary class (0=benign, 1=malignant)."""
+        return 1 if prob >= threshold else 0
     
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process with feature extraction from request."""

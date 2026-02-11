@@ -43,37 +43,38 @@
 /* ============================================================
  * SECTION 1: SEMANTIC MAPPINGS
  * ============================================================
- * These facts map numeric LIDC scores to semantic categories.
+ * These facts map categorical features to semantic labels.
  * This demonstrates knowledge representation in FOL.
+ * 
+ * NOTE: This system uses NLMCXR dataset with BINARY classification
+ * (benign vs malignant) rather than the 5-level granularity.
  */
 
-% Texture mappings (1-5 scale from LIDC)
+% Texture mappings (categorical)
 texture_label(1, 'non_solid_ggo').
 texture_label(2, 'non_solid_mixed').
 texture_label(3, 'part_solid').
 texture_label(4, 'mostly_solid').
 texture_label(5, 'solid').
 
-% Margin mappings (1-5 scale, lower = more concerning)
+% Margin mappings (lower = more concerning)
 margin_label(1, 'poorly_defined').
 margin_label(2, 'near_poorly_defined').
 margin_label(3, 'medium').
 margin_label(4, 'near_sharp').
 margin_label(5, 'sharp').
 
-% Spiculation mappings (1-5 scale, higher = more concerning)
+% Spiculation mappings (higher = more concerning)
 spiculation_label(1, 'none').
 spiculation_label(2, 'nearly_none').
 spiculation_label(3, 'medium').
 spiculation_label(4, 'near_marked').
 spiculation_label(5, 'marked').
 
-% Malignancy mappings (1-5 scale)
-malignancy_label(1, 'highly_unlikely').
-malignancy_label(2, 'moderately_unlikely').
-malignancy_label(3, 'indeterminate').
-malignancy_label(4, 'moderately_suspicious').
-malignancy_label(5, 'highly_suspicious').
+% Binary malignancy classification (NLMCXR)
+% 0 = benign, 1 = malignant
+malignancy_label(0, 'benign').
+malignancy_label(1, 'malignant').
 
 % Calcification patterns
 calcification_label(1, 'popcorn').      % Benign

@@ -122,56 +122,42 @@ class PathologistBase(MedicalAgentBase):
         pass
     
     def _estimate_malignancy(self, findings: Dict[str, Any]) -> float:
-        """
-        Estimate malignancy probability from extracted findings.
-        
-        NOTE: Probability maps to Lung-RADS class:
-          - <0.2 → Class 1 (Highly Unlikely / Benign)
-          - <0.4 → Class 2 (Benign Appearance)
-          - <0.6 → Class 3 (Indeterminate)
-          - <0.8 → Class 4 (Suspicious)
-          - ≥0.8 → Class 5 (Highly Suspicious)
-        
-        Benign terms (clear, normal, stable) reinforce low probability (benign class).
-        Suspicious terms increase probability toward malignant classes.
-        """
-        prob = 0.5  # Base probability (maps to Class 3 - Indeterminate)
+        """Estimate malignancy probability from extracted findings."""
+        prob = 0.5  # Base probability
         
         # Size-based adjustment (skip if size unknown)
         size = findings.get("size_mm")
         if size is not None:
             if size < 6:
-                prob -= 0.15  # Small nodules less concerning
+                prob -= 0.2
             elif size < 8:
-                prob -= 0.05
+                prob -= 0.1
             elif size < 15:
                 prob += 0.1
             else:
-                prob += 0.2
+                prob += 0.25
         # If size is None, don't adjust — stay at base probability
         
         # Texture adjustment
         texture = findings.get("texture", "").lower()
         if "ground" in texture or "glass" in texture:
-            prob -= 0.05  # GGO often less aggressive
+            prob -= 0.1
         elif "spicul" in texture:
-            prob += 0.15  # Spiculation is concerning
+            prob += 0.2
         
-        # Suspicious terms (carcinoma, malignant, etc.) - strong signal
+        # Suspicious terms
         suspicious = findings.get("suspicious_terms", [])
-        prob += min(len(suspicious) * 0.1, 0.3)  # Cap at +0.3
+        prob += len(suspicious) * 0.1
         
-        # Weak suspicious terms (nodule, mass, etc.) - mild signal
+        # Weak suspicious terms (nodule, mass, etc. without qualifiers)
         weak_suspicious = findings.get("weak_suspicious_terms", [])
-        prob += min(len(weak_suspicious) * 0.03, 0.15)  # Cap at +0.15
+        prob += len(weak_suspicious) * 0.05
         
-        # Benign terms (clear, normal, stable) - reinforce benign classification
-        # Use gentler reduction to avoid extremely low probabilities
+        # Benign terms
         benign = findings.get("benign_terms", [])
-        prob -= min(len(benign) * 0.05, 0.2)  # Cap at -0.2
+        prob -= len(benign) * 0.1
         
-        # Ensure reasonable range: 15% minimum (still Class 1), 95% maximum
-        return min(max(prob, 0.15), 0.95)
+        return min(max(prob, 0.05), 0.95)
     
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process report analysis request."""
@@ -221,21 +207,16 @@ class PathologistBase(MedicalAgentBase):
         else:
             findings = f"A {texture} nodule is identified in the {location}."
         
-        if malignancy >= 4:
+        if malignancy >= 1:
             impression = "Suspicious for malignancy. Recommend further evaluation."
-        elif malignancy == 3:
-            impression = "Indeterminate nodule. Recommend follow-up."
         else:
             impression = "Likely benign appearance. Routine follow-up."
         
         return f"FINDINGS: {findings}\n\nIMPRESSION: {impression}"
     
-    def _prob_to_class(self, prob: float) -> int:
-        if prob < 0.2: return 1
-        elif prob < 0.4: return 2
-        elif prob < 0.6: return 3
-        elif prob < 0.8: return 4
-        else: return 5
+    def _prob_to_class(self, prob: float, threshold: float = 0.5) -> int:
+        """Convert probability to binary class (0=benign, 1=malignant)."""
+        return 1 if prob >= threshold else 0
 
 
 # =============================================================================
@@ -572,43 +553,34 @@ class PathologistSpacy(PathologistBase):
         return "solid"
     
     def _assess_malignancy_spacy(self, doc) -> float:
-        """
-        Assess malignancy probability using semantic indicators.
-        
-        Uses gentler adjustments to avoid extremely low/high probabilities.
-        Benign terms (stable, resolved, etc.) reinforce low probability (benign class)
-        but with capped reduction to maintain reasonable classification range.
-        """
+        """Assess malignancy probability using semantic indicators."""
         score = 0.0
-        high_count = 0
-        low_count = 0
+        count = 0
         
         text_lower = doc.text.lower()
+        
+        # Keep track of matched terms to avoid double counting same term
+        matched_terms = set()
         
         for level, terms in self.MALIGNANCY_INDICATORS.items():
             for term in terms:
                 if term in text_lower:
+                    matched_terms.add(term)
+                    count += 1
                     if level == "high":
-                        score += 0.25  # Strong suspicious signal
-                        high_count += 1
+                        score += 0.3
                     elif level == "moderate":
-                        score += 0.08  # Moderate suspicious signal
+                        score += 0.1
                     elif level == "weak":
-                        score += 0.03  # Weak signal (nodule mention)
-                    else:  # low (benign terms)
-                        score -= 0.08  # Gentler reduction for benign terms
-                        low_count += 1
+                         score += 0.05
+                    else:  # low
+                        score -= 0.2
         
-        # Cap the total benign reduction to prevent extremely low scores
-        if score < -0.25:
-            score = -0.25
-        
-        # Cap suspicious increase too
-        if score > 0.35:
-            score = 0.35
-        
-        # Return probability centered at 0.5
-        return max(0.15, min(0.95, 0.5 + score))
+        # Normalize
+        # Normalize
+        if count > 0:
+            return max(0, min(1, 0.5 + score))
+        return 0.5
     
     def _extract_location_spacy(self, doc) -> str:
         """Extract anatomical location using NER."""
@@ -650,26 +622,21 @@ class PathologistSpacy(PathologistBase):
     
     
     def _estimate_malignancy(self, findings: Dict[str, Any]) -> float:
-        """
-        Override to use spaCy's malignancy score with gentler adjustments.
-        
-        NOTE: Probability maps to Lung-RADS class (see base class docstring).
-        """
+        """Override to use spaCy's malignancy score."""
         base_prob = findings.get("malignancy_score", 0.5)
         
         # Adjust based on size (skip if unknown)
         size = findings.get("size_mm")
         if size is not None:
             if size < 6:
-                base_prob -= 0.10
+                base_prob -= 0.15
             elif size < 8:
-                base_prob -= 0.03
+                base_prob -= 0.05
             elif size >= 15:
-                base_prob += 0.10
+                base_prob += 0.15
         # If size is None, don't adjust
         
-        # Ensure reasonable range: 15% minimum (Class 1), 95% maximum
-        return min(max(base_prob, 0.15), 0.95)
+        return min(max(base_prob, 0.05), 0.95)
 
 
 # =============================================================================
@@ -921,10 +888,7 @@ class PathologistContext(PathologistBase):
         """
         Estimate malignancy with certainty-aware adjustments.
         
-        Key insight: Negated/uncertain findings affect classification:
-        - Negated ("No nodule") → Low probability (Class 1-2, benign)
-        - Uncertain ("possible nodule") → Mid-range (Class 2-3, indeterminate)
-        - Affirmed ("12mm nodule present") → Use base calculation
+        Key insight: Negated/uncertain findings should reduce confidence.
         """
         # Start with base probability based on size/texture
         base_prob = super()._estimate_malignancy(findings)
@@ -933,13 +897,11 @@ class PathologistContext(PathologistBase):
         overall = findings.get("overall_certainty", "affirmed")
         
         if overall == "negated":
-            # Report says NO nodule - benign classification (Class 1-2)
-            # Use 0.20 instead of 0.1 for less extreme output
-            return 0.20
+            # Report says NO nodule - very low malignancy probability
+            return 0.1
         elif overall == "uncertain":
-            # Hedged language - lean toward indeterminate (Class 2-3)
-            # Blend toward 0.35 (low end of Class 2)
-            return 0.35 + (base_prob - 0.5) * 0.3
+            # Hedged language - reduce confidence, move toward 0.5
+            return 0.3 + (base_prob - 0.5) * 0.5
         else:
             return base_prob
     

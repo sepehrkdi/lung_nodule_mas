@@ -697,7 +697,7 @@ class MultiAgentOrchestrator:
                 approach=agent.APPROACH,
                 weight=get_base_weight(agent.name),  # Placeholder; overridden by dynamic weights in consensus
                 probability=prob,
-                predicted_class=agent_findings.get("predicted_class", 3),
+                predicted_class=agent_findings.get("predicted_class", 0),
                 details=agent_findings
             ))
         
@@ -744,7 +744,7 @@ class MultiAgentOrchestrator:
                 approach=agent.APPROACH,
                 weight=get_base_weight(agent.name),  # Placeholder; overridden by dynamic weights in consensus
                 probability=prob,
-                predicted_class=agent_findings.get("predicted_class", 3),
+                predicted_class=agent_findings.get("predicted_class", 0),
                 details=agent_findings
             ))
         

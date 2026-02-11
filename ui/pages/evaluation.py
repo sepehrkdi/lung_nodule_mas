@@ -159,7 +159,7 @@ def render_evaluation_page():
         st.header("🔢 Confusion Matrix")
         
         cm = np.array(metrics["confusion_matrix"])
-        labels = metrics.get("class_labels", ["Normal", "Abnormal"])
+        labels = metrics.get("class_labels", ["Benign", "Malignant"])
         
         # Create annotated heatmap
         fig = ff.create_annotated_heatmap(
@@ -171,7 +171,7 @@ def render_evaluation_page():
         )
         
         fig.update_layout(
-            title="Predicted vs Actual Classification (Normal / Abnormal)",
+            title="Predicted vs Actual Classification (Benign / Malignant)",
             xaxis_title="Predicted",
             yaxis_title="Actual",
             height=400

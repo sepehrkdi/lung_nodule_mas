@@ -319,7 +319,8 @@ class NoduleClassifier:
         Returns:
             Dictionary with classification results:
             - malignancy_probability: float [0, 1]
-            - predicted_class: int [1-5]
+            - predicted_class: int (0=benign, 1=malignant)
+            - predicted_label: str ("Benign" or "Malignant")
             - estimated_size_mm: float
             - confidence: float [0, 1]
             - features_summary: dict with feature statistics
@@ -568,27 +569,15 @@ class NoduleClassifier:
             0.1, 0.9
         ))
     
-    def _score_to_class(self, score: float) -> int:
+    def _score_to_class(self, score: float, threshold: float = 0.5) -> int:
         """
-        Convert malignancy probability to class (1-5).
+        Convert malignancy probability to binary class.
         
-        Malignancy Scale (Lung-RADS aligned):
-        1 = Highly Unlikely (benign)
-        2 = Moderately Unlikely
-        3 = Indeterminate
-        4 = Moderately Suspicious
-        5 = Highly Suspicious (malignant)
+        Binary Classification:
+        0 = Benign
+        1 = Malignant
         """
-        if score < 0.2:
-            return 1
-        elif score < 0.4:
-            return 2
-        elif score < 0.6:
-            return 3
-        elif score < 0.8:
-            return 4
-        else:
-            return 5
+        return 1 if score >= threshold else 0
 
 
 def classify_nodule(image: np.ndarray) -> Dict[str, Any]:
