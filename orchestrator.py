@@ -309,18 +309,81 @@ class PrologConsensusEngine:
         })
         
         # 3. Knowledge Retrieval & Application (Rules)
-        try:
-            fired_rules_result = list(self.prolog.query(f"list_fired_rules('{nodule_id}', Rules)"))
-            if fired_rules_result:
-                rules = fired_rules_result[0].get("Rules", [])
-                if rules:
-                    thinking_process.append({
-                        "step": "Knowledge Check (Active Rules)",
-                        "description": f"The following Prolog rules were triggered: {', '.join(str(r) for r in rules)}",
-                        "type": "reasoning"
-                    })
-        except Exception as e:
-            logger.warning(f"Failed to query fired rules: {e}")
+        # NOTE: Prolog facts (agent_finding, nodule_size, etc.) are retracted
+        # after compute_consensus, so we derive fired rules from Python data.
+        fired_rules = []
+        
+        # --- Collect size and texture from agent findings ---
+        sizes = []
+        textures = []
+        for f in all_findings:
+            s = f.details.get("size_mm")
+            if s is not None:
+                sizes.append(float(s))
+            t = f.details.get("texture")
+            if t:
+                textures.append(t)
+        
+        # Use median size if available
+        best_size = float(np.median(sizes)) if sizes else None
+        # Most common texture
+        if textures:
+            from collections import Counter
+            best_texture = Counter(textures).most_common(1)[0][0]
+        else:
+            best_texture = "unknown"
+        
+        # --- Lung-RADS classification ---
+        if best_size is not None:
+            if best_size < 6:
+                if best_texture == "ground_glass" and best_size < 30:
+                    fired_rules.append("lung_rads(2): Benign - GGN <30mm")
+                else:
+                    fired_rules.append(f"lung_rads(2): Benign - {best_texture} <6mm")
+            elif best_size < 8:
+                fired_rules.append(f"lung_rads(3): Probably benign - {best_texture} 6-8mm")
+            elif best_size < 15:
+                fired_rules.append(f"lung_rads(4A): Suspicious - {best_texture} 8-15mm")
+            else:
+                fired_rules.append(f"lung_rads(4B): Very suspicious - {best_texture} ≥15mm")
+            
+            # --- T-stage (tumor size) ---
+            if best_size <= 10:
+                fired_rules.append("t_stage(T1a): Tumor ≤1cm")
+            elif best_size <= 20:
+                fired_rules.append("t_stage(T1b): Tumor >1-2cm")
+            elif best_size <= 30:
+                fired_rules.append("t_stage(T1c): Tumor >2-3cm")
+            elif best_size <= 40:
+                fired_rules.append("t_stage(T2a): Tumor >3-4cm")
+            elif best_size <= 50:
+                fired_rules.append("t_stage(T2b): Tumor >4-5cm")
+            elif best_size <= 70:
+                fired_rules.append("t_stage(T3): Tumor >5-7cm")
+            else:
+                fired_rules.append("t_stage(T4): Tumor >7cm")
+        
+        # --- Risk level from consensus ---
+        prob = result["probability"]
+        pred_class = result["predicted_class"]
+        risk_map = {1: "low", 2: "low", 3: "intermediate", 4: "high", 5: "high"}
+        risk = risk_map.get(pred_class, "intermediate")
+        fired_rules.append(f"risk_level({risk}): class {pred_class}")
+        
+        # --- Disagreement detection ---
+        if len(scores) > 1:
+            mean_s = sum(scores) / len(scores)
+            var_s = sum((x - mean_s) ** 2 for x in scores) / len(scores)
+            std_s = var_s ** 0.5
+            if std_s > 0.15:
+                fired_rules.append("disagreement_detected")
+        
+        if fired_rules:
+            thinking_process.append({
+                "step": "Knowledge Check (Active Rules)",
+                "description": "The following Prolog rules were triggered: " + "; ".join(fired_rules),
+                "type": "reasoning"
+            })
             
         # Check Disagreement Resolution
         if result['confidence'] < 0.6:

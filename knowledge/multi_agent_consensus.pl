@@ -16,6 +16,7 @@
  * - radiologist_rules:    Size-based heuristic (weight: 0.7)
  * - pathologist_regex:    Regex-based extraction (weight: 0.8)
  * - pathologist_spacy:    spaCy NER + rules (weight: 0.9)
+ * - pathologist_context:  NegEx/Ucertainty (weight: 0.9)
  * 
  * REFERENCES:
  * - ACR Lung-RADS v1.1 (2019): https://www.acr.org/Clinical-Resources/Reporting-and-Data-Systems/Lung-Rads
@@ -32,9 +33,10 @@
 % Agent type definitions
 agent_type(radiologist_densenet, radiologist, cnn).
 agent_type(radiologist_resnet, radiologist, cnn).
-agent_type(radiologist_rules, radiologist, rule_based).
+agent_type(radiologist_rulebased, radiologist, rule_based).
 agent_type(pathologist_regex, pathologist, regex).
 agent_type(pathologist_spacy, pathologist, nlp).
+agent_type(pathologist_context, pathologist, context).
 
 % Agent weights for consensus voting
 % Higher weight = more influence on final decision
@@ -45,9 +47,10 @@ agent_type(pathologist_spacy, pathologist, nlp).
 :- dynamic agent_weight/2.
 agent_weight(radiologist_densenet, 1.0).
 agent_weight(radiologist_resnet, 1.0).
-agent_weight(radiologist_rules, 0.7).
+agent_weight(radiologist_rulebased, 0.7).
 agent_weight(pathologist_regex, 0.8).
 agent_weight(pathologist_spacy, 0.9).
+agent_weight(pathologist_context, 0.9).
 
 % Get weight for an agent (with default)
 get_agent_weight(Agent, Weight) :-
@@ -356,7 +359,7 @@ calculate_agreement(_, _, 0.8) :- !.  % Default for single agent
  * Detect when agents disagree significantly and apply resolution.
  */
 
-% Check if there's significant disagreement (std dev > 0.15)
+% Check if there's significant disagreement (std dev > 0.08)
 has_disagreement(NoduleId) :-
     findall(
         Prob,
@@ -368,7 +371,7 @@ has_disagreement(NoduleId) :-
     mean(Probs, Mean),
     variance(Probs, Mean, Var),
     StdDev is sqrt(Var),
-    StdDev > 0.15.
+    StdDev > 0.08.
 
 % Mean of a list
 mean(List, Mean) :-
@@ -384,26 +387,42 @@ variance(List, Mean, Var) :-
     Var is SumDiffs / N.
 
 % Disagreement resolution strategies
-% 1. Trust CNN radiologists more when NLP agrees with them
-resolve_disagreement(NoduleId, FinalProb, Strategy) :-
+% 1. Pathologist Override: Trust text (Ground Truth) when it detects malignancy but CNNs are unsure
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
+    has_disagreement(NoduleId),
+    pathologist_consensus(NoduleId, PathProb),
+    cnn_radiologist_consensus(NoduleId, CNNProb),
+    PathProb >= 0.60,             % Pathologists confident in malignancy
+    CNNProb >= 0.35, CNNProb =< 0.65, % CNNs are indeterminate/unsure
+    PathProb > CNNProb,           % Pathologists see MORE risk
+    FinalProb is PathProb,
+    Confidence = 0.75,            % High confidence in override
+    Strategy = 'pathologist_override'.
+
+% 2. Trust CNN radiologists more when NLP agrees with them
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
     has_disagreement(NoduleId),
     cnn_radiologist_consensus(NoduleId, CNNProb),
     pathologist_consensus(NoduleId, PathProb),
     abs(CNNProb - PathProb) < 0.2,
     FinalProb is (CNNProb * 0.6 + PathProb * 0.4),
+    calculate_consensus(NoduleId, _, BaseConf),
+    Confidence is min(1.0, BaseConf + 0.1),
     Strategy = 'cnn_nlp_agreement'.
 
-% 2. Use rule-based as tiebreaker when CNN radiologists disagree
-resolve_disagreement(NoduleId, FinalProb, Strategy) :-
+% 3. Use rule-based as tiebreaker when CNN radiologists disagree
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
     has_disagreement(NoduleId),
     agent_finding(NoduleId, radiologist_rules, RuleProb, _),
     cnn_radiologist_consensus(NoduleId, CNNProb),
     FinalProb is (CNNProb * 0.5 + RuleProb * 0.5),
+    calculate_consensus(NoduleId, _, BaseConf),
+    Confidence is BaseConf,
     Strategy = 'rule_based_tiebreaker'.
 
-% 3. Default: use weighted average
-resolve_disagreement(NoduleId, FinalProb, Strategy) :-
-    calculate_consensus(NoduleId, FinalProb, _),
+% 4. Default: use weighted average
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
+    calculate_consensus(NoduleId, FinalProb, Confidence),
     Strategy = 'weighted_average'.
 
 % CNN radiologist consensus
@@ -483,9 +502,9 @@ full_assessment(NoduleId, Assessment) :-
     (n_stage(NoduleId, NStage, _) -> true ; NStage = 'NX'),
     (m_stage(NoduleId, MStage, _) -> true ; MStage = 'MX'),
     
-    % Get consensus
-    (calculate_consensus(NoduleId, Probability, Confidence) -> true ;
-        (Probability = 0.5, Confidence = 0.0)),
+    % Get consensus via resolution logic (prioritize overrides)
+    (resolve_disagreement(NoduleId, Probability, Confidence, Strategy) -> true ;
+        (Probability = 0.5, Confidence = 0.0, Strategy = unknown)),
     
     % Check for disagreement
     (has_disagreement(NoduleId) -> Disagreement = yes ; Disagreement = no),
@@ -503,6 +522,7 @@ full_assessment(NoduleId, Assessment) :-
         tnm_stage: tnm(TStage, NStage, MStage),
         consensus_probability: Probability,
         confidence: Confidence,
+        resolution_strategy: Strategy,
         agent_disagreement: Disagreement,
         recommendation: Action,
         urgency: Urgency
@@ -627,6 +647,7 @@ explain_resolution(NoduleId, 'No disagreement requiring resolution') :-
     \+ has_disagreement(NoduleId).
 
 % Strategy descriptions for human readability
+strategy_description('pathologist_override', 'pathologist override (trusting text ground truth over indeterminate imaging)').
 strategy_description('cnn_nlp_agreement', 'CNN-NLP agreement (weighted CNN 60%, NLP 40%)').
 strategy_description('rule_based_tiebreaker', 'rule-based tiebreaker (CNN 50%, rules 50%)').
 strategy_description('weighted_average', 'weighted average of all agents').
@@ -684,18 +705,50 @@ generate_narrative(NoduleId, Narrative) :-
     
     atomic_list_concat([SentenceOne, SentenceTwo, SentenceThree, SentenceFour], ' ', Narrative).
 
-% List which rules fired for a decision
+% List which specific rules fired for a decision
 list_fired_rules(NoduleId, FiredRules) :-
-    findall(
-        Rule,
-        (
-            (lung_rads(NoduleId, _, _) -> Rule = lung_rads_classification ; fail) ;
-            (t_stage(NoduleId, _, _) -> Rule = t_staging ; fail) ;
-            (has_disagreement(NoduleId) -> Rule = disagreement_detection ; fail) ;
-            (has_suspicious_feature(NoduleId) -> Rule = suspicious_feature_upgrade ; fail)
-        ),
-        FiredRules
-    ).
+    findall(Rule, fired_rule(NoduleId, Rule), FiredRules).
+
+% --- Individual rule matchers returning descriptive atoms ---
+
+% Lung-RADS classification (specific category + description)
+% NOTE: Cat \= '4X' prevents infinite recursion — the 4X rule
+% internally calls lung_rads/3 to check if 4A/4B fired first.
+% 4X is covered by the separate suspicious_feature_upgrade rule below.
+fired_rule(NoduleId, Rule) :-
+    lung_rads(NoduleId, Cat, Desc),
+    Cat \= '4X',
+    format(atom(Rule), 'lung_rads(~w): ~w', [Cat, Desc]).
+
+% T-stage (tumor size classification)
+fired_rule(NoduleId, Rule) :-
+    t_stage(NoduleId, Stage, Desc),
+    format(atom(Rule), 't_stage(~w): ~w', [Stage, Desc]).
+
+% N-stage (lymph node involvement)
+fired_rule(NoduleId, Rule) :-
+    n_stage(NoduleId, Stage, Desc),
+    format(atom(Rule), 'n_stage(~w): ~w', [Stage, Desc]).
+
+% M-stage (distant metastasis)
+fired_rule(NoduleId, Rule) :-
+    m_stage(NoduleId, Stage, Desc),
+    format(atom(Rule), 'm_stage(~w): ~w', [Stage, Desc]).
+
+% Disagreement detection
+fired_rule(NoduleId, disagreement_detected) :-
+    has_disagreement(NoduleId).
+
+% Suspicious feature upgrade to 4X
+fired_rule(NoduleId, 'suspicious_feature_upgrade(4X)') :-
+    has_suspicious_feature(NoduleId).
+
+% Probability-to-class risk mapping
+fired_rule(NoduleId, Rule) :-
+    calculate_consensus(NoduleId, Prob, _),
+    probability_to_class(Prob, Class),
+    class_to_risk(Class, Risk),
+    format(atom(Rule), 'risk_level(~w): class ~w', [Risk, Class]).
 
 % Agent certainty integration (for Pathologist-3 context agent)
 :- dynamic agent_certainty/3.  % agent_certainty(NoduleId, Agent, Certainty)
@@ -707,7 +760,7 @@ certainty_adjusted_prob(NoduleId, Agent, AdjustedProb) :-
         (Certainty == negated -> AdjustedProb is 0.1 ;
          Certainty == uncertain -> AdjustedProb is 0.5 * BaseProb + 0.25 ;
          AdjustedProb = BaseProb) ;
-        AdjustedProb = BaseProb).
+         AdjustedProb = BaseProb).
 
 % Explain certainty from context agent
 explain_certainty(NoduleId, CertaintyExpl) :-

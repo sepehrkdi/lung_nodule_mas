@@ -37,7 +37,7 @@ import numpy as np
 
 from agents.spade_base import MedicalAgentBase, Belief, get_asl_path
 from models.aggregation import get_aggregator
-from models.classifier import NoduleClassifier
+from models.classifier import NoduleClassifier, calibrate_xrv_probability
 from models.dynamic_weights import BASE_WEIGHTS, get_base_weight
 
 logger = logging.getLogger(__name__)
@@ -546,7 +546,8 @@ class RadiologistResNet(RadiologistBase):
             for p in target_pathologies:
                 if p in pathologies:
                     idx = pathologies.index(p)
-                    scores.append(float(probs[0, idx]))
+                    raw = float(probs[0, idx])
+                    scores.append(calibrate_xrv_probability(raw))
             
             if scores:
                 # Weight Mass higher
@@ -555,7 +556,8 @@ class RadiologistResNet(RadiologistBase):
                 # Use Nodule if no target pathologies found
                 if "Nodule" in pathologies:
                     idx = pathologies.index("Nodule")
-                    prob = float(probs[0, idx])
+                    raw = float(probs[0, idx])
+                    prob = calibrate_xrv_probability(raw)
                 else:
                     raise ClassificationError(
                         f"[{self.name}] No valid pathologies found in model output"

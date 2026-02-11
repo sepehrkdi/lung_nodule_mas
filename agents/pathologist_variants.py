@@ -149,6 +149,10 @@ class PathologistBase(MedicalAgentBase):
         suspicious = findings.get("suspicious_terms", [])
         prob += len(suspicious) * 0.1
         
+        # Weak suspicious terms (nodule, mass, etc. without qualifiers)
+        weak_suspicious = findings.get("weak_suspicious_terms", [])
+        prob += len(weak_suspicious) * 0.05
+        
         # Benign terms
         benign = findings.get("benign_terms", [])
         prob -= len(benign) * 0.1
@@ -292,6 +296,20 @@ class PathologistRegex(PathologistBase):
         r"concerning"
     ]
     
+    # Weak Suspicious term patterns (nodule, mass -> slight prob boost)
+    WEAK_SUSPICIOUS_PATTERNS = [
+        r"nodule",
+        r"mass",
+        r"lesion",
+        r"opacit(?:y|ies)",
+        r"densit(?:y|ies)",
+        r"infiltra(?:te|tion)",
+        r"consolidat(?:ion|ed)",
+        r"atelectas(?:is|ic)",
+        r"fibrosis",
+        r"thickening"
+    ]
+    
     # Benign term patterns
     BENIGN_PATTERNS = [
         r"benign",
@@ -331,6 +349,7 @@ class PathologistRegex(PathologistBase):
             "texture": self._extract_texture(report_lower),
             "location": self._extract_location(report_lower),
             "suspicious_terms": self._find_terms(report_lower, self.SUSPICIOUS_PATTERNS),
+            "weak_suspicious_terms": self._find_terms(report_lower, self.WEAK_SUSPICIOUS_PATTERNS),
             "benign_terms": self._find_terms(report_lower, self.BENIGN_PATTERNS),
             "approach": "regex"
         }
@@ -414,7 +433,8 @@ class PathologistSpacy(PathologistBase):
     MALIGNANCY_INDICATORS = {
         "high": ["carcinoma", "malignant", "metastatic", "invasive", "aggressive"],
         "moderate": ["suspicious", "concerning", "indeterminate", "atypical"],
-        "low": ["benign", "stable", "unchanged", "granuloma", "resolved"]
+        "weak": ["nodule", "mass", "lesion", "opacity", "density", "infiltration", "consolidation"],
+        "low": ["benign", "stable", "unchanged", "granuloma", "resolved", "calcified"]
     }
     
     def __init__(self, name: str = "pathologist_spacy", asl_file: Optional[str] = None):
@@ -473,6 +493,7 @@ class PathologistSpacy(PathologistBase):
             "malignancy_score": malignancy_score,
             "suspicious_terms": self._find_indicator_terms(doc, "high") + 
                                self._find_indicator_terms(doc, "moderate"),
+            "weak_suspicious_terms": self._find_indicator_terms(doc, "weak"),
             "benign_terms": self._find_indicator_terms(doc, "low"),
             "approach": "spacy_ner"
         }
@@ -543,17 +564,24 @@ class PathologistSpacy(PathologistBase):
         
         text_lower = doc.text.lower()
         
+        # Keep track of matched terms to avoid double counting same term
+        matched_terms = set()
+        
         for level, terms in self.MALIGNANCY_INDICATORS.items():
             for term in terms:
                 if term in text_lower:
+                    matched_terms.add(term)
                     count += 1
                     if level == "high":
                         score += 0.3
                     elif level == "moderate":
                         score += 0.1
+                    elif level == "weak":
+                         score += 0.05
                     else:  # low
                         score -= 0.2
         
+        # Normalize
         # Normalize
         if count > 0:
             return max(0, min(1, 0.5 + score))
@@ -664,6 +692,10 @@ class PathologistContext(PathologistBase):
         r'\bneoplasm\b',
         r'\bcarcinoma\b',
         r'\bmalignancy\b',
+        r'\bdensity\b',
+        r'\bdensities\b',
+        r'\binfiltra(?:te|tion)\b',
+        r'\bconsolidat(?:ion|ed)\b',
     ]
     
     def __init__(self, name: str = "pathologist_context", asl_file: Optional[str] = None):
@@ -695,7 +727,9 @@ class PathologistContext(PathologistBase):
             "uncertain_count": 0,
             "affirmed_count": 0,
             "section_analysis": {},
-            "approach": "context"
+            "approach": "context",
+            "suspicious_terms": [],
+            "weak_suspicious_terms": []
         }
         
         # Parse into sections
@@ -730,6 +764,28 @@ class PathologistContext(PathologistBase):
                     findings["uncertain_count"] += 1
                 else:
                     findings["affirmed_count"] += 1
+
+        # Map entities to risk terms so base estimator can use them
+        high_risk_keywords = ["tumor", "neoplasm", "carcinoma", "malignancy"]
+        weak_risk_keywords = ["nodule", "mass", "lesion", "opacity", "density", "infiltra", "consolidat"]
+        
+        for ent in findings.get("entity_certainties", []):
+            if ent["certainty"] == "negated":
+                continue
+            
+            term_lower = ent["text"].lower()
+            
+            # Check for high risk terms
+            for kw in high_risk_keywords:
+                if kw in term_lower:
+                    findings["suspicious_terms"].append(term_lower)
+                    break
+            
+            # Check for weak risk terms
+            for kw in weak_risk_keywords:
+                if kw in term_lower:
+                    findings["weak_suspicious_terms"].append(term_lower)
+                    break
         
         # Determine overall certainty
         findings["overall_certainty"] = self._determine_overall_certainty(findings)

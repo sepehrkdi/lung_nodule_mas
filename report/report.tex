@@ -260,7 +260,7 @@ R2 & Balanced     & 1.0 & Standard operating point \\
 R3 & Rule-Based   & 0.7 & Size/texture Lung-RADS rules \\
 \bottomrule
 \end{tabular}
-\caption{Radiologist agent configurations. Base weights are dynamically scaled per-case by the information-richness heuristic (Section~\ref{subsec:dynamic-weights}).}
+\caption{Radiologist agent configurations. Base weights are dynamically scaled per-case by the information-richness heuristic (Section~\ref{subsec:dynamic-weights}). The CNN outputs are post-processed with a temperature-scaled sigmoid calibration ($k=25.0$, $\mu=0.62$) to ensure improved probability spread across the [0,1] range.}
 \label{tab:radiologists}
 \end{table}
 
@@ -470,10 +470,11 @@ Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\;
 \subsection{Disagreement Detection and Resolution}
 \label{subsec:disagreement}
 
-Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.15$. The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Two resolution strategies are applied in order:
+Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.08$ (lowered from 0.15 to increase sensitivity to inter-modality conflicts). The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Three resolution strategies are applied in order:
 
 \begin{enumerate}
     \item \textbf{CNN--NLP agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
+    \item \textbf{Pathologist Override:} When the Pathologist consensus detects a high-confidence malignancy ($P \ge 0.60$) but the Radiologist consensus is indeterminate ($0.35 \le P \le 0.65$), the system overrides the weighted average with the Pathologist's probability. This strategy, assigned a high confidence of 0.75, prevents the dilution of strong textual evidence by uncertain imaging models.
     \item \textbf{Rule-based tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
 \end{enumerate}
 

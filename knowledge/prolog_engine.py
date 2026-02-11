@@ -425,16 +425,20 @@ class PrologEngine:
                     f"agent_finding({nodule_id}, {agent}, {prob}, {pred_class})"
                 )
             
-            # Query for consensus
+            # Query for consensus via resolution strategies
+            # Uses resolve_disagreement to apply overrides/tiebreakers if needed
+            # Fallback (Rule 4) ensures it returns weighted average if no disagreement
             results = self.query(
-                f"calculate_consensus({nodule_id}, WeightedProb, Confidence)"
+                f"resolve_disagreement({nodule_id}, WeightedProb, Confidence, Strategy)"
             )
             
             if results:
                 weighted_prob = float(results[0].get("WeightedProb", 0.5))
                 confidence = float(results[0].get("Confidence", 0.5))
+                strategy = str(results[0].get("Strategy", "weighted_average"))
             else:
                 # Calculate manually if Prolog query returns no results
+                strategy = "python_fallback"
                 if findings:
                     total_weight = sum(f.get("weight", 1.0) for f in findings)
                     weighted_prob = sum(
@@ -470,7 +474,8 @@ class PrologEngine:
                 "probability": weighted_prob,
                 "predicted_class": pred_class,
                 "confidence": confidence,
-                "method": "prolog_weighted_voting"
+                "strategy": strategy,
+                "method": "prolog_consensus"
             }
             
         except Exception as e:

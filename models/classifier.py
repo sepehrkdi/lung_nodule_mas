@@ -48,6 +48,47 @@ from pathlib import Path
 import warnings
 
 
+def calibrate_xrv_probability(
+    raw_prob: float,
+    center: float = 0.62,
+    temperature: float = 25.0
+) -> float:
+    """
+    Recalibrate TorchXRayVision sigmoid probabilities.
+
+    EDUCATIONAL NOTE - PROBABILITY CALIBRATION:
+
+    Pre-trained models like TorchXRayVision are trained on different data
+    distributions (e.g., CheXpert, MIMIC-CXR) than our evaluation set
+    (OpenI/NLMCXR).  This domain shift causes the raw sigmoid outputs to
+    cluster in a narrow range (~0.60–0.64), making all cases look
+    "indeterminate".
+
+    We apply a temperature-scaled sigmoid re-centering:
+
+        calibrated = σ( k · (raw − center) )
+
+    where:
+      • center  = empirical mean of raw outputs (≈ 0.62)
+      • k       = temperature that controls steepness (higher = more spread)
+
+    This maps raw=center → 0.5, and amplifies deviations above/below.
+
+    Args:
+        raw_prob:    Raw sigmoid probability from TorchXRayVision [0, 1]
+        center:      Empirical mean of the model outputs (default 0.62)
+        temperature: Steepness; higher = more spread (default 8.0)
+
+    Returns:
+        Calibrated probability in [0.05, 0.95]
+    """
+    # Temperature-scaled sigmoid around the empirical center
+    exponent = -temperature * (raw_prob - center)
+    calibrated = 1.0 / (1.0 + np.exp(exponent))
+
+    # Clamp to avoid extreme certainties
+    return float(np.clip(calibrated, 0.05, 0.95))
+
 class NoduleClassifier:
     """
     DenseNet-based lung nodule classifier.
@@ -366,8 +407,8 @@ class NoduleClassifier:
             final_malignancy = heuristic_score
             final_confidence = min(0.9, 0.5 + feature_std * 0.1)
         
-        # Clip result
-        final_malignancy = float(np.clip(final_malignancy, 0.0, 1.0))
+        # Recalibrate the blended output to spread clustered XRV values
+        final_malignancy = calibrate_xrv_probability(final_malignancy)
         
         return {
             "malignancy_probability": final_malignancy,
