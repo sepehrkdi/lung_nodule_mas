@@ -306,7 +306,7 @@ def render_consensus_panel(consensus: Dict[str, Any]):
     Args:
         consensus: Consensus result dictionary
     """
-    st.subheader("🎯 Consensus Result")
+    st.subheader("🎯 Oncologist Consensus Result")
     
     final_class = consensus.get("final_class", 3)
     final_prob = consensus.get("final_probability", 0.5)

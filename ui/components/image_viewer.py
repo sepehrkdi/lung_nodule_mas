@@ -62,7 +62,7 @@ def render_image_viewer(
         
         if response.status_code == 200:
             image = Image.open(io.BytesIO(response.content))
-            st.image(image, caption=f"Nodule {nodule_id}", use_container_width=True)
+            st.image(image, caption=f"Nodule {nodule_id}", width="stretch")
         else:
             st.error(f"Failed to load image: {response.status_code}")
             
@@ -123,7 +123,7 @@ def render_image_from_array(
         new_size = (pil_image.width * 4, pil_image.height * 4)
         pil_image = pil_image.resize(new_size, Image.Resampling.NEAREST)
         
-        st.image(pil_image, caption=f"Nodule {nodule_id}", use_container_width=True)
+        st.image(pil_image, caption=f"Nodule {nodule_id}", width="stretch")
     else:
         render_image_placeholder(nodule_id)
 
@@ -140,10 +140,7 @@ def render_features_table(features: dict):
     # Key features to display
     display_features = [
         ("diameter_mm", "Diameter (mm)", "📏"),
-        ("malignancy", "Malignancy Score", "⚠️"),
-        ("malignancy_label", "Malignancy", "🏷️"),
-        ("texture", "Texture Score", "🔲"),
-        ("texture_label", "Texture", "🏷️"),
+
         ("margin", "Margin Score", "📐"),
         ("margin_label", "Margin", "🏷️"),
         ("spiculation", "Spiculation Score", "🌟"),
@@ -169,9 +166,18 @@ def render_features_table(features: dict):
     
     # Source badge
     source = features.get("source", "Unknown")
+    nodule_id = features.get("nodule_id", features.get("case_id", "Unknown"))
     if source == "NLMCXR":
-        st.success("✅ Real NLMCXR data")
+        st.success(f"""
+        ✅ **Verified Clinical Data from Real Annotations**
+        
+        This case is part of the **OpenI (NLMCXR)** dataset (Indiana University Chest X-ray Collection).
+        
+        - **Source:** Real radiologist reports associated with Case **{nodule_id}**
+        - **Extraction:** Features derived from the *FINDINGS* and *IMPRESSION* sections of the original clinical report
+        - **Malignancy:** Score **{features.get('malignancy', 'N/A')}** ({features.get('malignancy_label', 'Unknown')})
+        """)
     elif source == "XML Import":
-        st.success("✅ Real dataset")
+        st.success(f"✅ **Real Clinical Data** (Imported from Case {nodule_id})")
     else:
-        st.warning("⚠️ Sample/demo data")
+        st.warning("⚠️ **Synthetic/Demo Data** (Not for clinical use)")

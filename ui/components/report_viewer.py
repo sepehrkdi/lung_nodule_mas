@@ -98,19 +98,7 @@ def render_report_viewer(
     """
     st.subheader("📋 Radiology Report")
     
-    # Report header
-    st.markdown(f"""
-    <div style="
-        background-color: #f8f9fa;
-        border-left: 4px solid #4A90D9;
-        padding: 10px 15px;
-        margin-bottom: 15px;
-        border-radius: 0 5px 5px 0;
-    ">
-        <strong>Report ID:</strong> {nodule_id} | 
-        <strong>Type:</strong> Pulmonary Nodule Evaluation
-    </div>
-    """, unsafe_allow_html=True)
+
     
     # Options
     if show_raw:
@@ -145,14 +133,14 @@ def render_report_viewer(
         """, unsafe_allow_html=True)
         
         # Legend
-        with st.expander("🔍 Highlighting Legend"):
-            st.markdown("""
-            - <span style="background-color: #fff3cd; padding: 1px 4px;">Yellow</span> - Measurements
-            - <span style="background-color: #f8d7da; color: #721c24; padding: 1px 4px;">Red</span> - Suspicious findings
-            - <span style="background-color: #d4edda; color: #155724; padding: 1px 4px;">Green</span> - Benign indicators
-            - <span style="background-color: #cce5ff; color: #004085; padding: 1px 4px;">Blue</span> - Lung-RADS category
-            - <span style="background-color: #e7f3ff; color: #0066cc; padding: 1px 4px;">Light Blue</span> - Normal/Negative findings
-            """, unsafe_allow_html=True)
+        st.markdown("#### 🔍 Highlighting Legend")
+        st.markdown("""
+        - <span style="background-color: #fff3cd; padding: 1px 4px;">Yellow</span> - Measurements
+        - <span style="background-color: #f8d7da; color: #721c24; padding: 1px 4px;">Red</span> - Suspicious findings
+        - <span style="background-color: #d4edda; color: #155724; padding: 1px 4px;">Green</span> - Benign indicators
+        - <span style="background-color: #cce5ff; color: #004085; padding: 1px 4px;">Blue</span> - Lung-RADS category
+        - <span style="background-color: #e7f3ff; color: #0066cc; padding: 1px 4px;">Light Blue</span> - Normal/Negative findings
+        """, unsafe_allow_html=True)
     else:
         st.text_area(
             "Report Text",

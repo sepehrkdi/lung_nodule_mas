@@ -26,8 +26,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "Get Help": "https://github.com/your-repo/lung_nodule_mas",
-        "Report a bug": "https://github.com/your-repo/lung_nodule_mas/issues",
+        "Get Help": "https://github.com/sepehrkdi/lung_nodule_mas",
+        "Report a bug": "https://github.com/sepehrkdi/lung_nodule_mas/issues",
         "About": """
         # Lung Nodule Multi-Agent System
         
@@ -45,25 +45,6 @@ st.set_page_config(
 from ui.pages.case_analysis import render_case_analysis_page
 from ui.pages.evaluation import render_evaluation_page
 
-
-def render_sidebar():
-    """Render the sidebar with system info."""
-    
-    # System info
-    st.sidebar.markdown("### 🤖 Agent Configuration")
-    st.sidebar.markdown("""
-    **Radiologists:**
-    - DenseNet-121 (W=1.0)
-    - ResNet-50 (W=1.0)
-    - Rule-based (W=0.7)
-    
-    **Pathologists:**
-    - Regex Parser (W=0.8)
-    - spaCy NER (W=0.9)
-    - Context Analyzer (W=0.9)
-    """)
-
-
 def render_header():
     """Render the page header."""
     col1, col2 = st.columns([1, 8])
@@ -73,7 +54,7 @@ def render_header():
             width=80
         )
     with col2:
-        st.title("🫁 Lung Nodule MAS")
+        st.title("Lung Nodule MAS")
         st.markdown("Multi-Agent Classification System")
     
     st.markdown("---")
@@ -84,9 +65,6 @@ def main():
     
     # Render header at top of page
     render_header()
-    
-    # Render sidebar
-    render_sidebar()
     
     # Tab-based navigation in main area
     tab1, tab2 = st.tabs([

@@ -169,7 +169,8 @@ def render_case_analysis_page():
         render_image_viewer(
             selected_nodule,
             api_base_url=API_BASE_URL,
-            is_synthetic=features.get("is_synthetic", False)
+            is_synthetic=features.get("is_synthetic", False),
+            show_controls=False
         )
         
         # Features table
