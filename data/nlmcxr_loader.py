@@ -357,10 +357,11 @@ class NLMCXRLoader(BaseNoduleLoader):
         self,
         min_score: float = 3.0,
         limit: int = 50,
+        offset: int = 0,
         require_valid_image: bool = True
     ) -> List[str]:
         """
-        Get case IDs filtered by NLP richness score.
+        Get case IDs filtered by NLP richness score using pagination.
 
         Selects cases where the radiology report contains enough extractable
         NLP content for meaningful agent analysis. Cases are sorted by
@@ -369,6 +370,7 @@ class NLMCXRLoader(BaseNoduleLoader):
         Args:
             min_score: Minimum richness score (0-6) to include. Default 3.0.
             limit: Maximum number of cases to return.
+            offset: Number of cases to skip (for batch processing).
             require_valid_image: If True, only include cases with at least one image file.
 
         Returns:
@@ -395,11 +397,13 @@ class NLMCXRLoader(BaseNoduleLoader):
         # Sort by score descending, then by case_id for deterministic order
         scored_cases.sort(key=lambda x: (-x[1], x[0]))
 
-        selected = [case_id for case_id, _, _ in scored_cases[:limit]]
+        # Apply pagination (offset + limit)
+        selected = [case_id for case_id, _, _ in scored_cases[offset : offset + limit]]
 
         logger.info(
             f"NLP richness filter: {len(scored_cases)} cases scored >= {min_score} "
-            f"(out of {len(self._case_cache)} total), returning top {len(selected)}"
+            f"(out of {len(self._case_cache)} total), returning {len(selected)} cases "
+            f"(offset {offset}, limit {limit})"
         )
 
         return selected

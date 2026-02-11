@@ -37,7 +37,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} and automatically derive binary ground-truth labels (Normal/Abnormal) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} and automatically derive binary ground-truth labels (benign/malignant) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
 
 
 
@@ -66,7 +66,7 @@ This project addresses the problem of \emph{lung nodule evidence extraction and 
 \begin{enumerate}
     \item \textbf{Natural Language Processing (NLP):} Extracting structured nodule attributes (size, location, texture, descriptors), detecting mentions\footnote{mentions are the specific instances of nodule attributes mentioned in the report}, and determining negation/uncertainty status from free-text radiology reports.
     \item \textbf{Computer Vision (CV):} Obtaining nodule suspicion scores from chest X-ray images using the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, leveraging models pretrained on massive chest X-ray datasets.
-    \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, implementing weighted consensus, conflict detection, and clinical recommendation generation.
+    \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, implementing weighted consensus, conflict detection, and binary classification (0=benign, 1=malignant) with supplementary clinical recommendations.
 \end{enumerate}
 
 The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent system}~\cite{rao2005bdi}, adapted specifically for the Lung-Nodule MAS. In this context, \textbf{Beliefs} represent the specific diagnostic evidence held by an agent (e.g., a Radiologist believing a nodule is present with probability $p$, or a Pathologist believing a finding is negated). \textbf{Desires} represent the clinical objective to process a specific patient case (e.g., the goal \texttt{!analyze\_case}). \textbf{Intentions} are the runtime execution of image analysis models or NLP pipelines chosen to fulfill those goals. This architecture is appropriate for medical decision support because it mirrors the clinical workflow: independent specialists (radiologists, pathologists) generate findings that are synthesized by a coordinating physician (oncologist) into a final recommendation.
@@ -92,7 +92,7 @@ The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\
         \item \emph{Both sections non-empty:} \texttt{FINDINGS} and \texttt{IMPRESSION} both contain text.
         \item \emph{Anatomical location specified:} a laterality + anatomy pattern is present (e.g., ``right upper lobe'', ``left lung base'').
     \end{enumerate}
-    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (Abnormal/Suspicious) or 0 (Normal/Benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation.
+    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (malignant) or 0 (benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation.
     \item \textbf{Subset Selection:} Cases with richness score $\geq 3$ are retained and ranked in descending order of score. The top 500 cases are selected to form the \emph{Evaluation Subset}. In our dataset, 2{,}898 of 3{,}955 cases score $\geq 3$, providing ample candidates; 420 cases achieve the maximum score of 6.
 \end{enumerate}
 
@@ -119,7 +119,7 @@ This richness-based filtering ensures that the selected cases contain sufficient
 Two distinct forms of ground truth are used in this project:
 
 \begin{itemize}
-    \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=Abnormal/Suspicious, 0=Normal/Benign) is automatically derived from the original radiology reports. A case is labeled ``Abnormal'' if the report contains un-negated keywords mapping to Lung-RADS categories 3--4 (``suspicious'', ``malignant'', ``ill-defined''). This label serves as the reference for the Oncologist agent's final consensus decision.
+    \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=malignant, 0=benign) is automatically derived from the original radiology reports. A case is labeled ``malignant'' (1) if the report contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated''), otherwise ``benign'' (0). This label serves as the reference for the Oncologist agent's final consensus decision.
     \item \textbf{NLP-Level Ground Truth (Extraction):} For the 500-case Evaluation Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
 \end{itemize}
 
@@ -131,11 +131,12 @@ The main contributions of this project are:
 \begin{enumerate}
     \item A complete BDI multi-agent system with 7 agent instances across 3 agent types, communicating via FIPA-compliant message passing.
     \item A custom NLP pipeline for lung nodule evidence extraction implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
-    \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and explanation generation.
+    \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and binary classification (benign vs.\ malignant) with explanation generation.
     \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
     \item A multi-factor NLP-richness scoring function that combines MeSH metadata, entity detection, negation awareness, and structural completeness to select evaluation cases where the NLP agents can perform meaningful extraction.
     \item An anatomically-calibrated size estimation method for the rule-based radiologist that uses blob detection with a chest X-ray field-of-view model, replacing a na\"ive pixel-dimension heuristic that produced clinically implausible values.
     \item Explicit handling of unknown measurements: agents return \texttt{None} with a provenance tag (\texttt{size\_source}) instead of hardcoded defaults, and the consensus engine reduces the weight of agents that could not determine nodule size.
+    \item Binary classification (0=benign, 1=malignant) with threshold=0.5, replacing the original 5-class Lung-RADS categorization. Lung-RADS categories and TNM staging are retained as supplementary clinical recommendations.
     \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification and manually annotated entity-level ground truth for NLP extraction assessment.
 \end{enumerate}
 
@@ -318,8 +319,9 @@ The Oncologist agent integrates all outputs using SWI-Prolog (accessed via PySwi
 \begin{itemize}
     \item Dynamic weight computation: before each case, the Oncologist invokes a \texttt{DynamicWeightCalculator} (Section~\ref{subsec:dynamic-weights}) to produce per-case weights $\hat{w}_i$ from the base weights $w_i$ and the information richness of the available data.
     \item Weighted voting: $P_\text{final} = \frac{\sum_{i} \hat{w}_i \cdot c_i \cdot p_i}{\sum_{i} \hat{w}_i \cdot c_i}$ where $\hat{w}_i$ is the \emph{dynamic} per-case agent weight, $c_i$ the reported confidence, and $p_i$ the malignancy probability.
-    \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.15.
-    \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) use rule-based agent as tiebreaker; (3) conservative recommendation under strong disagreement (Standard Deviation > 0.08).
+    \item Binary classification: The consensus probability is thresholded at 0.5 to produce a binary decision (0=benign, 1=malignant).
+    \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.08.
+    \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) pathologist override when pathologist consensus is high-confidence ($P \ge 0.6$) but radiologist consensus is indeterminate; (3) rule-based agent as tiebreaker; (4) conservative recommendation under strong disagreement.
     \item Explanation generation: a natural-language summary of which experts agreed/disagreed, the dynamic weight rationale, and which Prolog rule fired.
 \end{itemize}
 
@@ -470,18 +472,16 @@ Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\;
 \subsection{Disagreement Detection and Resolution}
 \label{subsec:disagreement}
 
-Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.08$ (lowered from 0.15 to increase sensitivity to inter-modality conflicts). The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Three resolution strategies are applied in order:
+Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.08$ (lowered from 0.15 to increase sensitivity to inter-modality conflicts). The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Four resolution strategies are applied in order:
 
 \begin{enumerate}
     \item \textbf{CNN--NLP agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
     \item \textbf{Pathologist Override:} When the Pathologist consensus detects a high-confidence malignancy ($P \ge 0.60$) but the Radiologist consensus is indeterminate ($0.35 \le P \le 0.65$), the system overrides the weighted average with the Pathologist's probability. This strategy, assigned a high confidence of 0.75, prevents the dilution of strong textual evidence by uncertain imaging models.
     \item \textbf{Rule-based tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
+    \item \textbf{Conservative default:} Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
 \end{enumerate}
 
-The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) thresholding the consensus probability into a binary decision (Normal vs.\ Abnormal). Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
-
-
-Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
+The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) binary classification via thresholding at 0.5 (benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$). Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
 
 \subsection{Size-Source Weight Reduction}
 \label{subsec:size-weight-reduction}
@@ -627,7 +627,7 @@ P3 (Context)  & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
 \subsection{Clinical Recommendations}
 \label{subsec:recommendations}
 
-Although the primary classification task is binary (Normal vs.\ Abnormal), the Prolog knowledge base also encodes Lung-RADS v1.1~\cite{acr2019lungrads} categories as supplementary clinical recommendations. These categories are generated alongside the binary decision to provide actionable follow-up guidance:
+The primary classification task is binary (0=benign, 1=malignant) with a decision threshold at $P_\text{consensus} = 0.5$. This binary output serves as the system's diagnostic decision and is used for all evaluation metrics. Additionally, the Prolog knowledge base encodes Lung-RADS v1.1~\cite{acr2019lungrads} categories as supplementary clinical recommendations. These categories are generated alongside the binary decision to provide actionable follow-up guidance:
 
 \begin{table}[h]
 \centering
@@ -654,9 +654,10 @@ TNM staging~\cite{amin2017ajcc} is applied when applicable, with T-stage determi
 
 The Oncologist generates a structured explanation for each decision, consisting of:
 \begin{itemize}
-    \item The binary classification (Normal vs.\ Abnormal) and which agents contributed to each side.
+    \item The binary classification (0=benign, 1=malignant) based on the consensus probability threshold at 0.5.
+    \item Which agents contributed to each side and their individual probabilities.
     \item The resolution strategy applied and why (e.g., ``CNN-NLP agreement strategy used because radiologists and pathologists reached consistent conclusions'').
-    \item The supplementary Lung-RADS category and corresponding clinical recommendation.
+    \item The supplementary Lung-RADS category and corresponding clinical recommendation (informational only, not used for classification).
     \item Whether disagreement was detected and which agents disagreed.
 \end{itemize}
 
@@ -708,7 +709,7 @@ Multi-agent consensus is evaluated by tracking:
 \subsection{Experimental Results}
 \label{subsec:results}
 
-The complete pipeline was evaluated on the 500-case Evaluation Subset from the NLMCXR dataset, selected via the NLP richness scoring mechanism described in Section~\ref{subsec:dataset}. Cases were ranked by richness score (minimum threshold~$\geq 3$) and the top 500 were selected, ensuring that the NLP agents (Pathologists) operate on reports with sufficient extractable content. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
+The complete pipeline was evaluated on the 500-case Evaluation Subset from the NLMCXR dataset, selected via the NLP richness scoring mechanism described in Section~\ref{subsec:dataset}. Cases were ranked by richness score (minimum threshold~$\geq 3$) and the top 500 were selected, ensuring that the NLP agents (Pathologists) operate on reports with sufficient extractable content. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (0=benign, 1=malignant) by thresholding the consensus probability at 0.5. The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
 
 \begin{table}[h]
 \centering
@@ -736,13 +737,13 @@ Split Decisions & 2.6\% \\
 \centering
 \begin{tabular}{lcc}
 \toprule
- & \textbf{Predicted Normal} & \textbf{Predicted Abnormal} \\
+ & \textbf{Predicted Benign (0)} & \textbf{Predicted Malignant (1)} \\
 \midrule
-\textbf{Actual Normal} ($n=422$) & 374 (TN) & 48 (FP) \\
-\textbf{Actual Abnormal} ($n=78$) & 69 (FN) & 9 (TP) \\
+\textbf{Actual Benign (0)} ($n=422$) & 374 (TN) & 48 (FP) \\
+\textbf{Actual Malignant (1)} ($n=78$) & 69 (FN) & 9 (TP) \\
 \bottomrule
 \end{tabular}
-\caption{Binary confusion matrix (Normal vs.\ Abnormal) on the 500-case Evaluation Subset. The dataset is imbalanced: 84.4\% Normal, 15.6\% Abnormal.}
+\caption{Binary confusion matrix (0=benign, 1=malignant) on the 500-case Evaluation Subset. The dataset is imbalanced: 84.4\% benign, 15.6\% malignant. Classification threshold: $P_\text{consensus} \ge 0.5$ for malignant.}
 \label{tab:confusion}
 \end{table}
 
@@ -752,15 +753,15 @@ The majority of cases (97.4\%) achieved majority agreement, meaning at least 4 o
 
 \subsubsection{Confusion Matrix Analysis}
 
-The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (422 Normal, 78 Abnormal):
+The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (422 benign, 78 malignant):
 
 \begin{itemize}
-    \item \textbf{Normal class specificity:} 374/422 = 88.6\%. The system correctly classifies the vast majority of normal cases, with 48 false positives.
-    \item \textbf{Abnormal class sensitivity:} 9/78 = 11.5\%. The system detects only 9 of 78 abnormal cases, missing 69 (false negatives). This low sensitivity is a concern in a clinical screening context where missed abnormalities carry high cost.
-    \item \textbf{Class imbalance effect:} The 84.4/15.6 Normal/Abnormal split means the overall 76.6\% accuracy is largely driven by correct Normal predictions. The weighted F1 score (75.1\%) partially accounts for this by weighting per-class F1 by class frequency.
+    \item \textbf{Benign class specificity:} 374/422 = 88.6\%. The system correctly classifies the vast majority of benign cases, with 48 false positives.
+    \item \textbf{Malignant class sensitivity:} 9/78 = 11.5\%. The system detects only 9 of 78 malignant cases, missing 69 (false negatives). This low sensitivity is a concern in a clinical screening context where missed malignancies carry high cost.
+    \item \textbf{Class imbalance effect:} The 84.4/15.6 benign/malignant split means the overall 76.6\% accuracy is largely driven by correct benign predictions. The weighted F1 score (75.1\%) partially accounts for this by weighting per-class F1 by class frequency.
 \end{itemize}
 
-The low abnormal-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
+The low malignant-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
 
 \subsubsection{Impact of Calibrated Size Estimation}
 
@@ -772,11 +773,11 @@ The removal of the hardcoded 10.0\,mm default from all three Pathologist agents'
 
 \subsubsection{NLP Model Performance}
 
-The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 500-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
+The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 500-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy probabilities appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30, well below the 0.5 threshold for malignant classification).
 
 \subsubsection{Negation Detection}
 
-Pathologist-3 (NegEx/Context) successfully detected negated findings across the evaluation set, appropriately reducing malignancy scores when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The inclusion of both Normal and Abnormal cases in the Evaluation Subset provided a more comprehensive test of negation detection, since Normal cases frequently contain negated finding mentions (e.g., ``lungs are clear, no masses or nodules'') that the agent must correctly classify as benign.
+Pathologist-3 (NegEx/Context) successfully detected negated findings across the evaluation set, appropriately reducing malignancy probabilities when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The inclusion of both benign and malignant cases in the Evaluation Subset provided a more comprehensive test of negation detection, since benign cases frequently contain negated finding mentions (e.g., ``lungs are clear, no masses or nodules'') that the agent must correctly classify as benign (probability < 0.5).
 
 \subsection{Limitations}
 \label{subsec:limitations}
@@ -799,13 +800,14 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 \section{Conclusion}
 \label{sec:conclusion}
 
-This project presented a BDI multi-agent system for lung nodule evidence extraction from chest X-ray reports. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus.
+This project presented a BDI multi-agent system for lung nodule evidence extraction and binary classification (0=benign, 1=malignant) from chest X-ray reports and images. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus with binary thresholding at 0.5.
 
-The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 500-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 76.6\% binary classification accuracy with 97.4\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (88.6\%) for Normal cases but lower sensitivity (11.5\%) for Abnormal cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
+The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 500-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 76.6\% binary classification accuracy with 97.4\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (88.6\%) for benign cases but lower sensitivity (11.5\%) for malignant cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
 
 Key technical contributions include:
 \begin{itemize}
     \item Integration of domain-specific pretrained models (TorchXRayVision for CV, scispaCy for NLP) within a multi-agent framework.
+    \item Binary classification system (0=benign, 1=malignant) with consensus probability thresholding at 0.5, replacing the original 5-class Lung-RADS categorization. Lung-RADS categories and TNM staging are retained as supplementary informational outputs.
     \item Implementation of NegEx-style negation and uncertainty detection for radiology report analysis.
     \item A Prolog knowledge base encoding Lung-RADS clinical guidelines for interpretable decision support.
     \item A dynamic, per-case weight assignment mechanism based on information-richness heuristics. Agent reliability weights are scaled at runtime according to the quantity and quality of available radiology images and pathology reports, with the scaling formula (Equation~\ref{eq:dynamic-weight}) guaranteeing a minimum contribution floor of 50\% of the base weight. This approach replaces static hardcoded weights and is synchronized between Python and Prolog via dynamic predicate assertion.

@@ -131,7 +131,8 @@ class ExtendedMAS:
         self,
         data_source: str = "nlmcxr",
         verbose: bool = True,
-        max_cases: Optional[int] = 100
+        max_cases: Optional[int] = 100,
+        start_index: int = 0
     ):
         """
         Initialize the extended MAS.
@@ -140,10 +141,12 @@ class ExtendedMAS:
             data_source: "nlmcxr" or "sample"
             verbose: Print progress messages
             max_cases: Maximum number of cases to load (default: 100)
+            start_index: Offset for loading cases (default: 0)
         """
         self.verbose = verbose
         self.data_source = data_source
         self.max_cases = max_cases if max_cases is not None else 100
+        self.start_index = start_index
         
         # Import orchestrator
         from orchestrator import MultiAgentOrchestrator
@@ -185,7 +188,8 @@ class ExtendedMAS:
                 # rather than falling back to hardcoded defaults.
                 nlp_rich_ids = loader.get_nlp_rich_case_ids(
                     min_score=3.0,
-                    limit=self.max_cases
+                    limit=self.max_cases,
+                    offset=self.start_index
                 )
                 
                 count = 0
@@ -208,7 +212,8 @@ class ExtendedMAS:
                             "features": metadata.get("nlp_features", {}),
                             "ground_truth": ground_truth,
                             "report": report,
-                            "images": images
+                            "images": images,
+                            "image_metadata": metadata.get("images_metadata", [])
                         })
                         count += 1
                         self._log(f"Added case {case_id} (count: {count}/{self.max_cases})")
@@ -217,12 +222,17 @@ class ExtendedMAS:
                         self._log(f"Failed to load case {case_id}: {e}")
                         continue
                         
-                self._log(f"Loaded {len(self.cases)} NLP-rich cases from NLMCXR")
+                self._log(f"Loaded {len(self.cases)} NLP-rich cases from NLMCXR (offset {self.start_index})")
             except Exception as e:
                 self._log(f"Failed to load NLMCXR: {e}, using sample data")
                 self._create_sample_cases()
         else:
             self._create_sample_cases()
+            # Apply slicing for sample cases
+            start = self.start_index
+            end = start + self.max_cases
+            self.cases = self.cases[start:end]
+            self._log(f"Selected {len(self.cases)} sample cases (offset {start})")
     
     def _create_sample_cases(self) -> None:
         """Create sample cases for testing."""
@@ -322,7 +332,9 @@ class ExtendedMAS:
         consensus = await self.orchestrator.analyze_case(
             case_id=nodule_id,
             features=features,
-            report=report
+            report=report,
+            image_array=case.get("images"),
+            image_metadata=case.get("image_metadata")
         )
         
         # Extract individual findings
@@ -569,6 +581,10 @@ async def main():
         "--export", type=str, default=None,
         help="Export results to JSON file"
     )
+    parser.add_argument(
+        "--start-index", type=int, default=0,
+        help="Start index for processing cases (offset)"
+    )
     
     args = parser.parse_args()
     
@@ -580,7 +596,8 @@ async def main():
     mas = ExtendedMAS(
         data_source=args.data,
         verbose=True,
-        max_cases=args.max_cases if args.max_cases else 100
+        max_cases=args.max_cases if args.max_cases else 100,
+        start_index=args.start_index
     )
     
     if args.evaluate:
