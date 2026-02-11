@@ -70,6 +70,9 @@ app.add_middleware(
 _loader: Optional[NLMCXRLoader] = None
 _orchestrator: Optional[MultiAgentOrchestrator] = None
 
+# Constants
+MAX_EVALUATION_CASES = 500
+
 
 def get_loader() -> NLMCXRLoader:
     """Get or create the data loader."""
@@ -120,8 +123,8 @@ async def list_nodules():
     try:
         loader = get_loader()
         # ALIGNMENT WITH REPORT: Use pre-filtered list of nodule cases
-        # Limit to 50 cases as per "30-50 image-report pairs" specification
-        case_ids = loader.get_nodule_case_ids(limit=50)
+        # Limit to MAX_EVALUATION_CASES as per specifications
+        case_ids = loader.get_nodule_case_ids(limit=MAX_EVALUATION_CASES)
         return NoduleListResponse(
             nodule_ids=case_ids,
             total_count=len(case_ids)
@@ -497,7 +500,9 @@ async def _compute_metrics_background():
         majority_count = 0
         split_count = 0
 
-        case_ids = loader.get_nodule_case_ids(limit=50)
+        split_count = 0
+
+        case_ids = loader.get_nodule_case_ids(limit=MAX_EVALUATION_CASES)
         _metrics_state["total"] = len(case_ids)
         _metrics_state["processed"] = 0
 

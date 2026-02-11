@@ -130,7 +130,8 @@ class ExtendedMAS:
     def __init__(
         self,
         data_source: str = "nlmcxr",
-        verbose: bool = True
+        verbose: bool = True,
+        max_cases: Optional[int] = 100
     ):
         """
         Initialize the extended MAS.
@@ -138,9 +139,11 @@ class ExtendedMAS:
         Args:
             data_source: "nlmcxr" or "sample"
             verbose: Print progress messages
+            max_cases: Maximum number of cases to load (default: 100)
         """
         self.verbose = verbose
         self.data_source = data_source
+        self.max_cases = max_cases if max_cases is not None else 100
         
         # Import orchestrator
         from orchestrator import MultiAgentOrchestrator
@@ -176,8 +179,9 @@ class ExtendedMAS:
                 loader = NLMCXRLoader()
                 
                 count = 0
+                count = 0
                 for case_id in loader.get_case_ids():
-                    if count >= 50:
+                    if count >= self.max_cases:
                         break
                     
                     try:
@@ -201,7 +205,8 @@ class ExtendedMAS:
                                 "images": images
                             })
                             count += 1
-                            self._log(f"Added case {case_id} (count: {count}/50)")
+                            count += 1
+                            self._log(f"Added case {case_id} (count: {count}/{self.max_cases})")
                         else:
                             pass # Skip non-nodule cases
                             
@@ -566,7 +571,11 @@ async def main():
         return
     
     # Initialize system
-    mas = ExtendedMAS(data_source=args.data, verbose=True)
+    mas = ExtendedMAS(
+        data_source=args.data,
+        verbose=True,
+        max_cases=args.max_cases if args.max_cases else 100
+    )
     
     if args.evaluate:
         # Run evaluation

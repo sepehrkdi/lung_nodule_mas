@@ -7,6 +7,7 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{soul}
 \usepackage{tikz}
 \usetikzlibrary{shapes, arrows.meta, positioning, fit}
 
@@ -36,7 +37,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select 30--50 image--report pairs and automatically derive binary ground-truth labels (Normal/Abnormal) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} and automatically derive binary ground-truth labels (Normal/Abnormal) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
 
 
 
@@ -58,34 +59,34 @@ The degree of difficulty for this project is \textbf{hard}.
 \section{Introduction}
 \label{sec:intro}
 
-Lung cancer is the leading cause of cancer-related death worldwide, and early detection of pulmonary nodules is critical for improving patient outcomes. Radiology reports offer a rich source of structured and unstructured clinical information, yet extracting actionable evidence from free-text\footnote{free-text reports are reports that are not structured in a way that can be easily processed by a computer} reports remains a challenging NLP task. Simultaneously, medical imaging with deep learning has shown promise for automated nodule detection, but individual models vary in their sensitivity and specificity.
+Lung cancer is the leading cause of cancer-related death worldwide, and early detection of pulmonary nodules is critical for improving patient outcomes. Radiology reports offer a rich source of structured and unstructured clinical information, yet extracting actionable evidence from free-text\footnote{free-text reports are reports that are not structured in a way that can be easily processed by a computer} reports remains a challenging NLP task. Simultaneously, medical imaging with deep learning has made progress in automated nodule detection, but individual models vary in their sensitivity and specificity.
 
 This project addresses the problem of \emph{lung nodule evidence extraction and fusion} by combining three complementary AI paradigms within a multi-agent architecture:
 
 \begin{enumerate}
-    \item \textbf{Natural Language Processing (NLP):} Extracting structured nodule attributes (size, location, texture, descriptors), detecting mentions, and determining negation/uncertainty status from free-text radiology reports.
+    \item \textbf{Natural Language Processing (NLP):} Extracting structured nodule attributes (size, location, texture, descriptors), detecting mentions\footnote{mentions are the specific instances of nodule attributes mentioned in the report}, and determining negation/uncertainty status from free-text radiology reports.
     \item \textbf{Computer Vision (CV):} Obtaining nodule suspicion scores from chest X-ray images using the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, leveraging models pretrained on massive chest X-ray datasets.
     \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, implementing weighted consensus, conflict detection, and clinical recommendation generation.
 \end{enumerate}
 
-The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent system}~\cite{rao2005bdi}, where each agent maintains beliefs about the world, desires (goals) it aims to achieve, and intentions (plans) it commits to executing. This architecture is particularly well-suited for medical decision support because it mirrors the clinical workflow: independent specialists (radiologists, pathologists) generate findings that are synthesized by a coordinating physician (oncologist) into a final recommendation.
+The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent system}~\cite{rao2005bdi}, adapted specifically for the Lung-Nodule MAS. In this context, \textbf{Beliefs} represent the specific diagnostic evidence held by an agent (e.g., a Radiologist believing a nodule is present with probability $p$, or a Pathologist believing a finding is negated). \textbf{Desires} represent the clinical objective to process a specific patient case (e.g., the goal \texttt{!analyze\_case}). \textbf{Intentions} are the runtime execution of image analysis models or NLP pipelines chosen to fulfill those goals. This architecture is appropriate for medical decision support because it mirrors the clinical workflow: independent specialists (radiologists, pathologists) generate findings that are synthesized by a coordinating physician (oncologist) into a final recommendation.
 
 \subsection{Clinical Motivation}
 \label{subsec:clinical-motivation}
 
-In standard clinical practice, the workflow for lung nodule management follows a hub-and-spoke model: radiologists analyze images and produce reports, pathologists analyze tissue or textual evidence, and the treating oncologist synthesizes all findings into a treatment decision~\cite{pillay2016mdt}. Direct communication between radiologists and pathologists is uncommon in routine practice---they work independently and send reports to the treating physician. This clinically accurate architecture is reflected in my system design, where all agents report to the central Oncologist agent rather than communicating peer-to-peer.
+In standard clinical practice for oncology patients, including those with lung malignancies, care is coordinated through multidisciplinary team (MDT) frameworks in which specialists such as radiologists, pathologists, surgeons, and oncologists collectively review imaging, histology, and clinical information to formulate diagnosis and management plans~\cite{pillay2016mdt}. Direct communication between radiologists and pathologists is uncommon in routine practice because they work independently and send reports to the treating physician. This clinically accurate architecture is reflected in my system design, where all agents report to the central Oncologist agent rather than communicating peer-to-peer.
 
 \subsection{Dataset and Pre-processing}
 \label{subsec:dataset}
 
-The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies, for instance, Chapman et al.\ used 42 reports for NegEx evaluation~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, I implemented an NLP-based pre-filter pipeline:
+The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies. For instance, Chapman et al.\ evaluated the NegEx negation-detection algorithm against a set of \hl{1000 sentences} containing 1235 clinical findings and diseases extracted from discharge summaries~\cite{chapman2001negex}. To focus the evaluation on relevant pathology, I implemented an NLP-based pre-filter pipeline:
 
 \begin{enumerate}
-    \item \textbf{Ingestion:} The efficient \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
+    \item \textbf{Ingestion:} The \texttt{NLMCXR\_Loader} scans all 7,470 reports in the dataset.
     \item \textbf{Keyword Filtering:} A custom \texttt{MedicalNLPExtractor} analyzes the \texttt{FINDINGS} and \texttt{IMPRESSION} sections of each report for nodule-specific keywords (``nodule'', ``mass'', ``lesion'', ``opacity'').
-    \item \textbf{Negation Check:} A simplified NegEx-style rule filter excludes reports where these keywords appear only in negated contexts (e.g., ``no nodule'', ``without mass'').
+    \item \textbf{Negation Check:} A NegEx-style (Section~\ref{subsec:negex}) rule filter excludes reports where these keywords appear only in negated contexts (e.g., ``no nodule'', ``without mass'').
     \item \textbf{Ground-Truth Filtering:} Each candidate report is passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (Abnormal/Suspicious) or 0 (Normal/Benign). Reports for which the extractor returns $-1$ (Indeterminate) are excluded.
-    \item \textbf{Subset Selection:} The first 50 cases with a definite ground-truth label (either 0 or 1) are selected to form the \emph{Evaluation Subset}, ensuring that both Normal and Abnormal classes are represented and every case contributes to the binary confusion matrix.
+    \item \textbf{Subset Selection:} The first 500 cases with a definite ground-truth label (either 0 or 1) are selected to form the \emph{Evaluation Subset}, ensuring that both Normal and Abnormal classes are represented and every case contributes to the binary confusion matrix.
 \end{enumerate}
 
 This filtering process ensures that the multi-agent system is evaluated exclusively on cases with unambiguous NLP-derived ground truth, providing a balanced binary evaluation set.
@@ -97,7 +98,7 @@ Two distinct forms of ground truth are used in this project:
 
 \begin{itemize}
     \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=Abnormal/Suspicious, 0=Normal/Benign) is automatically derived from the original radiology reports. A case is labeled ``Abnormal'' if the report contains un-negated keywords mapping to Lung-RADS categories 3--4 (``suspicious'', ``malignant'', ``ill-defined''). This label serves as the reference for the Oncologist agent's final consensus decision.
-    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 50-case Evaluation Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
+    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 500-case Evaluation Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
 \end{itemize}
 
 \subsection{Contributions}
@@ -429,6 +430,33 @@ The Prolog consensus engine implements a multi-stage decision pipeline: (1) weig
 
 Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
 
+\subsection{BDI Implementation Details}
+\label{subsec:bdi-details}
+
+The agent logic relies on a dual-layer belief system that integrates Python-based perception modules with the BDI reasoning engine.
+
+\subsubsection{Belief Storage}
+Beliefs are maintained in two synchronized forms:
+\begin{itemize}
+    \item \textbf{Python Layer:} Each agent (inheriting from \texttt{MedicalAgentBase}) maintains a list of \texttt{Belief} objects (defined in \texttt{agents/spade\_base.py}). Each object encapsulates a predicate (functor), arguments, and metadata such as the information source.
+    \item \textbf{BDI Layer:} When the \texttt{spade\_bdi} runtime is active, these Python objects are serialized into AgentSpeak syntax (e.g., \texttt{classification(nodule\_001, 0.85)[source(self)]}) and synchronized with the internal belief base, making them accessible to logical plans.
+\end{itemize}
+
+\subsubsection{Belief Updates}
+Beliefs accumulate through two primary channels:
+\begin{enumerate}
+    \item \textbf{Communication (Passive):} Incoming messages with the \texttt{inform} performative are automatically parsed by the underlying SPADE handler, which extracts the content and asserts it as a new belief.
+    \item \textbf{Active Perception (Internal Actions):} Unlike traditional BDI systems that rely on passive environment sensing, this system employs active perception. AgentSpeak plans execute internal actions (implemented as Python methods, e.g., \texttt{\_action\_classify\_image}), which process raw data and explicitly inject new beliefs using \texttt{self.add\_belief()}.
+\end{enumerate}
+
+\subsubsection{Goal Structures and Conditional Execution}
+The ASL plans (e.g., \texttt{asl/radiologist.asl}, \texttt{asl/oncologist.asl}) demonstrate sophisticated goal management:
+\begin{itemize}
+    \item \textbf{Conditional Goals:} Plans utilize context conditions to guard execution. For example, the plan for \texttt{+!analyze} checks \texttt{: model\_loaded(false)} to trigger a repair goal (\texttt{!initialize}) before proceeding with the main task.
+    \item \textbf{Data Dependencies:} The Oncologist agent uses \texttt{waiting\_for} beliefs to block execution until all required inputs (radiology and pathology findings) are received.
+    \item \textbf{Re-evaluation:} Reactive plans monitor belief updates (e.g., changes in sensitivity thresholds) to trigger timely re-evaluation of previous conclusions.
+\end{itemize}
+
 \subsection{Dynamic Per-Case Weight Assignment}
 \label{subsec:dynamic-weights}
 
@@ -571,7 +599,7 @@ The Oncologist generates a structured explanation for each decision, consisting 
 \subsection{Annotation Methodology}
 \label{subsec:annotation}
 
-To evaluate the specific contribution of the NLP agents (Pathologist-1, P2, P3), the 50 selected reports were manually annotated. The annotation process focused on information extraction targets rather than clinical re-interpretation. This approach is consistent with prior clinical NLP validation studies where non-clinical annotators successfully annotated text spans using explicit guidelines~\cite{chapman2001negex, uzuner2011i2b2}.
+To evaluate the specific contribution of the NLP agents (Pathologist-1, P2, P3), the 500 selected reports were manually annotated. The annotation process focused on information extraction targets rather than clinical re-interpretation. This approach is consistent with prior clinical NLP validation studies where non-clinical annotators successfully annotated text spans using explicit guidelines~\cite{chapman2001negex, uzuner2011i2b2}.
 
 \begin{itemize}
     \item \textbf{Entity Spans:} All text spans corresponding to four key entity types were highlighted:
@@ -609,27 +637,27 @@ Multi-agent consensus is evaluated by tracking:
 \subsection{Experimental Results}
 \label{subsec:results}
 
-The complete pipeline was evaluated on the 50-case Evaluation Subset from the NLMCXR dataset. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
+The complete pipeline was evaluated on the 500-case Evaluation Subset from the NLMCXR dataset. Each case was processed by all 6 agents (3 radiologists + 3 pathologists), with the Oncologist computing a binary consensus decision (Normal vs.\ Abnormal). The system-level ground truth was derived from the NLP-based report analysis (Section~\ref{subsec:groundtruth}). Table~\ref{tab:results} summarizes the multi-agent consensus performance.
 
 \begin{table}[h]
 \centering
 \begin{tabular}{lc}
 \toprule
-\textbf{Metric} & \textbf{50-Case Evaluation} \\
+\textbf{Metric} & \textbf{500-Case Evaluation} \\
 \midrule
-Cases Processed & 50 \\
+Cases Processed & 500 \\
 Processing Rate & $\sim$2 cases/sec (CPU) \\
 \midrule
-Binary Accuracy & 82.0\% \\
-Weighted Precision & 80.9\% \\
-Weighted Recall & 82.0\% \\
-Weighted F1 Score & 81.4\% \\
+Binary Accuracy & 76.6\% \\
+Weighted Precision & 73.7\% \\
+Weighted Recall & 76.6\% \\
+Weighted F1 Score & 75.1\% \\
 \midrule
-Majority Agreement & 100\% \\
-Split Decisions & 0\% \\
+Majority Agreement & 97.4\% \\
+Split Decisions & 2.6\% \\
 \bottomrule
 \end{tabular}
-\caption{Multi-agent binary classification results on the 50-case NLMCXR Evaluation Subset.}
+\caption{Multi-agent binary classification results on the 500-case NLMCXR Evaluation Subset.}
 \label{tab:results}
 \end{table}
 
@@ -639,33 +667,33 @@ Split Decisions & 0\% \\
 \toprule
  & \textbf{Predicted Normal} & \textbf{Predicted Abnormal} \\
 \midrule
-\textbf{Actual Normal} ($n=43$) & 39 (TN) & 4 (FP) \\
-\textbf{Actual Abnormal} ($n=7$) & 5 (FN) & 2 (TP) \\
+\textbf{Actual Normal} ($n=422$) & 374 (TN) & 48 (FP) \\
+\textbf{Actual Abnormal} ($n=78$) & 69 (FN) & 9 (TP) \\
 \bottomrule
 \end{tabular}
-\caption{Binary confusion matrix (Normal vs.\ Abnormal) on the 50-case Evaluation Subset. The dataset is imbalanced: 86\% Normal, 14\% Abnormal.}
+\caption{Binary confusion matrix (Normal vs.\ Abnormal) on the 500-case Evaluation Subset. The dataset is imbalanced: 84.4\% Normal, 15.6\% Abnormal.}
 \label{tab:confusion}
 \end{table}
 
 \subsubsection{Agent Agreement Analysis}
 
-All 50 cases achieved majority agreement (100\%), meaning at least 4 of 6 agents agreed on the binary classification in every case; no split decisions occurred. However, unanimous agreement (all 6 agents producing the same binary prediction) was never observed (0\%). This is expected given the deliberate diversity of agent strategies: the three radiologists operate at different sensitivity thresholds, and the three pathologists use different NLP approaches, so their individual probability outputs naturally vary even when the majority vote converges.
+The majority of cases (97.4\%) achieved majority agreement, meaning at least 4 of 6 agents agreed on the binary classification. Split decisions occurred in 13 cases (2.6\%), where equal number of agents voted for each class or no clear majority emerged. Unanimous agreement (all 6 agents producing the same binary prediction) was rarely observed (0\%). This is expected given the deliberate diversity of agent strategies.
 
 \subsubsection{Confusion Matrix Analysis}
 
-The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (43 Normal, 7 Abnormal):
+The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (422 Normal, 78 Abnormal):
 
 \begin{itemize}
-    \item \textbf{Normal class specificity:} 39/43 = 90.7\%. The system correctly classifies the vast majority of normal cases, with only 4 false positives.
-    \item \textbf{Abnormal class sensitivity:} 2/7 = 28.6\%. The system detects only 2 of 7 abnormal cases, missing 5 (false negatives). This low sensitivity is a concern in a clinical screening context where missed abnormalities carry high cost.
-    \item \textbf{Class imbalance effect:} The 86/14 Normal/Abnormal split means the overall 82\% accuracy is largely driven by correct Normal predictions. The weighted F1 score (81.4\%) partially accounts for this by weighting per-class F1 by class frequency.
+    \item \textbf{Normal class specificity:} 374/422 = 88.6\%. The system correctly classifies the vast majority of normal cases, with 48 false positives.
+    \item \textbf{Abnormal class sensitivity:} 9/78 = 11.5\%. The system detects only 9 of 78 abnormal cases, missing 69 (false negatives). This low sensitivity is a concern in a clinical screening context where missed abnormalities carry high cost.
+    \item \textbf{Class imbalance effect:} The 84.4/15.6 Normal/Abnormal split means the overall 76.6\% accuracy is largely driven by correct Normal predictions. The weighted F1 score (75.1\%) partially accounts for this by weighting per-class F1 by class frequency.
 \end{itemize}
 
 The low abnormal-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
 
 \subsubsection{NLP Model Performance}
 
-The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 50-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
+The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 500-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy scores appropriately adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30).
 
 \subsubsection{Negation Detection}
 
@@ -676,7 +704,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 
 \begin{itemize}
     \item Annotations were performed by a single non-clinical annotator. While the annotation schema targets linguistic phenomena rather than clinical judgment, some edge cases (e.g., distinguishing ``nodule'' from ``mass'') may benefit from clinical expertise. Future work could validate annotations with a radiologist.
-    \item The evaluation on 50 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
+    \item The evaluation on 500 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
     \item The dynamic weight sub-component coefficients ($\alpha_i$, $\beta_j$) and the scale floor $\lambda = 0.5$ were set heuristically. An empirical sensitivity analysis or learning these parameters from a validation set could further improve calibration.
     \item Lung-RADS v1.1 was originally defined for LDCT screening, not chest X-rays; it is used here as an example of codifiable clinical rules rather than as a direct clinical application.
     \item The TorchXRayVision model was evaluated on CPU; GPU acceleration would significantly improve processing throughput beyond the current 4.9 cases/sec.
@@ -691,7 +719,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 
 This project presented a BDI multi-agent system for lung nodule evidence extraction from chest X-ray reports. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus.
 
-The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 50-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 82\% binary classification accuracy with 100\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (90.7\%) for Normal cases but lower sensitivity (28.6\%) for Abnormal cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
+The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 500-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 76.6\% binary classification accuracy with 97.4\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (88.6\%) for Normal cases but lower sensitivity (11.5\%) for Abnormal cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
 
 Key technical contributions include:
 \begin{itemize}
