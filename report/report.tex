@@ -116,12 +116,9 @@ This richness-based filtering ensures that the selected cases contain sufficient
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
 
-Two distinct forms of ground truth are used in this project:
+A single form of ground truth is used for system evaluation:
 
-\begin{itemize}
-    \item \textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=malignant, 0=benign) is automatically derived from the original radiology reports. A case is labeled ``malignant'' (1) if the report contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated''), otherwise ``benign'' (0). This label serves as the reference for the Oncologist agent's final consensus decision.
-    \item \textbf{NLP-Level Ground Truth (Extraction):} For the 500-case Evaluation Subset, token-level manual annotations were created to evaluate the information extraction performance of the Pathologist agents.
-\end{itemize}
+\textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=malignant, 0=benign) is automatically derived from the original radiology reports. A case is labeled ``malignant'' (1) if the report contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated''), otherwise ``benign'' (0). This label serves as the reference for the Oncologist agent's final consensus decision.
 
 \subsection{Contributions}
 \label{subsec:contributions}
@@ -137,7 +134,7 @@ The main contributions of this project are:
     \item An anatomically-calibrated size estimation method for the rule-based radiologist that uses blob detection with a chest X-ray field-of-view model, replacing a na\"ive pixel-dimension heuristic that produced clinically implausible values.
     \item Explicit handling of unknown measurements: agents return \texttt{None} with a provenance tag (\texttt{size\_source}) instead of hardcoded defaults, and the consensus engine reduces the weight of agents that could not determine nodule size.
     \item Binary classification (0=benign, 1=malignant) with threshold=0.5, replacing the original 5-class Lung-RADS categorization. Lung-RADS categories and TNM staging are retained as supplementary clinical recommendations.
-    \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification and manually annotated entity-level ground truth for NLP extraction assessment.
+    \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification.
 \end{enumerate}
 
 
@@ -668,41 +665,14 @@ The Oncologist generates a structured explanation for each decision, consisting 
 \section{Evaluation}
 \label{sec:evaluation}
 
-\subsection{Annotation Methodology}
-\label{subsec:annotation}
 
-To evaluate the specific contribution of the NLP agents (Pathologist-1, P2, P3), the 500 selected reports were manually annotated. The annotation process focused on information extraction targets rather than clinical re-interpretation. This approach is consistent with prior clinical NLP validation studies where non-clinical annotators successfully annotated text spans using explicit guidelines~\cite{chapman2001negex, uzuner2011i2b2}.
-
-\begin{itemize}
-    \item \textbf{Entity Spans:} All text spans corresponding to four key entity types were highlighted:
-    \begin{itemize}
-        \item \textsc{nodule}: The trigger term itself (e.g., ``nodule'', ``mass'').
-        \item \textsc{size}: Measurements (e.g., ``15 mm'', ``1.2 cm'').
-        \item \textsc{location}: Anatomical location (e.g., ``RUL'', ``left apex'').
-        \item \textsc{texture}: Morphological descriptors (e.g., ``spiculated'', ``calcified'').
-    \end{itemize}
-    \item \textbf{Attributes \& Certainty:} Each \textsc{nodule} entity was tagged with a certainty modifier:
-    \begin{itemize}
-        \item \textsc{affirmed}: The finding is present (e.g., ``nodule is seen'').
-        \item \textsc{negated}: The finding is absent (e.g., ``no nodule'').
-        \item \textsc{uncertain}: The finding is equivocal (e.g., ``possible nodule'').
-    \end{itemize}
-\end{itemize}
-
-These manual annotations serve as the ``Gold Standard'' for calculating the Precision, Recall, and F1-score of the Pathologist agents' extraction modules.
 
 \subsection{Metrics}
 \label{subsec:metrics}
 
-NLP extraction is evaluated using:
-\begin{itemize}
-    \item \textbf{Entity-level Precision, Recall, and F1} for each entity type extracted by the Pathologist agents.
-    \item \textbf{Cohen's Kappa} for negation and uncertainty classification agreement with manual annotations.
-\end{itemize}
-
 Multi-agent consensus is evaluated by tracking:
 \begin{itemize}
-    \item Agreement rates: unanimous, majority, and split decisions.
+    \item agreement rates: unanimous, majority, and split decisions.
     \item Confidence calibration: the relationship between reported confidence and actual correctness.
 \end{itemize}
 
@@ -783,7 +753,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 \label{subsec:limitations}
 
 \begin{itemize}
-    \item Annotations were performed by a single non-clinical annotator. While the annotation schema targets linguistic phenomena rather than clinical judgment, some edge cases (e.g., distinguishing ``nodule'' from ``mass'') may benefit from clinical expertise. Future work could validate annotations with a radiologist.
+    \item Future work could validate the NLP extraction with expert radiologist annotations rather than relying solely on system-level binary outcomes.
     \item The evaluation on 500 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
     \item The dynamic weight sub-component coefficients ($\alpha_i$, $\beta_j$) and the scale floor $\lambda = 0.5$ were set heuristically. An empirical sensitivity analysis or learning these parameters from a validation set could further improve calibration.
     \item The NLP richness scoring thresholds (minimum score 3, six binary criteria) were designed based on empirical analysis of the dataset's score distribution. Different thresholds or weighted criteria could yield different evaluation subsets; the sensitivity of the final results to these choices has not been exhaustively studied.
