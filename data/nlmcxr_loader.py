@@ -119,13 +119,17 @@ class NLMCXRLoader(BaseNoduleLoader):
         Returns:
             Tuple of (ground_truth_label, nlp_features_dict)
         """
-        combined_text = f"{findings} {impression}".strip()
-        
-        if not combined_text or not self._nlp_extractor:
+        # Prioritize IMPRESSION for Ground Truth
+        # Only fall back to findings if impression is completely empty
+        text_for_gt = impression.strip()
+        if not text_for_gt:
+            text_for_gt = findings.strip()
+            
+        if not text_for_gt or not self._nlp_extractor:
             return -1, {}
         
         try:
-            result = self._nlp_extractor.extract(combined_text)
+            result = self._nlp_extractor.extract(text_for_gt)
             features = result.to_dict() if hasattr(result, 'to_dict') else {}
             
             # Determine ground truth from malignancy assessment
@@ -140,7 +144,7 @@ class NLMCXRLoader(BaseNoduleLoader):
                 ground_truth = -1  # Indeterminate
             else:
                 # Fallback: check for suspicious/abnormal keywords in text
-                ground_truth = self._keyword_based_ground_truth(combined_text)
+                ground_truth = self._keyword_based_ground_truth(text_for_gt)
             
             return ground_truth, features
             
@@ -315,9 +319,12 @@ class NLMCXRLoader(BaseNoduleLoader):
             Tuple of (score 0-6, breakdown dict)
         """
         breakdown = {}
-        combined_text = f"{case.findings} {case.impression}".strip()
+        # METHODOLOGY UPDATE:
+        # Agents only see FINDINGS, so richness must be calculated on FINDINGS.
+        # We check IMPRESSION only for the 'both_sections' completeness check.
+        combined_text = case.findings.strip()
 
-        # 1. Text length
+        # 1. Text length (Findings should be substantial)
         breakdown['text_length'] = 1.0 if len(combined_text) >= 80 else 0.0
 
         # 2. Non-normal MeSH
@@ -326,11 +333,11 @@ class NLMCXRLoader(BaseNoduleLoader):
         ) if case.mesh_major else False
         breakdown['non_normal_mesh'] = 1.0 if has_pathology_mesh else 0.0
 
-        # 3. Target entity present
+        # 3. Target entity present (in Findings)
         entity_matches = list(NLMCXRLoader._TARGET_ENTITY_PATTERN.finditer(combined_text))
         breakdown['has_target_entity'] = 1.0 if entity_matches else 0.0
 
-        # 4. Entity NOT fully negated (at least one affirmed entity)
+        # 4. Entity NOT fully negated (at least one affirmed entity in Findings)
         has_affirmed_entity = False
         if entity_matches:
             for match in entity_matches:
@@ -342,11 +349,11 @@ class NLMCXRLoader(BaseNoduleLoader):
                     break
         breakdown['has_affirmed_entity'] = 1.0 if has_affirmed_entity else 0.0
 
-        # 5. Both sections non-empty
+        # 5. Both sections non-empty (still valuable to know if impression exists)
         both_filled = bool(case.findings.strip()) and bool(case.impression.strip())
         breakdown['both_sections'] = 1.0 if both_filled else 0.0
 
-        # 6. Anatomical location specified
+        # 6. Anatomical location specified (in Findings)
         has_location = bool(NLMCXRLoader._LOCATION_PATTERN.search(combined_text))
         breakdown['has_location'] = 1.0 if has_location else 0.0
 

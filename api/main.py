@@ -277,7 +277,9 @@ async def run_analysis_task(session_id: str, nodule_id: str):
         # Use real NLMCXR report text
         findings = metadata.get("findings", "")
         impression = metadata.get("impression", "")
-        report = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
+        
+        # METHODOLOGY UPDATE: Agents see ONLY findings
+        report = f"FINDINGS: {findings}"
         
         # Build features from metadata
         features = metadata.get("nlp_features", {})
@@ -512,7 +514,9 @@ async def _compute_metrics_background():
 
                 findings = metadata.get("findings", "")
                 impression = metadata.get("impression", "")
-                report = f"FINDINGS:\n{findings}\n\nIMPRESSION:\n{impression}"
+                
+                # METHODOLOGY UPDATE: Agents see ONLY findings
+                report = f"FINDINGS: {findings}"
 
                 features = metadata.get("nlp_features", {})
                 features["ground_truth"] = metadata.get("ground_truth")

@@ -92,8 +92,8 @@ The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\
         \item \emph{Both sections non-empty:} \texttt{FINDINGS} and \texttt{IMPRESSION} both contain text.
         \item \emph{Anatomical location specified:} a laterality + anatomy pattern is present (e.g., ``right upper lobe'', ``left lung base'').
     \end{enumerate}
-    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (malignant) or 0 (benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation because the dataset itself does not have the proper annotation.
-    \item \textbf{Subset Selection:} Cases with richness score $\geq 3$ are retained and ranked in descending order of score. The top 500 cases are selected to form the \emph{Evaluation Subset}. In our dataset, 2{,}898 of 3{,}955 cases score $\geq 3$, providing ample candidates; 420 cases achieve the maximum score of 6.
+    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which utilizes \emph{only the IMPRESSION section} to assign a binary label: 1 (malignant) or 0 (benign). This separation ensures the ground truth reflects the radiologist's synthesized diagnosis. Cases returning $-1$ (Indeterminate) are excluded.
+    \item \textbf{Subset Selection:} Cases with richness score $\geq 3$ are retained and ranked in descending order of score. The top 500 cases are selected to form the \emph{Evaluation Subset}. In my dataset, 2{,}898 of 3{,}955 cases score $\geq 3$, providing ample candidates; 420 cases achieve the maximum score of 6.
 \end{enumerate}
 
 Table~\ref{tab:richness-dist} shows the score distribution across the full dataset.
@@ -116,9 +116,19 @@ This richness-based filtering ensures that the selected cases contain sufficient
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
 
-A single form of ground truth is used for system evaluation:
+For the entire dataset, a binary label (1=malignant, 0=benign) is automatically derived from the \texttt{IMPRESSION} section of the original radiology reports. The \texttt{IMPRESSION} section represents the radiologist's final diagnosis and synthesis. A case is labeled ``malignant'' (1) if this section contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated''), otherwise ``benign'' (0).
 
-\textbf{System-Level Ground Truth (Classification):} For the entire dataset, a binary label (1=malignant, 0=benign) is automatically derived from the original radiology reports. A case is labeled ``malignant'' (1) if the report contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated''), otherwise ``benign'' (0). This label serves as the reference for the Oncologist agent's final consensus decision.
+Using NLP-derived labels as ground truth---commonly termed a ``Silver Standard''---is an established practice in large-scale medical imaging research where manual annotation at scale is infeasible. Two landmark datasets adopt this approach: CheXpert~\cite{irvin2019chexpert} applies a rule-based NLP labeler (mention extraction $\rightarrow$ negation/uncertainty classification $\rightarrow$ label aggregation) to assign 14 observation labels from radiology reports, while MIMIC-CXR-JPG~\cite{johnson2019mimiccxr} reuses the same CheXpert labeler to produce labels for over 370{,}000 chest radiographs. Both projects demonstrate that carefully designed rule-based NLP pipelines produce labels of sufficient quality for training and evaluating deep learning systems at scale.
+
+My ground-truth extraction pipeline follows the same architectural pattern as the CheXpert labeler:
+\begin{enumerate}
+    \item \emph{Mention extraction}: keyword and regex patterns identify clinical entities (nodule, mass, opacity, spiculated, etc.);
+    \item \emph{Negation and uncertainty detection}: NegEx-style~\cite{chapman2001negex} rules classify whether entities are affirmed, negated, or uncertain (cf.\ NegBio~\cite{peng2018negbio});
+    \item \emph{Label aggregation}: the final binary label is derived from the presence of un-negated suspicious keywords.
+\end{enumerate}
+The key difference is scope: while CheXpert labels 14 observations, my extractor targets a single binary decision (benign vs.\ malignant) optimized for lung nodule assessment.
+
+Naturally, the NLP agents (Section~\ref{subsubsec:pathologists}) are restricted to analyzing only the \texttt{FINDINGS} section, which contains the raw clinical observations. This separation prevents ``circular confirmation'' where agents merely re-read the diagnosis they are supposed to infer. Note that neither CheXpert nor MIMIC-CXR enforce this separation---both apply their labeler to the full report text. My approach is therefore more conservative: the agents must \emph{infer} the diagnosis from observations, while the ground truth is derived from the radiologist's explicit synthesis.
 
 \subsection{Contributions}
 \label{subsec:contributions}
@@ -126,7 +136,8 @@ A single form of ground truth is used for system evaluation:
 The main contributions of this project are:
 
 \begin{enumerate}
-    \item A complete BDI multi-agent system with 7 agent instances across 3 agent types, communicating via FIPA-compliant message passing.
+    \item A complete BDI multi-agent system with \textbf{7 agent instances} across 3 agent types, communicating via FIPA-ACL message passing.
+    \item An evaluation methodology where NLP agents must infer a diagnosis from observational data (\texttt{FINDINGS}) while being evaluated against the radiologist's explicit diagnosis (\texttt{IMPRESSION}).
     \item A custom NLP pipeline for lung nodule evidence extraction implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
     \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and binary classification (benign vs.\ malignant) with explanation generation.
     \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
@@ -147,7 +158,7 @@ The main contributions of this project are:
 \subsection{NLP in Radiology}
 \label{subsec:nlp-radiology}
 
-Pons et al.~\cite{pons2016nlpradiology} present a systematic review of NLP applications in radiology, describing a canonical pipeline consisting of: (i) report section splitting (e.g., separating Findings from Impression); (ii) tokenization and normalization (handling abbreviations and standardizing measurements); (iii) syntax and semantic processing; and (iv) application-specific extraction. Rule-based systems like CheXpert~\cite{irvin2019chexpert} and NegBio~\cite{peng2018negbio} have demonstrated that symbolic NLP can achieve high accuracy in this domain without the need for large annotated datasets required by deep learning models. They emphasize that \emph{negation detection} is essential for clinical NLP, since a large proportion of medical concepts in radiology reports appear in negated contexts (e.g., ``no evidence of nodule''). My NLP pipeline follows this structure, with each stage implemented across three specialized Pathologist agents.
+Pons et al.~\cite{pons2016nlpradiology} present a systematic review of NLP applications in radiology, describing a canonical pipeline consisting of: (i) report section splitting (e.g., separating Findings from Impression); (ii) tokenization and normalization (handling abbreviations and standardizing measurements); (iii) syntax and semantic processing; and (iv) application-specific extraction. Systems like CheXpert~\cite{irvin2019chexpert} and NegBio~\cite{peng2018negbio} have demonstrated that symbolic NLP can achieve high accuracy in this domain without the need for large annotated datasets required by deep learning models. They emphasize that \emph{negation detection} is essential for clinical NLP, since a large proportion of medical concepts in radiology reports appear in negated contexts (e.g., ``no evidence of nodule''). My NLP pipeline follows this structure, with each stage implemented across three specialized Pathologist agents.
 
 \subsection{Negation and Uncertainty Detection}
 \label{subsec:negation}
@@ -159,7 +170,7 @@ For uncertainty detection, the CheXpert labeler~\cite{irvin2019chexpert} demonst
 \subsection{BDI Multi-Agent Systems}
 \label{subsec:bdi}
 
-The Belief--Desire--Intention (BDI) architecture~\cite{rao2005bdi} models rational agents that maintain: \emph{beliefs} (information about the environment), \emph{desires} (goals to achieve), and \emph{intentions} (committed plans). This architecture is implemented using the SPADE-BDI framework~\cite{spadebdi2023}, which extends the SPADE middleware~\cite{palanca2020spade} to support AgentSpeak(L) plans. The use of AgentSpeak(L) for defining agent reasoning follows the standard approach for programming BDI agents popularized by Jason~\cite{bordini2007multi}. In my implementation, `spade\_main.py` serves as the entry point, initializing specialized BDI agents that execute strict AgentSpeak logic defined in `.asl` files.
+The Belief--Desire--Intention (BDI) architecture~\cite{rao2005bdi} models rational agents that maintain: \emph{beliefs} (information about the environment), \emph{desires} (goals to achieve), and \emph{intentions} (committed plans). This architecture is implemented using the SPADE-BDI framework~\cite{spadebdi2023}, which extends the SPADE middleware~\cite{palanca2020spade} to support AgentSpeak(L) plans. The use of AgentSpeak(L) for defining agent reasoning follows the standard approach for programming BDI agents popularized by Jason~\cite{bordini2007multi}. In my implementation, \href{https://github.com/sepehrkdi/lung_nodule_mas/blob/main/spade_main.py}{\texttt{spade\_main.py}} serves as the entry point, initializing specialized BDI agents that execute strict AgentSpeak logic defined in `.asl` files.
 
 \subsection{Multi-Agent Consensus}
 \label{subsec:consensus-bg}
@@ -772,7 +783,7 @@ Pathologist-3 (NegEx/Context) successfully detected negated findings across the 
 
 This project presented a BDI multi-agent system for lung nodule evidence extraction and binary classification (0=benign, 1=malignant) from chest X-ray reports and images. The system integrates three complementary AI paradigms: (1)~computer vision using TorchXRayVision's DenseNet-121 pretrained on large-scale chest X-ray datasets, (2)~natural language processing with scispaCy medical NER and NegEx-style negation detection, and (3)~symbolic reasoning via Prolog-based weighted consensus with binary thresholding at 0.5.
 
-The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-compliant message passing. Evaluation on the 500-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 76.6\% binary classification accuracy with 97.4\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (88.6\%) for benign cases but lower sensitivity (11.5\%) for malignant cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
+The architecture deploys seven agent instances (three radiologists, three pathologists, one oncologist) that communicate via FIPA-ACL message passing. Evaluation on the 500-case Evaluation Subset from the IU/Open-I NLMCXR dataset achieved 76.6\% binary classification accuracy with 97.4\% majority agreement among agents, demonstrating robust consensus convergence. The system exhibited high specificity (88.6\%) for benign cases but lower sensitivity (11.5\%) for malignant cases, reflecting the inherent challenge of detecting rare pathological findings in an imbalanced dataset.
 
 Key technical contributions include:
 \begin{itemize}
