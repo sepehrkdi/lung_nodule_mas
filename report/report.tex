@@ -37,7 +37,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} and automatically derive binary ground-truth labels (benign/malignant) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} \textcolor{red}{[Comment: Adjust after full_evaluation.sh]}and automatically derive binary ground-truth labels (benign/malignant) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
 
 
 

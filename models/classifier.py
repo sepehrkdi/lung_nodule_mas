@@ -43,9 +43,12 @@ This is a simplified demonstration. Real medical AI would require:
 """
 
 import numpy as np
+import logging
 from typing import Dict, Any, Optional, Tuple, Union
 from pathlib import Path
 import warnings
+
+logger = logging.getLogger(__name__)
 
 
 def calibrate_xrv_probability(
@@ -151,7 +154,7 @@ class NoduleClassifier:
             # Load pre-trained DenseNet121 from TorchXRayVision
             # EDUCATIONAL: These weights are trained on multiple chest X-ray datasets
             # (NIH, PC, CheXpert, MIMIC_CH, Google, OpenI, RSNA, etc.)
-            print(f"[NoduleClassifier] Loading TorchXRayVision DenseNet on {self.device}...")
+            logger.info(f"[NoduleClassifier] Loading TorchXRayVision DenseNet on {self.device}...")
             
             self.model = xrv.models.DenseNet(weights="densenet121-res224-all")
             self.model = self.model.to(self.device)
@@ -167,15 +170,17 @@ class NoduleClassifier:
             ])
             
             self.model_loaded = True
-            print("[NoduleClassifier] TorchXRayVision model loaded successfully")
-            print(f"[NoduleClassifier] Model pathologies: {self.model.pathologies}")
+            logger.info("[NoduleClassifier] TorchXRayVision model loaded successfully")
+            logger.info(f"[NoduleClassifier] Model pathologies: {self.model.pathologies}")
             
         except ImportError as e:
-            print(f"[NoduleClassifier] TorchXRayVision not available: {e}")
-            print("[NoduleClassifier] Falling back to feature-based classification")
+            logger.error(f"[NoduleClassifier] TorchXRayVision not available: {e}")
+            logger.info("[NoduleClassifier] Falling back to feature-based classification")
+            self.model_loaded = False
         except Exception as e:
-            print(f"[NoduleClassifier] Model loading failed: {e}")
-            print("[NoduleClassifier] Falling back to feature-based classification")
+            logger.error(f"[NoduleClassifier] Model loading failed: {e}", exc_info=True)
+            logger.info("[NoduleClassifier] Falling back to feature-based classification")
+            self.model_loaded = False
     
     def _preprocess_image(self, image: np.ndarray) -> 'torch.Tensor':
         """
