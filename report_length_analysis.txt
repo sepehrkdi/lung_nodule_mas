@@ -1,0 +1,42 @@
+Loading cases from /home/sepehrkhd/Desktop/NLPSDAIPROJECT/lung_nodule_mas/data/NLMCXR/ecgen-radiology...
+
+Total Reports: 3955
+Min: 0
+Max: 1417
+Mean: 268.87
+Median: 245.0
+
+Percentiles:
+  1th: 24.9
+  5th: 94.0
+  10th: 130.0
+  25th: 176.0
+  50th: 245.0
+  75th: 331.0
+  90th: 448.6
+  95th: 535.3
+  99th: 737.9
+
+Threshold Counts:
+  < 40 chars: 54 (1.37%)
+  < 60 chars: 81 (2.05%)
+  < 80 chars: 115 (2.91%)
+  < 90 chars: 179 (4.53%)
+  < 100 chars: 216 (5.46%)
+
+--- Qualitative Examples ---
+
+[Target: ~60 chars]
+  (58 chars) [CXR981]: Slight cardiomegaly. Lungs are clear no effusions or edema
+  (58 chars) [CXR3454]: PICC catheter tip mid SVC. Heart size normal. Lungs clear.
+  (59 chars) [CXR2996]: Heart size is normal and the lungs are clear. No effusions.
+
+[Target: ~80 chars]
+  (79 chars) [CXR1977]: Heart size is normal. Lungs are clear. Minimal platelike atelectasis left base.
+  (79 chars) [CXR2125]: Heart size normal. Tortuous dilated aorta. Minimal basilar infiltrate left base
+  (81 chars) [CXR361]: Lungs remain clear and expanded. Heart and mediastinum normal. No active disease.
+
+[Target: ~90 chars]
+  (88 chars) [CXR319]: Normal heart size. Clear lungs. No pneumothorax. No pleural effusion. Normal chest exam.
+  (88 chars) [CXR755]: Lungs clear. Heart size normal. Flowing syndesmophytes in the thoracic spine, XXXX DISH.
+  (89 chars) [CXR3911]: Heart size is normal and lungs are clear. No pneumonia or effusion. No nodules or masses.

@@ -37,7 +37,7 @@
 \subsection{Full Specification of the Proposal}
 \label{subsec:specification}
 
-I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs} \textcolor{red}{[Comment: Adjust after full_evaluation.sh]}and automatically derive binary ground-truth labels (benign/malignant) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
+I will build a complete BDI multi-agent system in which all agents are BDI agents that interoperate by message passing, while only the CV Radiologist uses a pre-trained model and the NLP is implemented by me. The use case is lung nodule evidence extraction from chest X-ray radiology reports, paired with the corresponding X-ray images from the IU/Open-I chest X-ray collection (English reports). The dataset contains around 7,470 images and reports. I will use an NLP-based pre-filter to select \hl{500 image--report pairs ADJUST AFTER RUNNING EVALUATION} and automatically derive binary ground-truth labels (benign/malignant) from the report text for evaluation of the multi-agent consensus and NLP extraction outputs (entities + attributes + negation/uncertainty).
 
 
 
@@ -66,7 +66,7 @@ This project addresses the problem of \emph{lung nodule evidence extraction and 
 \begin{enumerate}
     \item \textbf{Natural Language Processing (NLP):} Extracting structured nodule attributes (size, location, texture, descriptors), detecting mentions\footnote{mentions are the specific instances of nodule attributes mentioned in the report}, and determining negation/uncertainty status from free-text radiology reports.
     \item \textbf{Computer Vision (CV):} Obtaining nodule suspicion scores from chest X-ray images using the \texttt{TorchXRayVision} library~\cite{cohen2022xrv}, leveraging models pretrained on massive chest X-ray datasets.
-    \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, \hl{implementing weighted consensus, conflict detection}, and binary classification (0=benign, 1=malignant) with supplementary clinical recommendations.
+    \item \textbf{Symbolic Reasoning:} Combining the outputs of multiple NLP and CV agents using first-order logic rules encoded in Prolog, \hl{implementing weighted consensus}, conflict detection, and binary classification (0=benign, 1=malignant) with supplementary clinical recommendations.
 \end{enumerate}
 
 The system is organized as a \emph{Belief--Desire--Intention (BDI) multi-agent system}~\cite{rao2005bdi}, adapted specifically for the Lung-Nodule MAS. In this context, \textbf{Beliefs} represent the specific diagnostic evidence held by an agent (e.g., a Radiologist believing a nodule is present with probability $p$, or a Pathologist believing a finding is negated). \textbf{Desires} represent the clinical objective to process a specific patient case (e.g., the goal \texttt{!analyze\_case}). \textbf{Intentions} are the runtime execution of image analysis models or NLP pipelines chosen to fulfill those goals. This architecture is appropriate for medical decision support because it mirrors the clinical workflow: independent specialists (radiologists, pathologists) generate findings that are synthesized by a coordinating physician (oncologist) into a final recommendation.
@@ -82,17 +82,17 @@ In standard clinical practice for oncology patients, including those with lung m
 The system operates on the IU/Open-I Indiana University Chest X-ray Collection~\cite{demsar2005openi}, which contains approximately 7,470 chest X-ray images paired with free-text radiology reports. This subset size is consistent with prior clinical NLP validation studies. For instance, Chapman et al.\ evaluated the NegEx negation-detection algorithm against a set of \hl{1000 sentences} containing 1235 clinical findings and diseases extracted from discharge summaries~\cite{chapman2001negex}. To focus the evaluation on cases where the NLP agents can perform meaningful extraction, I implemented a multi-stage pre-filter pipeline that combines XML metadata analysis with a composite NLP-richness scoring function:
 
 \begin{enumerate}
-    \item \textbf{Ingestion and MeSH Parsing:} The \texttt{NLMCXR\_Loader} scans all XML report files. In addition to extracting the standard report sections (\texttt{FINDINGS}, \texttt{IMPRESSION}, \texttt{INDICATION}, \texttt{COMPARISON}), the parser now extracts \texttt{<MeSH>} annotations from each XML file. These include \texttt{<major>} tags (expert-assigned indexing terms such as ``Opacity/lung/upper lobe/right'' or ``normal'') and \texttt{<automatic>} tags (machine-generated terms). MeSH annotations provide structured metadata about the clinical content of each case without requiring full NLP processing.
+    \item \textbf{Ingestion and MeSH\footnote{Medical Subject Headings} Parsing:} The \href{https://github.com/sepehrkdi/lung_nodule_mas/blob/main/data/nlmcxr_loader.py}{\texttt{NLMCXR\_Loader}} scans all XML report files. In addition to extracting the standard report sections (\texttt{FINDINGS}, \texttt{IMPRESSION}, \texttt{INDICATION}, \texttt{COMPARISON}), the parser now extracts \texttt{<MeSH>} annotations from each XML file. These include \texttt{<major>} tags (expert-assigned indexing terms such as ``Opacity/lung/upper lobe/right'' or ``normal'') and \texttt{<automatic>} tags (machine-generated terms). MeSH annotations provide structured metadata about the clinical content of each case without requiring full NLP processing.
     \item \textbf{NLP Richness Scoring:} Each case is scored on six binary criteria (each worth 1 point, yielding a score in $[0, 6]$):
     \begin{enumerate}
-        \item \emph{Text length:} combined \texttt{FINDINGS} + \texttt{IMPRESSION} contains $\geq 80$ characters.
+        \item \emph{Text length:} combined \texttt{FINDINGS} + \texttt{IMPRESSION} contains $\geq 80$ characters. Empirical analysis of the dataset indicates that reports below this threshold (approximately the bottom 3\%) are typically ``normal'' templates lacking specific findings, whereas reports above this length contain extractable pathological entities.
         \item \emph{Non-normal MeSH:} at least one \texttt{<major>} tag is not simply ``normal''.
         \item \emph{Target entity present:} regex match finds a clinical entity (nodule, mass, opacity, lesion, consolidation, granuloma, atelectasis, etc.).
-        \item \emph{Entity not fully negated:} at least one entity is \emph{not} preceded by a negation trigger within 40 characters (e.g., ``no'', ``without'', ``no evidence of'').
+        \item \emph{Entity not fully negated:} at least one entity is \emph{not} preceded by a negation trigger within the same context (e.g., ``no'', ``without'', ``no evidence of'').
         \item \emph{Both sections non-empty:} \texttt{FINDINGS} and \texttt{IMPRESSION} both contain text.
         \item \emph{Anatomical location specified:} a laterality + anatomy pattern is present (e.g., ``right upper lobe'', ``left lung base'').
     \end{enumerate}
-    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (malignant) or 0 (benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation.
+    \item \textbf{Ground-Truth Derivation:} Each case is independently passed through the NLP-based ground-truth extractor (Section~\ref{subsec:groundtruth}), which assigns a binary label: 1 (malignant) or 0 (benign). Cases returning $-1$ (Indeterminate) are excluded from the evaluation because the dataset itself does not have the proper annotation.
     \item \textbf{Subset Selection:} Cases with richness score $\geq 3$ are retained and ranked in descending order of score. The top 500 cases are selected to form the \emph{Evaluation Subset}. In our dataset, 2{,}898 of 3{,}955 cases score $\geq 3$, providing ample candidates; 420 cases achieve the maximum score of 6.
 \end{enumerate}
 
@@ -111,7 +111,7 @@ Table~\ref{tab:richness-dist} shows the score distribution across the full datas
 \label{tab:richness-dist}
 \end{table}
 
-This richness-based filtering ensures that the selected cases contain sufficient textual content for the Pathologist agents' regex, NER, and negation-detection pipelines to operate on, rather than relying solely on binary keyword presence. The MeSH metadata provides an independent signal that is not derived from the same NLP pipeline used for ground-truth extraction, reducing circular dependency between case selection and evaluation.
+This richness-based filtering ensures that the selected cases contain sufficient textual content for the Pathologist agents' regex, NER, and negation-detection pipelines to operate on, rather than relying solely on binary keyword presence.
 
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
