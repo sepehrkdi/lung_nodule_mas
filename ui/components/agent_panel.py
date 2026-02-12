@@ -392,7 +392,7 @@ def render_consensus_panel(consensus: Dict[str, Any], ground_truth_info: Optiona
     }
     agreement_color = agreement_colors.get(agreement, "#6c757d")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown(f"""
@@ -424,35 +424,8 @@ def render_consensus_panel(consensus: Dict[str, Any], ground_truth_info: Optiona
         </div>
         """, unsafe_allow_html=True)
     
-    with col2:
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border: 2px solid #dee2e6;
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-        ">
-            <div style="font-size: 0.9em; color: #666;">Lung-RADS Category</div>
-            <div style="font-size: 2.5em; font-weight: bold; color: #333;">
-                {lung_rads}
-            </div>
-            <div style="margin-top: 10px;">
-                <span style="
-                    background-color: {agreement_color};
-                    color: white;
-                    padding: 4px 12px;
-                    border-radius: 15px;
-                    font-size: 0.85em;
-                ">{agreement.capitalize()} Agreement</span>
-            </div>
-            <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                Confidence: <strong>{confidence:.1%}</strong>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
     
-    with col3:
+    with col2:
         st.markdown(f"""
         <div style="
             background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);

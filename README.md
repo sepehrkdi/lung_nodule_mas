@@ -80,6 +80,41 @@ graph TD
 - **Logic**: SWI-Prolog (via PySwip).
 - **Functions**: Weighted voting, disagreement detection, clinical recommendation (Lung-RADS).
 
+## User Interface
+
+The system features a **Streamlit-based Dashboard** for interactive analysis and explainability.
+
+### 1. Dashboard Overview
+A dedicated dashboard tracks system performance, showing real-time metrics (Accuracy, Precision, Recall) and agreement statistics across the evaluation set.
+
+![Dashboard](report/figures/ui_dashboard.png)
+
+### 2. Case Analysis
+The core interface allows deep inspection of individual cases, visualizing both the X-ray image and the radiology report side-by-side.
+
+![Case Analysis](report/figures/ui_case_analysis.png)
+
+### 3. Agent Results
+Each agent (3 Radiologists, 3 Pathologists) displays its individual findings, confidence, and computed dynamic weight.
+
+![Agent Results](report/figures/ui_agent_results.png)
+
+### 4. Consensus & Decision Making
+The Oncologist agent aggregates these findings into a final diagnosis, providing a malignancy probability and a clinical recommendation.
+
+![Consensus](report/figures/ui_consensus.png)
+
+### 5. Explainability Features
+To build trust, the system exposes its internal reasoning:
+
+**Agent Thinking Process**: A step-by-step log of the BDI reasoning loop (Perception $\to$ Deliberation $\to$ Intention).
+
+![Thinking Process](report/figures/ui_agent_thinking.png)
+
+**Dynamic Weight Assignment**: Quantifies how data richness (e.g., image quality, report detail) influences each agent's vote.
+
+![Dynamic Weights](report/figures/ui_dynamic_weights.png)
+
 ## Installation
 
 ### Prerequisites

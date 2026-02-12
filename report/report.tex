@@ -688,12 +688,97 @@ The Oncologist generates a structured explanation for each decision, consisting 
 
 
 % =============================================================================
+% USER INTERFACE
+% =============================================================================
+\section{User Interface}
+\label{sec:ui}
+
+The system features a web-based user interface built with Streamlit, designed to be intuitive for clinical users. The UI provides two main views: a Case Analysis view for individual patient assessment and an Evaluation Dashboard for system-level performance monitoring.
+
+\subsection{Case Analysis View}
+\label{subsec:ui-analysis}
+
+The Case Analysis view (Figure~\ref{fig:ui-analysis}) serves as the primary workspace for the clinician. It displays the patient's chest X-ray image alongside the generated radiology report. Key features include:
+\begin{itemize}
+    \item \textbf{Image Visualization:} High-resolution display of the X-ray with support for windowing and zooming.
+    \item \textbf{Highlighed Findings:} The NLP agents highlight extracted entities (nodules, sizes, locations) directly in the report text, color-coded by certainty (affirmed vs. negated).
+    \item \textbf{Agent Consensus Panel:} A sidebar panel (not shown) displays the voting breakdown of all 6 agents, the dynamic weights assigned to each, and the final Oncologist consensus decision with explanation.
+\end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_case_analysis.png}
+    \caption{Case Analysis View. The system presents the chest X-ray (left) and the analyzed radiology report (right). NLP agents automatically highlight relevant findings in the text, improving reading efficiency.}
+    \label{fig:ui-analysis}
+\end{figure}
+
+\subsection{Evaluation Dashboard}
+\label{subsec:ui-dashboard}
+
+The Evaluation Dashboard (Figure~\ref{fig:ui-dashboard}) provides real-time visibility into the multi-agent system's performance. It aggregates results across the processed dataset to show:
+\begin{itemize}
+    \item \textbf{Performance Metrics:} Current Accuracy, Precision, Recall, and F1 Score relative to the ground truth.
+    \item \textbf{Confusion Matrix:} A visual breakdown of true positives, false positives, etc.
+    \item \textbf{Agreement Statistics:} Charts showing the frequency of unanimous vs. majority vs. split decisions among agents.
+\end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_dashboard.png}
+    \caption{Evaluation Dashboard. This view summarizes the system's performance across the dataset, displaying key metrics and agent agreement statistics to validate the multi-agent consensus mechanism.}
+    \label{fig:ui-dashboard}
+\end{figure}
+
+\subsection{Analysis Results}
+\label{subsec:ui-results}
+
+Upon triggering the analysis for a specific case, the system displays the detailed reasoning of every agent. Figure~\ref{fig:ui-agent-results} shows the individual outputs of the three Radiologist agents (predicting malignancy probability based on image features) and the three Pathologist agents (extracting evidence from the text). 
+
+Finally, the \textbf{Oncologist Consensus Result} (Figure~\ref{fig:ui-consensus}) aggregates these diverse inputs using the weighted voting mechanism described in Section~\ref{sec:prolog}. It presents the final binary diagnosis, the confidence level, and the derived Lung-RADS category with clinical recommendations.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_agent_results.png}
+    \caption{Multi-Agent Analysis Results. The interface displays the independent conclusions of all 6 agents. Each card shows the agent's probability, binary prediction, and dynamic weight for the specific case.}
+    \label{fig:ui-agent-results}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_consensus.png}
+    \caption{Oncologist Consensus. The final decision panel shows the aggregated malignancy prediction (Class 1), the computed confidence (75.0\%), and the corresponding Lung-RADS recommendation (Category 3).}
+    \label{fig:ui-consensus}
+\end{figure}
+
+\subsection{Explainability Features}
+\label{subsec:ui-explainability}
+
+To engender trust in the multi-agent decisions, the UI exposes the internal reasoning processes of the system.
+
+\textbf{Dynamic Weight Assignment} (Figure~\ref{fig:ui-weights}) visualizes how the information richness of the case (e.g., image quality, report length) influenced the weight of each agent. This transparency helps clinicians understand why certain agents were prioritized.
+
+\textbf{Agent Thinking Process} (Figure~\ref{fig:ui-thinking}) provides a step-by-step trace of the BDI reasoning loop. It displays the sequence of \textsc{Perception} (agents reporting findings), \textsc{Deliberation} (weighted voting and rule checking), and \textsc{Intention} (formation of the final diagnostic goal). This "glass-box" view demystifies the consensus logic.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_dynamic_weights.png}
+    \caption{Dynamic Weight Assignment. The interface visualizes the richness scores for Radiology (100\%) and Pathology (87.5\%) and lists the resulting dynamic weight adjustments for each agent, showing how data quality impacts agent influence.}
+    \label{fig:ui-weights}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/ui_agent_thinking.png}
+    \caption{Agent Thinking Process. A chronological log of the BDI reasoning steps, showing how beliefs from individual agents are perceived, aggregated via weighted voting, and processed by Prolog rules to form the final diagnostic intention.}
+    \label{fig:ui-thinking}
+\end{figure}
+
+
+% =============================================================================
 % EVALUATION
 % =============================================================================
 \section{Evaluation}
 \label{sec:evaluation}
-
-
 
 \subsection{Metrics}
 \label{subsec:metrics}
