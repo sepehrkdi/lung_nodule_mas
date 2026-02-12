@@ -1,124 +1,93 @@
-# Multi-Agent System for Lung Nodule Classification
+# BDI Multi-Agent System for Lung Nodule Evidence Extraction
 
-**EDUCATIONAL PROJECT**
+**University of Genoa - Distributed Artificial Intelligence Project**
 
-This project demonstrates the integration of:
-- **Natural Language Processing (NLP)** - Medical text analysis with scispaCy + regex
-- **Symbolic AI (Prolog)** - First-Order Logic reasoning with PySwip
-- **Distributed AI (BDI Agents)** - Multi-agent collaboration with belief-desire-intention architecture
-- **SPADE-BDI Framework** - Proper AgentSpeak(L) interpreter for genuine BDI semantics
-- **Diverse Agent Architecture** - Multiple specialized agents with different approaches
+This project implements a **Belief-Desire-Intention (BDI) Multi-Agent System (MAS)** for extracting and fusing diagnostic evidence from chest X-ray images and radiology reports. It demonstrates the integration of **Deep Learning (Computer Vision)**, **Symbolic NLP**, and **Logic Programming (Prolog)** within a distributed agent architecture.
 
-## BDI Framework
+## Key Features
 
-### SPADE-BDI Implementation (Recommended)
-This project uses **SPADE-BDI** as the primary BDI framework:
-- **SPADE**: Smart Python Agent Development Environment
-- **AgentSpeak(L)**: Proper plan syntax with triggering events
-- **Internal Actions**: Python functions callable from AgentSpeak plans
-- **Multi-Agent Consensus**: Weighted voting across multiple agents
+### 1. Neuro-Symbolic Architecture
+- **Computer Vision**: `TorchXRayVision` (DenseNet/ResNet) for image analysis.
+- **Symbolic NLP**: Custom pipeline with Regex, spaCy, and NegEx for text extraction.
+- **Prolog Reasoning**: SWI-Prolog knowledge base for weighted consensus and conflict resolution.
 
-### Why SPADE-BDI?
-1. **Proper AgentSpeak Interpreter**: Unlike custom implementations, SPADE-BDI provides genuine AgentSpeak(L) semantics
-2. **Standard Communication**: Uses XMPP for agent messaging (FIPA-compliant)
-3. **Academic Credibility**: Well-documented framework with published papers
-4. **Python Integration**: Easy to combine with ML/NLP libraries
+### 2. Dynamic Per-Case Weighing
+Unlike traditional systems with static weights, this MAS calculates a **Dynamic Richness Score** for each case. Agents operating on richer data (e.g., high-res PA views, detailed textual reports) are assigned higher influence in the final consensus.
+
+### 3. Anatomically-Calibrated Size Estimation
+The Rule-Based Radiologist (R3) uses a custom **blob detection algorithm** calibrated to a standard chest field-of-view (300mm) to estimate nodule size in millimeters, replacing naive pixel-based heuristics.
+
+### 4. Dependency-Anchored NLP Frames
+The spaCy Pathologist (P2) builds **structured finding frames** by traversing dependency trees, ensuring that attributes (size, location) are strictly associated with the correct nodule entity, resolving the "bag-of-words" problem in complex reports.
+
+### 5. Provenance-Aware Consensus
+Agents explicitly tag their findings with data sources (e.g., `size_source='regex'`). The consensus engine automatically down-weights agents that fail to find concrete measurements (`size_source='unknown'`), ensuring the final diagnosis is grounded in high-quality evidence.
 
 ## Architecture
 
-### Extended 6-Agent Architecture (Recommended)
+The system follows a hub-and-spoke architecture where specialized agents report to a central Oncologist.
 
+```mermaid
+graph TD
+    IMG[X-ray Image] --> R1
+    IMG --> R2
+    IMG --> R3
+    TXT[Report Text] --> P1
+    TXT --> P2
+    TXT --> P3
+    
+    subgraph Radiologists [CV Agents]
+    R1[R1: DenseNet121]
+    R2[R2: ResNet50]
+    R3[R3: Rule-Based]
+    end
+    
+    subgraph Pathologists [NLP Agents]
+    P1[P1: Regex]
+    P2[P2: spaCy NER]
+    P3[P3: NegEx/Context]
+    end
+    
+    subgraph Consensus [Reasoning Layer]
+    PROLOG[Prolog Engine]
+    ONC[Oncologist Agent]
+    end
+    
+    R1 & R2 & R3 --> PROLOG
+    P1 & P2 & P3 --> PROLOG
+    PROLOG --> ONC
+    ONC --> DECISION[Final Diagnosis]
 ```
-    ┌─────────────────────────────────────────────────────────────────┐
-    │                    EXTENDED MAS ARCHITECTURE                    │
-    ├─────────────────────────────────────────────────────────────────┤
-    │                                                                 │
-    │   RADIOLOGIST AGENTS (Image Analysis) - 3 Approaches           │
-    │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-    │   │  DenseNet121 │  │   ResNet50   │  │  Rule-Based  │         │
-    │   │   W = 1.0    │  │   W = 1.0    │  │   W = 0.7    │         │
-    │   │   (Deep CNN) │  │  (Deep CNN)  │  │ (Heuristics) │         │
-    │   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
-    │          │                 │                  │                 │
-    │          └────────────────┬┴──────────────────┘                │
-    │                           │                                     │
-    │   PATHOLOGIST AGENTS (Report Analysis) - 3 Approaches          │
-    │   ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐      │
-    │   │  Regex-Based │  │ spaCy NER + Rules│  │   Context    │      │
-    │   │   W = 0.8    │  │     W = 0.9      │  │   W = 0.85   │      │
-    │   │ (Patterns)   │  │ (Statistical NLP)│  │ (Contextual) │      │
-    │   └──────┬───────┘  └────────┬─────────┘  └──────┬───────┘      │
-    │          │                   │                   │              │
-    │          └──────────────────┬┴───────────────────┘              │
-    │                           │                                     │
-    │   ┌───────────────────────┴───────────────────────┐            │
-    │   │              PROLOG CONSENSUS                  │            │
-    │   │   • Weighted voting (agent expertise weights)  │            │
-    │   │   • Disagreement detection & resolution        │            │
-    │   │   • Confidence interval computation            │            │
-    │   │   • Dempster-Shafer evidence combination       │            │
-    │   └───────────────────────┬───────────────────────┘            │
-    │                           │                                     │
-    │                    ┌──────┴──────┐                             │
-    │                    │   FINAL     │                             │
-    │                    │ DIAGNOSIS   │                             │
-    │                    │ + LUNG-RADS │                             │
-    │                    └─────────────┘                             │
-    └─────────────────────────────────────────────────────────────────┘
-```
-
-### Agent Diversity Rationale
-
-**Why Different Radiologist Approaches?**
-- **DenseNet121**: Dense connections, excellent for texture features
-- **ResNet50**: Skip connections, robust gradient flow
-- **Rule-Based**: Interpretable baseline following Lung-RADS guidelines
-
-**Why Different Pathologist Approaches?**
-- **Regex**: Fast, explicit patterns, fully interpretable
-- **spaCy NER**: Robust to variations, contextual understanding, medical entities
 
 ## Agents
 
-### 1. Radiologist Agents (Computer Vision) - x3
+### Radiologist Agents (Computer Vision)
+| Agent | Model | Behavior |
+|-------|-------|----------|
+| **R1** | DenseNet121 | Conservative, high specificity |
+| **R2** | ResNet50 | Balanced sensitivity/specificity |
+| **R3** | Rule-Based | Heuristic (Size/Texture Analysis) |
 
-| Agent | Architecture | Weight | Approach |
-|-------|--------------|--------|----------|
-| RadiologistDenseNet | DenseNet121 | 1.0 | Deep CNN with dense connections |
-| RadiologistResNet | ResNet50 | 1.0 | Deep CNN with residual blocks |
-| RadiologistRuleBased | Heuristic | 0.7 | Size/texture rules (Lung-RADS) |
+### Pathologist Agents (NLP)
+| Agent | Method | Focus |
+|-------|--------|-------|
+| **P1** | Regex | Fast, explicit pattern matching |
+| **P2** | spaCy NER | Dependency parsing, frame building |
+| **P3** | NegEx | Context (Negation/Uncertainty) detection |
 
-### 2. Pathologist Agents (NLP) - x2
-
-| Agent | Method | Weight | Approach |
-|-------|--------|--------|----------|
-| PathologistRegex | Pattern Matching | 0.8 | Regular expressions for extraction |
-| PathologistSpacy | spaCy NER | 0.9 | Medical NER + semantic rules |
-
-### 3. Oncologist/Consensus (Symbolic Reasoning)
-- Uses **Prolog** via PySwip
-- Combines findings from ALL 6 agents
-- Applies **Lung-RADS** classification rules
-- Implements **weighted consensus voting**
-- Handles disagreement resolution
-- Generates clinical recommendations
-
-## BDI Architecture
-
-This project implements the Belief-Desire-Intention (BDI) model using SPADE-BDI:
-
-- **Beliefs**: Current knowledge about nodules
-  - Size, texture, margins from NLP
-  - Classification probability from CV
-  - Rules from Prolog knowledge base
-  - Annotated with source agent for provenance
-
-- **Desires**: Goals agents want to achieve
-  - Analyze image (Radiologist)
-  - Extract information (Pathologist)
+### Oncologist Agent (Consensus)
+- **Role**: Coordinator and decision maker.
+- **Logic**: SWI-Prolog (via PySwip).
+- **Functions**: Weighted voting, disagreement detection, clinical recommendation (Lung-RADS).
 
 ## Installation
 
+### Prerequisites
+- Python 3.8+
+- SWI-Prolog ([Installation Guide](https://www.swi-prolog.org/Download.html))
+- `git`
+
+### Setup
 ```bash
 # Clone the repository
 git clone <repository_url>
@@ -126,280 +95,98 @@ cd lung_nodule_mas
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac: source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Install scispaCy model
 pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.1/en_core_sci_sm-0.5.1.tar.gz
-
-# Install SWI-Prolog (required for PySwip)
-# Ubuntu/Debian:
-sudo apt-get install swi-prolog
-
-# macOS:
-brew install swi-prolog
 ```
 
-## Dataset
-
-### Primary: Open-I Indiana University Chest X-ray Collection
-
-This project uses the **Open-I Indiana University Chest X-ray Collection** - a dataset containing paired chest X-ray images with corresponding radiology reports.
-
-**Why Open-I?**
-- ✅ **Paired Data**: Images + reports for both CV and NLP agents
-- ✅ **Real Reports**: Authentic radiology language for NLP training
-- ✅ **Manageable Size**: Can use 20-50 cases for educational project
-- ✅ **Free Access**: No special access required
-
-**Dataset Source**: https://openi.nlm.nih.gov/
-
-**Downloading the Dataset**:
-```bash
-# Create data directory
-mkdir -p data/openi/images data/openi/reports
-
-# Download from Open-I (manual process):
-# 1. Go to https://openi.nlm.nih.gov/
-# 2. Search for "pulmonary nodule" or "lung nodule"
-# 3. Download images and XML reports
-# 4. Place PNGs in data/openi/images/
-# 5. Place XMLs in data/openi/reports/
-
-# Alternatively, use the provided download script:
-python -m data.download_openi --n_cases 50
-```
-
-**Data Structure**:
-```
-data/openi/
-├── images/
-│   ├── CXR111_IM-0076-1001.png
-│   └── ...
-├── reports/
-│   ├── CXR111_IM-0076-1001.xml
-│   └── ...
-└── manifest.json  (auto-generated)
-```
-
-### Fallback Dataset (Included)
-10 synthetic cases with pre-defined features for zero-setup demo:
-```
-data/fallback/
-├── nodule_001.json  # Malignancy 1 (benign)
-├── nodule_005.json  # Malignancy 3 (indeterminate)
-├── nodule_010.json  # Malignancy 5 (suspicious)
-└── ...
-```
-
-Each fallback case includes:
-- Structured features (size, texture, location)
-- Synthetic radiology report text
-- Ground truth malignancy score
+> **Note**: `TorcXRayVision` will download pretrained weights (approx 100MB) on the first run.
 
 ## Usage
 
-### Extended 6-Agent Demo (Recommended)
+### 1. Extended Demo (Recommended)
+Run the full 6-agent system on sample cases with detailed logging.
 ```bash
 python main_extended.py --demo
 ```
 
-### Extended 6-Agent Evaluation
+### 2. SPADE-BDI Evaluation
+Run the underlying SPADE-BDI agent system directly.
 ```bash
-python main_extended.py --evaluate
+# Run on all available nodules
+python spade_main.py --all
+
+# Run with full evaluation metrics
+python spade_main.py --evaluate
+
+# Process a specific case
+python spade_main.py --nodule nodule_001
 ```
 
-### Extended with Export
+### 3. Export Results
+Generate a JSON report of the analysis.
 ```bash
 python main_extended.py --evaluate --export results.json
 ```
 
-### Quick Demo (Original Implementation)
-```bash
-python main.py --demo
-```
+## Dataset
 
-### SPADE-BDI Demo
-```bash
-python spade_main.py --demo
-```
+This project uses the **Open-I Indiana University Chest X-ray Collection**.
+- **Source**: [Open-I NIH](https://openi.nlm.nih.gov/)
+- **Content**: 7,470 paired images and reports.
+- **Evaluation Subset**: A filtered subset of 500 cases selected for high textual "richness".
 
-### SPADE-BDI with Custom Agent Count
-```bash
-python spade_main.py --num-radiologists 5 --num-pathologists 3
-```
+To evaluate on the full dataset, ensure extraction is complete in `data/NLMCXR/`.
 
-### Process All Nodules
-```bash
-python spade_main.py --all
-```
+## Evaluation Results
 
-### Process Specific Nodule
-```bash
-python spade_main.py --nodule nodule_001
-```
+Performance on the 500-case Evaluation Subset (NLP-derived Ground Truth):
 
-### With Evaluation Metrics
-```bash
-python spade_main.py --all --evaluate
-```
+| Metric | Score |
+|--------|-------|
+| **Binary Accuracy** | **76.6%** |
+| Weighted Precision | 73.7% |
+| Weighted Recall | 76.6% |
+| Weighted F1 Score | 75.1% |
+| Majority Agreement | 97.4% |
 
-### Save Results
-```bash
-python spade_main.py --all --output results.json
-```
+*Data based on 500-case evaluation run (Feb 2026).*
 
 ## Project Structure
 
 ```
 lung_nodule_mas/
-├── main.py                     # Original orchestrator
-├── main_extended.py            # Extended 6-agent orchestrator (recommended)
-├── spade_main.py               # SPADE-BDI orchestrator
-├── orchestrator.py             # Multi-agent orchestrator with Prolog consensus
-├── requirements.txt            # Dependencies
-├── README.md                   # This file
-│
-├── agents/                     # BDI Agents
-│   ├── base_agent.py          # Original BDI base class
-│   ├── spade_base.py          # SPADE-BDI base class
-│   ├── radiologist_agent.py   # Original CV agent
-│   ├── pathologist_agent.py   # Original NLP agent
-│   ├── oncologist_agent.py    # Original Prolog agent
-│   ├── spade_radiologist.py   # SPADE-BDI CV agent
-│   ├── spade_pathologist.py   # SPADE-BDI NLP agent
-│   ├── spade_oncologist.py    # SPADE-BDI reasoning agent
-│   ├── radiologist_variants.py # DenseNet, ResNet, Rule-based
-│   └── pathologist_variants.py # Regex, spaCy NER
-│
-├── asl/                        # AgentSpeak(L) plans
-│   ├── radiologist.asl        # CV plans (SPADE-BDI syntax)
-│   ├── pathologist.asl        # NLP plans (SPADE-BDI syntax)
-│   └── oncologist.asl         # Reasoning plans (SPADE-BDI syntax)
-│
-├── knowledge/                  # Prolog Knowledge Bases
-│   ├── lung_rads.pl           # Lung-RADS classification rules
-│   ├── multi_agent_consensus.pl # Weighted voting & disagreement resolution
-│   └── prolog_engine.py       # PySwip interface
-│
-├── communication/              # Agent messaging
-│   └── message_queue.py       # FIPA-ACL broker
-│
-├── models/                     # ML models
-│   └── classifier.py          # DenseNet121
-│
-├── nlp/                        # NLP components
-│   └── extractor.py           # scispaCy extractor
-│
-├── data/                       # Data handling
-│   ├── nlmcxr_loader.py       # NLMCXR data loader
-│   ├── nlmcxr_parser.py       # XML report parser
-│   ├── base_loader.py         # Abstract loader interface
-│   ├── extract_nlmcxr.py      # Dataset extraction
-│   └── NLMCXR/                 # Dataset directory
-│       ├── ecgen-radiology/   # XML reports
-│       └── images/            # PNG images
-│
-└── evaluation/                 # Metrics
-    └── metrics.py             # Accuracy, ROC, etc.
-```
-
-## Educational Concepts Demonstrated
-
-### 1. NLP (Pathologist Agents)
-- **Tokenization**: Breaking text into words
-- **POS Tagging**: Identifying word types
-- **NER**: Named Entity Recognition for medical terms
-- **Regex Patterns**: Extracting measurements and keywords
-- **Statistical vs Symbolic NLP**: spaCy vs regex comparison
-- **First-Order Logic**: Predicates and rules
-- **Unification**: Pattern matching with variables
-- **Backtracking**: Exploring solution space
-- **Resolution**: Deriving conclusions from rules
-
-### 3. Distributed AI (All Agents)
-- **BDI Architecture**: Bratman's model
-- **AgentSpeak**: Plan specification language
-- **Speech Acts**: FIPA-ACL performatives
-- **Message Passing**: Asynchronous communication
-
-## Lung-RADS Categories
-
-| Category | Description | Action |
-|----------|-------------|--------|
-| 1 | Negative | Annual screening |
-| 2 | Benign appearance | Annual screening |
-| 3 | Probably benign | 6-month follow-up |
-| 4A | Suspicious | 3-month follow-up or PET |
-| 4B | Very suspicious | PET-CT, consider biopsy |
-| 4X | Additional features | Immediate evaluation |
-
-## Example Output
-
-```
-=== SPADE-BDI MULTI-AGENT SYSTEM RESULTS ===
-Agents: 3 Radiologists, 3 Pathologists, 1 Oncologist
-
---- nodule_001 ---
-  Ground Truth:    Malignancy 1
-  Predicted:       Malignancy 1
-  Probability:     0.123
-  Confidence:      0.892
-  Lung-RADS:       Category 2
-  Match:           ✓
-
-  Agent Votes:
-    Radiologist_1: 12.5%
-    Radiologist_2: 11.8%
-    Radiologist_3: 13.2%
-    Pathologist_1: 15.0%
-    Pathologist_2: 14.2%
-
---- nodule_005 ---
-  Ground Truth:    Malignancy 5
-  Predicted:       Malignancy 5
-  Probability:     0.847
-  Confidence:      0.765
-  Lung-RADS:       Category 4B
-  Match:           ✓
-
-=== SUMMARY ===
-Total Nodules:       10
-5-Class Accuracy:    70.0%
-Binary Accuracy:     87.5%
-Avg Confidence:      81.2%
+├── agents/             # BDI Agent implementations
+│   ├── spade_radiologist.py
+│   ├── spade_pathologist.py
+│   └── spade_oncologist.py
+├── asl/                # AgentSpeak(L) plans
+│   ├── radiologist.asl
+│   └── pathologist.asl
+├── knowledge/          # Prolog Knowledge Base
+│   ├── lung_rads.pl    # Clinical rules
+│   └── prolog_engine.py
+├── models/             # Deep Learning Models
+│   ├── classifier.py   # DenseNet/ResNet wrappers
+│   └── dynamic_weights.py # Richness score calculator
+├── nlp/                # Natural Language Processing
+│   ├── extractor.py    # Regex/spaCy extraction
+│   └── negation_detector.py # NegEx implementation
+├── data/               # Data loaders and parsers
+├── report/             # LaTeX project report
+├── main_extended.py    # Main CLI entry point
+└── spade_main.py       # SPADE-BDI runner
 ```
 
 ## References
+- **SPADE-BDI**: [https://github.com/javipalanca/spade_bdi](https://github.com/javipalanca/spade_bdi)
+- **TorchXRayVision**: Cohen et al. (2022). [https://github.com/mlmed/torchxrayvision](https://github.com/mlmed/torchxrayvision)
+- **scispaCy**: Neumann et al. (2019).
+- **Lung-RADS**: American College of Radiology (v1.1).
 
-### BDI and Multi-Agent Systems
-- Bratman, M. (1987). "Intention, Plans, and Practical Reason"
-- Rao, A. S., & Georgeff, M. P. (1995). "BDI Agents: From Theory to Practice"
-- Bordini, R. H., et al. (2007). "Programming Multi-Agent Systems in AgentSpeak using Jason"
-
-### SPADE-BDI Framework
-- SPADE: https://spade-mas.readthedocs.io/
-- SPADE-BDI Extension: https://github.com/javipalanca/spade_bdi
-- AgentSpeak(L): Rao, A. S. (1996). "AgentSpeak(L): BDI Agents Speak Out in a Logical Computable Language"
-
-### Medical AI
-- Demner-Fushman, D., et al. (2016). "Preparing a collection of radiology examinations for distribution and retrieval" (Open-I/NLMCXR)
-- American College of Radiology. (2019). "Lung-RADS Assessment Categories"
-
-### NLP for Medical Text
-- Neumann, M., et al. (2019). "ScispaCy: Fast and Robust Models for Biomedical Natural Language Processing"
-
-## License
-
-Educational use only. Not for clinical use.
-
-## Disclaimer
-
-This is an educational demonstration project. It is NOT intended for clinical use. Real medical AI systems require:
-- Rigorous validation on large datasets
-- Clinical trials and regulatory approval (FDA/CE)
-- Integration with clinical workflows
-- Continuous monitoring and updates
+---
+*Educational Project - Not for Clinical Use*

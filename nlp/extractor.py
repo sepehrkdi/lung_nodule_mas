@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 # Import new NLP modules
 from nlp.report_parser import ReportParser, ParsedReport
 from nlp.negation_detector import NegExDetector, Certainty, EntityCertainty
+from nlp.dependency_parser import DependencyFrameExtractor, NoduleFinding
 
 
 @dataclass
@@ -98,6 +99,9 @@ class ExtractionResult:
     
     # NEW: Negation/Uncertainty detection
     certainty: str = "affirmed"  # "affirmed", "negated", "uncertain"
+    
+    # NEW: Structured Dependency Frames (Module 2)
+    extracted_nodules: List[NoduleFinding] = field(default_factory=list)
     
     # NEW: Multiplicity detection
     multiplicity: bool = False
@@ -281,6 +285,9 @@ class MedicalNLPExtractor:
         """
         import spacy
         self.nlp = spacy.load('en_core_sci_sm')
+        self.negation_detector = NegExDetector()
+        self.report_parser = ReportParser()
+        self.dependency_extractor = DependencyFrameExtractor(self.nlp)
         print(f"[NLPExtractor] Loaded spaCy model: en_core_sci_sm")
     
     def extract(self, text: str) -> ExtractionResult:
@@ -341,20 +348,15 @@ class MedicalNLPExtractor:
         
         return result
     
+        return result
+        
     def _extract_with_spacy(self, text: str, result: ExtractionResult) -> ExtractionResult:
         """
-        Use spaCy for tokenization, POS tagging, and NER.
-        
-        EDUCATIONAL NOTE:
-        spaCy processes text through a pipeline:
-        - Tokenizer: Splits into tokens
-        - Tagger: Assigns POS tags
-        - NER: Identifies named entities
-        - Parser: Builds dependency tree
+        Use spaCy for tokenization, POS tagging, NER, and Dependency Parsing (Module 2).
         """
         doc = self.nlp(text)
         
-        # Extract named entities
+        # Extract named entities (Standard NER)
         for ent in doc.ents:
             result.entities.append(ExtractedEntity(
                 text=ent.text,
@@ -362,13 +364,17 @@ class MedicalNLPExtractor:
                 start=ent.start_char,
                 end=ent.end_char
             ))
-        
-        # EDUCATIONAL: Print POS analysis for demonstration
-        # This shows the grammatical structure of the text
-        # Uncomment for debugging:
-        # for token in doc:
-        #     if token.pos_ in ['NOUN', 'ADJ']:
-        #         print(f"  {token.text}: {token.pos_} ({token.dep_})")
+            
+        # EDUCATIONAL: Module 2 - Dependency-Anchored Frame Building
+        # Extract structured nodule findings using grammatical dependencies
+        try:
+            frames = self.dependency_extractor.extract(doc)
+            result.extracted_nodules = frames
+            if frames:
+                # Log for demonstration
+                print(f"[NLPExtractor] Found {len(frames)} structured nodule frames")
+        except Exception as e:
+            print(f"[NLPExtractor] Dependency extraction error: {e}")
         
         return result
     

@@ -36,15 +36,19 @@ def check_api_connection() -> bool:
         return False
 
 
-def get_nodule_list() -> list:
-    """Fetch list of available nodules from API."""
+def get_nodule_list() -> Dict[str, list]:
+    """Fetch list of available nodules and prioritized ones from API."""
     try:
         response = requests.get(f"{API_BASE_URL}/nodules", timeout=10)
         if response.status_code == 200:
-            return response.json().get("nodule_ids", [])
+            data = response.json()
+            return {
+                "all": data.get("nodule_ids", []),
+                "prioritized": data.get("prioritized_ids", [])
+            }
     except:
         pass
-    return []
+    return {"all": [], "prioritized": []}
 
 
 def get_nodule_features(nodule_id: str) -> Optional[Dict[str, Any]]:
@@ -132,16 +136,36 @@ def render_case_analysis_page():
     # Sidebar for nodule selection
     st.sidebar.header("📁 Select Nodule")
     
-    nodule_ids = get_nodule_list()
+    nodule_data = get_nodule_list()
+    all_ids = nodule_data.get("all", [])
+    prioritized_ids = nodule_data.get("prioritized", [])
     
-    if not nodule_ids:
+    if not all_ids:
         st.sidebar.warning("No nodules found")
         return
+        
+    # Create reordered list: Prioritized first, then rest
+    display_ids = []
+    # Add prioritized ones (ensuring they are in all_ids)
+    for cid in prioritized_ids:
+        if cid in all_ids:
+            display_ids.append(cid)
+    
+    # Add remaining
+    for cid in all_ids:
+        if cid not in display_ids:
+            display_ids.append(cid)
+    
+    # Set default to CXR1436 if it exists as we did before
+    default_index = 0
+    if "CXR1436" in display_ids:
+        default_index = display_ids.index("CXR1436")
     
     selected_nodule = st.sidebar.selectbox(
         "Nodule ID",
-        options=nodule_ids,
-        format_func=lambda x: f"Nodule {x}",
+        options=display_ids,
+        index=default_index,
+        format_func=lambda x: f"--Nodule {x}" if x in prioritized_ids else f"Nodule {x}",
         key="nodule_selector"
     )
     

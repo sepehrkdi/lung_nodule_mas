@@ -198,6 +198,68 @@ def render_agent_card(
                 </div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Show Structured Evidence if available (Module 2)
+            nodule_frames = finding.get("details", {}).get("nodule_frames", [])
+            if nodule_frames:
+                with st.expander(f"🧩 Structured Evidence ({len(nodule_frames)})"):
+                    # Custom CSS for tree view
+                    st.markdown("""
+                    <style>
+                    .tree-container { margin-left: 10px; font-family: 'Inter', sans-serif; }
+                    .tree-node { position: relative; padding-left: 25px; margin-bottom: 5px; }
+                    .tree-node::before {
+                        content: '';
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        bottom: -15px;
+                        width: 2px;
+                        background: #dee2e6;
+                    }
+                    .tree-node:last-child::before { height: 12px; }
+                    .tree-node::after {
+                        content: '';
+                        position: absolute;
+                        left: 0;
+                        top: 12px;
+                        width: 20px;
+                        height: 2px;
+                        background: #dee2e6;
+                    }
+                    .tree-label { 
+                        display: inline-block;
+                        padding: 2px 10px;
+                        border-radius: 6px;
+                        background: #f8f9fa;
+                        border: 1px solid #e9ecef;
+                        font-size: 0.9em;
+                    }
+                    .tree-root { font-weight: bold; background: #e3f2fd; border-color: #bbdefb; }
+                    .tree-leaf { color: #495057; }
+                    .tree-attribute { color: #6c757d; font-size: 0.8em; margin-right: 5px; }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    for i, frame in enumerate(nodule_frames):
+                         anchor = frame.get("anchor", "Nodule")
+                         
+                         st.markdown(f"""
+                         <div class="tree-container">
+                             <div class="tree-node">
+                                 <span class="tree-label tree-root">🔍 {anchor.capitalize()}</span>
+                             </div>
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf"><span class="tree-attribute">📏 Size:</span> {frame["size_mm"]} mm</span></div>' for _ in [1] if frame.get("size_mm")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf"><span class="tree-attribute">📍 Loc:</span> {frame["location"]}</span></div>' for _ in [1] if frame.get("location")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf"><span class="tree-attribute">✨ Texture:</span> {frame["texture"]}</span></div>' for _ in [1] if frame.get("texture")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf"><span class="tree-attribute">➖ Margins:</span> {frame["margins"]}</span></div>' for _ in [1] if frame.get("margins")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf">💎 Calcified</span></div>' for _ in [1] if frame.get("calcification")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf">⛔ Negated</span></div>' for _ in [1] if frame.get("negated")])}
+                             {"".join([f'<div class="tree-node"><span class="tree-label tree-leaf">❓ Uncertain</span></div>' for _ in [1] if frame.get("uncertain")])}
+                         </div>
+                         <div style="margin-bottom: 15px;"></div>
+                         """, unsafe_allow_html=True)
+
         else:
             # Waiting state
             st.markdown(f"""
@@ -417,13 +479,8 @@ def render_consensus_panel(consensus: Dict[str, Any], ground_truth_info: Optiona
             gt_icon = "🔴" if gt_value == 1 else "✅"
             
             # Determine if prediction matches ground truth
-            # Benign (class 1-2) maps to Normal (0), Malignant (class 4-5) maps to Abnormal (1)
-            if final_class <= 2:
-                pred_binary = 0  # Normal
-            elif final_class >= 4:
-                pred_binary = 1  # Abnormal
-            else:
-                pred_binary = -1  # Indeterminate - can't directly compare
+            # final_class is already binary: 0=Benign, 1=Malignant
+            pred_binary = final_class if final_class in [0, 1] else -1 
             
             if pred_binary == -1:
                 match_icon = "⚠️"

@@ -139,6 +139,7 @@ The main contributions of this project are:
     \item A complete BDI multi-agent system with \textbf{7 agent instances} across 3 agent types, communicating via FIPA-ACL message passing.
     \item An evaluation methodology where NLP agents must infer a diagnosis from observational data (\texttt{FINDINGS}) while being evaluated against the radiologist's explicit diagnosis (\texttt{IMPRESSION}).
     \item A custom NLP pipeline for lung nodule evidence extraction implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
+    \item A dependency-anchored frame building module that utilizes grammatical structure to strictly associate attributes (size, location, texture) with the correct nodule entity, resolving the ``bag-of-words'' problem in complex multi-nodule reports.
     \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and binary classification (benign vs.\ malignant) with explanation generation.
     \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
     \item A multi-factor NLP-richness scoring function that combines MeSH metadata, entity detection, negation awareness, and structural completeness to select evaluation cases where the NLP agents can perform meaningful extraction.
@@ -380,7 +381,7 @@ NODULE_LEXICON = ["nodule", "nodular", "nodular opacity",
                   "solitary nodule", "spiculated mass"]
 \end{lstlisting}
 
-Pathologist-2 supplements this with scispaCy's biomedical NER model, which can recognize medical entities not present in the lexicon.
+Pathologist-2 supplements this with scispaCy's biomedical NER model, which can recognize medical entities not present in the lexicon. Furthermore, Pathologist-2 employs the dependency-anchored frame building module (Section~\ref{subsec:dependency-frames}) to strictly associate attributes with these detected entities.
 
 \subsection{Attribute Extraction}
 \label{subsec:attribute-extraction}
@@ -398,6 +399,22 @@ Four categories of attributes are extracted:
         \item Calcification: popcorn, laminated, central, eccentric, absent
     \end{itemize}
 \end{enumerate}
+
+\subsection{Dependency-Anchored Frame Association}
+\label{subsec:dependency-frames}
+
+A major limitation of flat attribute extraction is the ``bag-of-words'' problem in reports with multiple findings. For example, in the phrase ``\textit{A 5mm nodule in the right upper lobe and a 12mm mass in the left lower lobe},'' simple proximity-based or regex extraction might incorrectly associate ``12mm'' with the ``nodule'' or ``right upper lobe'' with the ``mass.''
+
+To resolve this, I implemented a \textbf{Dependency-Anchored Frame Building} module within Pathologist-2 (spaCy). This module moves beyond surface-level pattern matching to utilize the grammatical structure of the sentence:
+
+\begin{enumerate}
+    \item \textbf{Anchor Identification:} The system first identifies ``anchor'' terms (e.g., \textit{nodule}, \textit{mass}, \textit{opacity}) that serve as the root of a finding.
+    \item \textbf{Subtree Traversal:} For each anchor, the dependency tree is traversed to collect modifiers (adjectives, nummods, compound nouns) that are grammatically linked to that specific head token. Crucially, the traversal logic explicitly blocks crossing into coordinate structures (tags \texttt{conj} and \texttt{cc}), ensuring that attributes of one nodule do not leak into another.
+    \item \textbf{Contextual Location Recovery:} If a nodule lacks a direct location modifier (e.g., ``\textit{Nodule is seen in the right upper lobe}''), the system traverses up to the governing verb (e.g., \textit{seen}) and checks its other children for prepositional location phrases, correctly associating the subject (nodule) with the location.
+    \item \textbf{Structured Frame Generation:} The output is a list of structured \texttt{NoduleFinding} objects, each encapsulating the size, location, and descriptors for a distinct entity.
+\end{enumerate}
+
+This structured approach allows the Pathologist agent to intelligently select the ``Index Nodule''---defined as the largest or most suspicious finding---for its primary report, while retaining the full structured data for conflict resolution.
 
 \subsection{Negation Detection}
 \label{subsec:negation-detection}
