@@ -149,20 +149,7 @@ Run the full 6-agent system on sample cases with detailed logging.
 python main_extended.py --demo
 ```
 
-### 2. SPADE-BDI Evaluation
-Run the underlying SPADE-BDI agent system directly.
-```bash
-# Run on all available nodules
-python spade_main.py --all
-
-# Run with full evaluation metrics
-python spade_main.py --evaluate
-
-# Process a specific case
-python spade_main.py --nodule nodule_001
-```
-
-### 3. Export Results
+### 2. Export Results
 Generate a JSON report of the analysis.
 ```bash
 python main_extended.py --evaluate --export results.json
