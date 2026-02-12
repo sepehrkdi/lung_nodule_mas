@@ -203,7 +203,12 @@ class ExtendedMAS:
                         # Build case dict with real report
                         findings = metadata.get("findings", "")
                         impression = metadata.get("impression", "")
-                        report = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}"
+                        
+                        # METHODOLOGY UPDATE: Agents see ONLY findings
+                        report = f"FINDINGS: {findings}"
+                        
+                        # Impression is used internally for GT mainly, but we keep it in metadata
+                        # if needed for debugging, but 'report' passed to agents is stripped.
                         
                         ground_truth = metadata.get("ground_truth", -1)
                         
