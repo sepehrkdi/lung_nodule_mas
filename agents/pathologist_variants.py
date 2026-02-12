@@ -449,14 +449,67 @@ class PathologistSpacy(PathologistBase):
         logger.info(f"[{self.name}] Loaded scispaCy medical model")
     
     def _analyze_report(self, report: str) -> Dict[str, Any]:
-        """Analyze report using spaCy NER + rules."""
+        """Analyze report using spaCy NER + Dependency Frames (Module 2)."""
         self._load_nlp()
-        return self._spacy_analysis(report)
-    
-    def _spacy_analysis(self, report: str) -> Dict[str, Any]:
-        """Analyze using spaCy NLP pipeline."""
-        doc = self._nlp(report)
         
+        # We need to leverage the full pipeline now, but PathologistSpacy 
+        # usually just calls _spacy_analysis. 
+        # Since we integrated DependencyFrameExtractor into MedicalNLPExtractor,
+        # we can use the frame logic directly if we had a full extractor instance.
+        # But here we are inside the agent which has its own _nlp model.
+        # So we will replicate the frame extraction call here for the agent.
+        
+        from nlp.dependency_parser import DependencyFrameExtractor
+        frame_extractor = DependencyFrameExtractor(self._nlp)
+        
+        doc = self._nlp(report)
+        frames = frame_extractor.extract(doc)
+        
+        # 1. Standard spaCy Analysis (Legacy)
+        findings = self._spacy_analysis(report, doc)
+        
+        # 2. Module 2: Structured Frame Integration
+        findings["nodule_frames"] = [f.to_dict() for f in frames]
+        findings["approach"] = "spacy_ner_v2_dependency"
+        
+        if frames:
+            # INTELLIGENT SELECTION: 
+            # If we found structured frames, pick the "Index Nodule" (most significant)
+            # to populate the top-level fields, solving the "bag-of-words" ambiguity.
+            
+            # Sort by size (descending), then by suspicion
+            # Define sort key: (has_size, size_mm, is_suspicious)
+            def sort_key(f):
+                size = f.size_mm if f.size_mm is not None else -1
+                suspicious = 1 if (f.texture and "solid" in f.texture) else 0
+                return (size, suspicious)
+            
+            # Get best candidate
+            best_frame = sorted(frames, key=sort_key, reverse=True)[0]
+            
+            # Override with specific linked attributes
+            if best_frame.size_mm:
+                findings["size_mm"] = best_frame.size_mm
+                findings["size_source"] = "dependency_frame"
+            
+            if best_frame.location:
+                findings["location"] = best_frame.location
+                
+            if best_frame.texture:
+                findings["texture"] = best_frame.texture
+                
+            logger.info(
+                f"[{self.name}] Structured Frame Update: "
+                f"Selected index nodule (size={best_frame.size_mm}mm, loc={best_frame.location})"
+            )
+            
+        return findings
+    
+    def _spacy_analysis(self, report: str, doc=None) -> Dict[str, Any]:
+        """Analyze using spaCy NLP pipeline."""
+        if doc is None:
+            doc = self._nlp(report)
+            
         # Extract named entities
         entities = []
         for ent in doc.ents:

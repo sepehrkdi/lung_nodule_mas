@@ -80,6 +80,7 @@ class AnalysisStateResponse(BaseModel):
 class NoduleListResponse(BaseModel):
     """Response model for list of nodules."""
     nodule_ids: List[str]
+    prioritized_ids: List[str] = Field(default_factory=list)
     total_count: int
 
 

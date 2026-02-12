@@ -71,7 +71,7 @@ _loader: Optional[NLMCXRLoader] = None
 _orchestrator: Optional[MultiAgentOrchestrator] = None
 
 # Constants
-MAX_EVALUATION_CASES = 10
+MAX_EVALUATION_CASES = 1000
 
 
 def get_loader() -> NLMCXRLoader:
@@ -125,8 +125,22 @@ async def list_nodules():
         # Use NLP-richness-filtered cases (score >= 3) so the UI only
         # shows cases with enough extractable NLP content for the agents.
         case_ids = loader.get_nlp_rich_case_ids(min_score=3.0, limit=MAX_EVALUATION_CASES)
+        
+        # Identify cases with structured evidence (prioritization)
+        # We'll use a hardcoded list for now or a quick check if possible
+        # Since CXR1436 is the primary demo, we ensure it's first.
+        prioritized = ["CXR1436"]
+        
+        # Add other interesting cases we found earlier (CXR1436, CXR313, CXR1022 etc)
+        # These are known to have structured frames from our scanner.
+        other_interesting = ["CXR313", "CXR1022", "CXR123", "CXR1290"]
+        for cid in other_interesting:
+            if cid in case_ids and cid not in prioritized:
+                prioritized.append(cid)
+                
         return NoduleListResponse(
             nodule_ids=case_ids,
+            prioritized_ids=prioritized,
             total_count=len(case_ids)
         )
     except Exception as e:
