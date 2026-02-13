@@ -387,7 +387,34 @@ variance(List, Mean, Var) :-
     Var is SumDiffs / N.
 
 % Disagreement resolution strategies
-% 1. Pathologist Override: Trust text (Ground Truth) when it detects malignancy but CNNs are unsure
+
+% 1. Visual-Text Conflict: CV sees malignancy, NLP sees benign
+% Logic: Potential visual false positive or finding not yet in report.
+% Action: Lower confidence, average probabilities, request review.
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
+    has_disagreement(NoduleId),
+    cnn_radiologist_consensus(NoduleId, CNNProb),
+    pathologist_consensus(NoduleId, PathProb),
+    CNNProb > 0.65,              % CNN sees malignancy
+    PathProb < 0.35,             % Pathologist sees benign
+    FinalProb is (CNNProb + PathProb) / 2,
+    Confidence = 0.4,            % Low confidence due to clear conflict
+    Strategy = 'visual_text_conflict_recheck'.
+
+% 2. Text Override (Missed Visual): CV benign, NLP malignant
+% Logic: Radiologist missed the nodule/feature described in report.
+% Action: Trust NLP (Ground Truth-like), high confidence.
+resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
+    has_disagreement(NoduleId),
+    cnn_radiologist_consensus(NoduleId, CNNProb),
+    pathologist_consensus(NoduleId, PathProb),
+    CNNProb < 0.35,              % CNN sees benign/misses it
+    PathProb > 0.65,             % Pathologist sees malignancy
+    FinalProb is PathProb,
+    Confidence = 0.8,            % High confidence in text
+    Strategy = 'text_override_missed_visual'.
+
+% 3. Pathologist Override: Trust text (Ground Truth) when it detects malignancy but CNNs are unsure
 resolve_disagreement(NoduleId, FinalProb, Confidence, Strategy) :-
     has_disagreement(NoduleId),
     pathologist_consensus(NoduleId, PathProb),
@@ -462,6 +489,13 @@ pathologist_consensus(NoduleId, AvgProb) :-
 recommendation(NoduleId, Category, Action, Urgency) :-
     lung_rads(NoduleId, Category, _),
     category_recommendation(Category, Action, Urgency).
+
+% Special recommendations for disagreement strategies
+recommendation(NoduleId, 'Disagreement', 'Radiology Review Required (Visual-Text Conflict)', medium) :-
+    resolve_disagreement(NoduleId, _, _, 'visual_text_conflict_recheck').
+
+recommendation(NoduleId, 'Disagreement', 'Clinical Correlation Recommended (Missed Visual)', high) :-
+    resolve_disagreement(NoduleId, _, _, 'text_override_missed_visual').
 
 category_recommendation(1, 'Continue annual screening', low).
 category_recommendation(2, 'Continue annual screening', low).
@@ -646,6 +680,8 @@ explain_resolution(NoduleId, 'No disagreement requiring resolution') :-
     \+ has_disagreement(NoduleId).
 
 % Strategy descriptions for human readability
+strategy_description('visual_text_conflict_recheck', 'visual-text conflict requesting review (CV>0.65, NLP<0.35)').
+strategy_description('text_override_missed_visual', 'text override for missed visual (NLP>0.65, CV<0.35)').
 strategy_description('pathologist_override', 'pathologist override (trusting text ground truth over indeterminate imaging)').
 strategy_description('cnn_nlp_agreement', 'CNN-NLP agreement (weighted CNN 60%, NLP 40%)').
 strategy_description('rule_based_tiebreaker', 'rule-based tiebreaker (CNN 50%, rules 50%)').
