@@ -2,23 +2,23 @@
 # mkdir -p results
 
 # Batches 1 to 29 (covering 0 to ~2900)
-# echo "Starting batch 1 (0-100)..."
-# ./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 0 --max-cases 100 --export results/results_0-100.json
+echo "Starting batch 1 (0-100)..."
+./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 0 --max-cases 100 --export results/results_0-100.json
 ./venv/bin/python results/calculate_metrics.py results/results_0-100.json > results/metrics_0-100.txt
 ./venv/bin/python results/visualize_agreement.py results/results_0-100.json
 
-# echo "Starting batch 2 (100-200)..."
-# ./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 100 --max-cases 100 --export results/results_100-200.json
+echo "Starting batch 2 (100-200)..."
+./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 100 --max-cases 100 --export results/results_100-200.json
 ./venv/bin/python results/calculate_metrics.py results/results_100-200.json > results/metrics_100-200.txt
 ./venv/bin/python results/visualize_agreement.py results/results_100-200.json
 
-# echo "Starting batch 3 (200-300)..."
-# ./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 200 --max-cases 100 --export results/results_200-300.json
+echo "Starting batch 3 (200-300)..."
+./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 200 --max-cases 100 --export results/results_200-300.json
 ./venv/bin/python results/calculate_metrics.py results/results_200-300.json > results/metrics_200-300.txt
 ./venv/bin/python results/visualize_agreement.py results/results_200-300.json
 
-# echo "Starting batch 4 (300-400)..."
-# ./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 300 --max-cases 100 --export results/results_300-400.json
+echo "Starting batch 4 (300-400)..."
+./venv/bin/python main_extended.py --evaluate --data nlmcxr --start-index 300 --max-cases 100 --export results/results_300-400.json
 ./venv/bin/python results/calculate_metrics.py results/results_300-400.json > results/metrics_300-400.txt
 ./venv/bin/python results/visualize_agreement.py results/results_300-400.json
 

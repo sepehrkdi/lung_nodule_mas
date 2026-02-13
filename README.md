@@ -125,7 +125,7 @@ To build trust, the system exposes its internal reasoning:
 ### Setup
 ```bash
 # Clone the repository
-git clone <repository_url>
+git clone https://github.com/sepehrkdi/lung_nodule_mas.git
 cd lung_nodule_mas
 
 # Create virtual environment
