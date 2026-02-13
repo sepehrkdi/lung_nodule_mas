@@ -60,6 +60,18 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 
+import json
+from pathlib import Path
+
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+LEARNED_WEIGHTS_FILE = Path("data/learned_weights.json")
+LEARNING_RATE = 0.01
+MIN_WEIGHT = 0.2
+MAX_WEIGHT = 3.0
+
+
 # =============================================================================
 # SINGLE SOURCE OF TRUTH: BASE WEIGHTS
 # =============================================================================
@@ -125,11 +137,15 @@ class DynamicWeightCalculator:
     Computes per-case dynamic weights for all agents based on
     information richness of the available data.
     
+    Supports CONTINUAL LEARNING by persisting updated base weights
+    to 'data/learned_weights.json'.
+    
     Usage:
         calculator = DynamicWeightCalculator()
         weights, rationale = calculator.compute_weights(case_metadata)
-        # weights = {"radiologist_densenet": 0.85, "pathologist_spacy": 0.72, ...}
-        # rationale = {"radiology_richness": 0.7, "pathology_richness": 0.44, ...}
+        
+        # After diagnosis is confirmed:
+        calculator.update_weights(agent_findings, ground_truth=1)
     """
 
     # Sub-component weights for radiology richness
@@ -145,6 +161,33 @@ class DynamicWeightCalculator:
 
     # Scaling bounds: weight = base × (SCALE_FLOOR + (1-SCALE_FLOOR) × richness)
     SCALE_FLOOR = 0.5   # Minimum fraction of base weight (never zero out an agent)
+
+    def __init__(self):
+        """Initialize and ensure learned weights file exists."""
+        self._ensure_weights_file()
+
+    def _ensure_weights_file(self):
+        """Load or initialize learned weights."""
+        if not LEARNED_WEIGHTS_FILE.exists():
+            LEARNED_WEIGHTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self._save_weights(BASE_WEIGHTS)
+        
+    def _load_weights(self) -> Dict[str, float]:
+        """Load current learned weights from disk."""
+        try:
+            with open(LEARNED_WEIGHTS_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load weights: {e}")
+            return BASE_WEIGHTS.copy()
+
+    def _save_weights(self, weights: Dict[str, float]):
+        """Save weights to disk."""
+        try:
+            with open(LEARNED_WEIGHTS_FILE, "w") as f:
+                json.dump(weights, f, indent=4)
+        except Exception as e:
+            logger.error(f"Failed to save weights: {e}")
 
     def compute_weights(
         self,
@@ -164,15 +207,16 @@ class DynamicWeightCalculator:
                 - comparison (str): COMPARISON section text
                 - nlp_features (dict): Output from MedicalNLPExtractor
                 - ground_truth (int): Optional ground truth label
-            base_weights: Override base weights (defaults to BASE_WEIGHTS).
+            base_weights: Override base weights (defaults to learned weights).
 
         Returns:
             Tuple of (weights_dict, rationale_dict):
                 - weights_dict: {agent_name: dynamic_weight}
                 - rationale_dict: full breakdown for auditability
         """
+        # Load current learned weights if no override provided
         if base_weights is None:
-            base_weights = BASE_WEIGHTS
+            base_weights = self._load_weights()
 
         # Compute richness scores
         richness = self._compute_richness(case_metadata)
@@ -205,6 +249,80 @@ class DynamicWeightCalculator:
         )
 
         return dynamic_weights, rationale
+
+    def update_weights(self, findings: Dict[str, Any], ground_truth: int) -> Dict[str, float]:
+        """
+        Update agent base weights based on feedback (Continual Learning).
+
+        Args:
+            findings: Dict of agent findings (from compute_consensus) or 
+                     raw list of finding dicts.
+            ground_truth: The confirmed diagnosis (0 or 1).
+
+        Returns:
+            The new updated base weights.
+        """
+        current_weights = self._load_weights()
+        updated_weights = current_weights.copy()
+        
+        # Normalize findings input to list of dicts if needed
+        # (Handling different formats the orchestrator might pass)
+        agent_results = []
+        if isinstance(findings, list):
+            agent_results = findings
+        elif isinstance(findings, dict) and "findings" in findings:
+             agent_results = findings["findings"]
+        else:
+             # Try to parse if it's a dict mapping agent_name -> details
+             for name, res in findings.items():
+                 if isinstance(res, dict):
+                     res['agent_name'] = name # Ensure name is present
+                     agent_results.append(res)
+
+        updates_log = []
+
+        for finding in agent_results:
+            agent_name = finding.get("agent_name") or finding.get("_agent_name")
+            if not agent_name: 
+                continue
+
+            # Skip if agent not tracked in weights
+            if agent_name not in updated_weights:
+                continue
+
+            # Determine correctness
+            # We look at 'predicted_class' (0/1) or prob > 0.5
+            pred_class = finding.get("predicted_class")
+            prob = finding.get("probability")
+            
+            if pred_class is None and prob is not None:
+                pred_class = 1 if prob >= 0.5 else 0
+            
+            if pred_class is None:
+                continue
+
+            # Update Rule:
+            # Correct -> +LearningRate
+            # Incorrect -> -LearningRate
+            old_w = updated_weights[agent_name]
+            
+            if pred_class == ground_truth:
+                new_w = min(MAX_WEIGHT, old_w + LEARNING_RATE)
+                action = "reward"
+            else:
+                new_w = max(MIN_WEIGHT, old_w - LEARNING_RATE)
+                action = "penalize"
+            
+            updated_weights[agent_name] = round(new_w, 4)
+            updates_log.append(f"{agent_name}: {old_w} -> {new_w} ({action})")
+
+        # Save updates
+        self._save_weights(updated_weights)
+        
+        if updates_log:
+            logger.info(f"Continual Learning Update (GT={ground_truth}): {', '.join(updates_log)}")
+            
+        return updated_weights
 
     # =========================================================================
     # RADIOLOGY RICHNESS

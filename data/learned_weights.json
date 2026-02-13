@@ -1,0 +1,8 @@
+{
+    "radiologist_densenet": 1.0,
+    "radiologist_resnet": 1.0,
+    "radiologist_rulebased": 0.7,
+    "pathologist_regex": 0.8,
+    "pathologist_spacy": 0.9,
+    "pathologist_context": 0.9
+}

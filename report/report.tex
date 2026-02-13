@@ -501,10 +501,12 @@ Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\;
 Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.08$ (lowered from 0.15 to increase sensitivity to inter-modality conflicts). The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{conflict2025resolution}, focusing on voting and arbitration. Four resolution strategies are applied in order:
 
 \begin{enumerate}
-    \item \textbf{CNN--NLP agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
-    \item \textbf{Pathologist Override:} When the Pathologist consensus detects a high-confidence malignancy ($P \ge 0.60$) but the Radiologist consensus is indeterminate ($0.35 \le P \le 0.65$), the system overrides the weighted average with the Pathologist's probability. This strategy, assigned a high confidence of 0.75, prevents the dilution of strong textual evidence by uncertain imaging models.
-    \item \textbf{Rule-based tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
-    \item \textbf{Conservative default:} Under strong disagreement (split decisions where no majority exists), the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
+    \item \textbf{Visual--Text Conflict:} When CNN agents confidently predict malignancy ($P > 0.65$) but NLP agents confidently predict benign ($P < 0.35$), the system identifies a potential visual false positive or a finding not yet recorded in the report. It resolves this by averaging the probabilities but significantly lowering the confidence to 0.4 and triggering a specific ``Radiology Review Required'' recommendation.
+    \item \textbf{Text Override (Missed Visual):} When NLP agents confidently predict malignancy ($P > 0.65$) but CNN agents miss it ($P < 0.35$), the system assumes a visual false negative. It trusts the textual ground truth, overrides the visual output with the Pathologist's probability, and assigns high confidence (0.8).
+    \item \textbf{Pathologist Override (Indeterminate Visual):} When Pathologists detect malignancy ($P \ge 0.60$) but Radiologists are indeterminate ($0.35 \le P \le 0.65$), the system overrides the weighted average with the Pathologist's probability to prevent dilution of strong textual evidence by uncertain imaging models.
+    \item \textbf{CNN--NLP Agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
+    \item \textbf{Rule-Based Tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
+    \item \textbf{Conservative Default:} Under strong disagreement not covered by specific rules, the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
 \end{enumerate}
 
 The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) binary classification via thresholding at 0.5 (benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$). Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
@@ -649,6 +651,18 @@ P3 (Context)  & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
 \caption{Dynamic weight scaling on three NLMCXR cases. $\hat{w}$ is the final dynamic weight; Scale = $\hat{w}/w_i$. Radiology richness is identical (all cases have 2 images including a PA view), whereas pathology richness varies with report detail, producing different pathologist weights per case.}
 \label{tab:dynamic-weights-example}
 \end{table}
+
+\subsection{Continual Learning}
+\label{subsec:continual-learning}
+
+To further refine the multi-agent consensus, the system implements a continual learning mechanism that adapts the base weights of agents over time based on retrospective feedback. While the dynamic weight calculator (Section~\ref{subsec:dynamic-weights}) adjusts for case-specific data quality, continual learning adjusts for the long-term historical performance of each agent.
+
+After a definitive diagnosis is confirmed (e.g., via biopsy results or expert consensus), the system updates the base weights stored in \texttt{data/learned\_weights.json} using a simple reinforcement update rule:
+\begin{equation}
+w_i^{(t+1)} = \text{clamp}\left(w_i^{(t)} + \eta \cdot \delta_i,\; w_{\min},\; w_{\max}\right)
+\label{eq:continual-learning}
+\end{equation}
+where $\eta=0.01$ is the learning rate, and $\delta_i = +1$ if agent $i$ correctly predicted the confirmed binary label, or $-1$ if it was incorrect. The weights are clamped to $[0.2, 3.0]$ to prevent distinct agents from becoming dominant or irrelevant. This feedback loop allows the system to gradually learn which agents are statistically more reliable across the population, independently of the per-case richness scores.
 
 \subsection{Clinical Recommendations}
 \label{subsec:recommendations}
