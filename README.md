@@ -164,6 +164,24 @@ This project uses the **Open-I Indiana University Chest X-ray Collection**.
 
 To evaluate on the full dataset, ensure extraction is complete in `data/NLMCXR/`.
 
+
+1.  **Download**: Get the dataset directly from the Open-I archives:
+    *   **Reports**: [`NLMCXR_reports.tgz`](https://openi.nlm.nih.gov/imgs/collections/NLMCXR_reports.tgz)
+    *   **Images**: [`NLMCXR_png.tgz`](https://openi.nlm.nih.gov/imgs/collections/NLMCXR_png.tgz) (approx. 10 GB)
+    
+    You can use `wget`:
+    ```bash
+    wget https://openi.nlm.nih.gov/imgs/collections/NLMCXR_reports.tgz
+    wget https://openi.nlm.nih.gov/imgs/collections/NLMCXR_png.tgz
+    ```
+
+2.  **Place**: Move these `.tgz` files into the `data/NLMCXR/` directory.
+3.  **Extract**: Run the extraction script:
+    ```bash
+    python data/extract_nlmcxr.py
+    ```
+
+
 ## Evaluation Results
 
 Performance on the 500-case Evaluation Subset (NLP-derived Ground Truth):
