@@ -250,10 +250,12 @@ class SPADEMedicalMAS:
         # Ground truth from NLP extraction of report text
         ground_truth = metadata.get("ground_truth", -1)
         
-        # Use real radiology report text (FINDINGS + IMPRESSION)
+        # Use real radiology report text (FINDINGS ONLY to prevent data leakage)
+        # IMPRESSION is the ground truth, so agents should not see it.
         findings = metadata.get("findings", "")
-        impression = metadata.get("impression", "")
-        report_text = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}".strip()
+        # impression = metadata.get("impression", "")
+        # report_text = f"FINDINGS: {findings}\n\nIMPRESSION: {impression}".strip()
+        report_text = f"FINDINGS: {findings}".strip()
         
         # Build features dict from NLP extraction and metadata
         features = metadata.get("nlp_features", {})
