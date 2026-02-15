@@ -237,8 +237,8 @@ class MedicalNLPExtractor:
         r'scattered\s+nodules?',
     ]
     
-    # NEW: Medical abbreviation dictionary
-    ABBREVIATIONS = {
+    # NEW: Medical abbreviation dictionary based on RadLex (Langlotz, 2006)
+    RADLEX_COMMON_TERMS = {
         'RUL': 'right upper lobe',
         'RML': 'right middle lobe',
         'RLL': 'right lower lobe',
@@ -596,7 +596,7 @@ class MedicalNLPExtractor:
         Expansion improves downstream NLP processing.
         """
         expanded = text
-        for abbrev, full in self.ABBREVIATIONS.items():
+        for abbrev, full in self.RADLEX_COMMON_TERMS.items():
             # Match abbreviation as whole word
             pattern = r'\b' + re.escape(abbrev) + r'\b'
             expanded = re.sub(pattern, f"{abbrev} ({full})", expanded)

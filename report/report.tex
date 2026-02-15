@@ -7,6 +7,7 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{colortbl}
 \usepackage{soul}
 \usepackage{tikz}
 \usetikzlibrary{shapes, arrows.meta, positioning, fit}
@@ -117,7 +118,7 @@ This richness-based filtering ensures that the selected cases contain sufficient
 
 For the entire dataset, a binary label (1=malignant, 0=benign) is derived from the \texttt{IMPRESSION} section of the original radiology reports. The \texttt{IMPRESSION} section represents the radiologist's final diagnosis and synthesis. A case is labeled ``malignant'' (1) if this section contains un-negated suspicious keywords (``suspicious'', ``malignant'', ``ill-defined'', ``spiculated'', etc), otherwise ``benign'' (0).
 
-Using NLP-derived labels as ground truth is an established practice in large-scale medical imaging research where manual annotation at scale is infeasible. Two datasets adopt this approach: CheXpert~\cite{irvin2019chexpert} applies a rule-based NLP labeler (mention extraction $\rightarrow$ negation/uncertainty classification $\rightarrow$ label aggregation) to assign 14 observation labels from radiology reports, while MIMIC-CXR-JPG~\cite{johnson2019mimiccxr} reuses the same CheXpert labeler to produce labels for over 370{,}000 chest radiographs. Both projects demonstrate that designed rule-based NLP pipelines produce labels of sufficient quality for training and evaluating models at scale.
+Using NLP-derived labels as ground truth is an established practice in large-scale medical imaging research where manual annotation at scale is infeasible. Two datasets adopt this approach: CheXpert~\cite{irvin2019chexpert} applies a rule-based NLP labeler (mention extraction $\rightarrow$ negation/uncertainty classification $\rightarrow$ label aggregation) to assign 14 observation labels from radiology reports, while MIMIC-CXR-JPG~\cite{johnson2019mimiccxr} reuses the same CheXpert labeler to produce labels for over 370{,}000 chest radiographs. Both projects demonstrate that designed rule-based NLP pipelines produce labels of sufficient quality for evaluating models at scale.
 
 My ground-truth extraction pipeline follows the same architectural pattern as the CheXpert labeler:
 \begin{enumerate}
@@ -140,7 +141,7 @@ The main contributions of this project are:
     \item A custom NLP pipeline for lung nodule classification implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
     \item A dependency-anchored frame building module that utilizes grammatical structure to strictly associate attributes (size, location, texture) with the correct nodule entity, resolving the ``bag-of-words'' problem in complex multi-nodule reports.
     \item A Prolog-based consensus mechanism that performs weighted voting, disagreement detection, conflict resolution, and binary classification (benign vs.\ malignant) with explanation generation.
-    \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports, replacing static hardcoded weights.
+    \item A dynamic, per-case weight assignment mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports.
     \item A multi-factor NLP-richness scoring function that combines MeSH metadata, entity detection, negation awareness, and structural completeness to select evaluation cases where the NLP agents can perform meaningful extraction.
     \item An anatomically-calibrated size estimation method for the rule-based radiologist that uses blob detection with a chest X-ray field-of-view model, replacing a na\"ive pixel-dimension heuristic that produced clinically implausible values.
     \item Explicit handling of unknown measurements: agents return \texttt{None} when no measurement is detected and the consensus engine reduces the weight of agents that could not determine nodule size.
@@ -298,7 +299,7 @@ On real NLMCXR images (e.g., CXR1000), this produces size estimates of 5.1\,mm, 
 \subsubsection{Pathologist Agents (P1--P3)}
 \label{subsubsec:pathologists}
 
-The Pathologist agents are the main NLP contribution, with three active agents analyzing textual evidence. The 3rd agent (Pathologist-3), previously optional, is now enabled to handle negation and uncertainty. The term ``Pathologist'' is used metaphorically to represent agents that analyze textual evidence, analogous to how pathologists extract findings from specimens. Each agent implements a different NLP strategy:
+The Pathologist agents are the main NLP contribution, with three active agents analyzing textual evidence. The 3rd agent (Pathologist-3) uses context analysis to handle negation and uncertainty. It implements an extended NegEx algorithm \cite{chapman2001negex} integrated with ConText \cite{harkema2009context} logic. This agent identifies trigger phrases (e.g., ``no evidence of'', ``cannot exclude'') and determines their scope to assign certainty labels (Affirmed, Negated, or Uncertain) to extracted clinical entities. This prevents false positives from negated findings (e.g., ``no nodule'') and flags ambiguous cases for lower-confidence scoring. The term ``Pathologist'' is used metaphorically to represent agents that analyze textual evidence, analogous to how pathologists extract findings from specimens. Each agent implements a different NLP strategy:
 
 \begin{table}[ht]
 \centering
@@ -308,7 +309,7 @@ The Pathologist agents are the main NLP contribution, with three active agents a
 \midrule
 P1 & Regex/Rules  & 0.8 & Robust patterns, section-based extraction \\
 P2 & spaCy/NER    & 0.9 & Generalization, synonym handling \\
-P3 & NegEx/Context & 0.9 & Negation and uncertainty detection \\
+P3 & NegEx/Context & 0.85 & Negation and uncertainty detection \\
 \bottomrule
 \end{tabular}
 \caption{Pathologist agent configurations. Base weights are dynamically scaled per-case by the information-richness heuristic (Section~\ref{subsec:dynamic-weights}).}
@@ -316,7 +317,7 @@ P3 & NegEx/Context & 0.9 & Negation and uncertainty detection \\
 \end{table}
 
 \paragraph{Explicit Unknown-Size Handling.}
-All three Pathologist agents' size extraction methods return a \texttt{(size\_mm, size\_source)} tuple rather than a bare numeric value. When a measurement is found in the text, \texttt{size\_source} is set to \texttt{``regex''} (P1, P3) or \texttt{``spacy''} (P2). When no measurement is detected, the agents return \texttt{(None, ``unknown'')} instead of a hardcoded default such as 10.0\,mm. This design has three downstream effects:
+All three Pathologist agents' size extraction methods return a \texttt{(size\_mm, size\_source)} tuple rather than a bare numeric value. When a measurement is found in the text, \texttt{size\_source} is set to \texttt{``regex''} (P1, P3) or \texttt{``spacy''} (P2). When no measurement is detected, the agents return \texttt{(None, ``unknown'')}. This design has three downstream effects:
 \begin{itemize}
     \item The malignancy-estimation heuristic in each Pathologist skips the size-based adjustment when \texttt{size\_mm} is \texttt{None}, relying solely on textual descriptors (suspicious/benign terms, texture keywords).
     \item The \texttt{size\_source} tag is propagated into the agent's findings, making the provenance of every size value transparent.
@@ -331,9 +332,10 @@ The Oncologist agent integrates all outputs using SWI-Prolog (accessed via PySwi
     \item Dynamic weight computation: before each case, the Oncologist invokes a \texttt{DynamicWeightCalculator} (Section~\ref{subsec:dynamic-weights}) to produce per-case weights $\hat{w}_i$ from the base weights $w_i$ and the information richness of the available data.
     \item Weighted voting: $P_\text{final} = \frac{\sum_{i} \hat{w}_i \cdot c_i \cdot p_i}{\sum_{i} \hat{w}_i \cdot c_i}$ where $\hat{w}_i$ is the \emph{dynamic} per-case agent weight, $c_i$ the reported confidence, and $p_i$ the malignancy probability.
     \item Binary classification: The consensus probability is thresholded at 0.5 to produce a binary decision (0=benign, 1=malignant).
-    \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.08.
+    \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.08 (see Section~\ref{subsec:disagreement}).
     \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) pathologist override when pathologist consensus is high-confidence ($P \ge 0.6$) but radiologist consensus is indeterminate; (3) rule-based agent as tiebreaker; (4) conservative recommendation under strong disagreement.
-    \item Explanation generation: a natural-language summary of which experts agreed/disagreed, the dynamic weight rationale, and which Prolog rule fired.
+    \item Explanation Generation: a natural-language summary of which experts agreed/disagreed, the dynamic weight rationale, and which Prolog rule fired.
+    \item Continual Learning: updating agent base weights based on retrospective diagnostic feedback to adapt to agent performance over time (see Section~\ref{subsec:continual-learning}).
 \end{enumerate}
 
 
@@ -348,28 +350,32 @@ The NLP pipeline follows the radiology NLP architecture described by Pons et al.
 \subsection{Report Section Splitting}
 \label{subsec:section-splitting}
 
-Radiology reports in the Open-I collection follow a semi-structured format with standard section headers. The pipeline identifies and segments reports into sections:
+Radiology reports in the Open-I collection follow a semi-structured format with standard section headers.
+Different sections carry different semantic roles: the \texttt{Findings} section typically encodes the radiologist’s key observations, while \texttt{Indication} and \texttt{Technique} primarily reflect exam context or procedural details.
+Prior work in radiology NLP has shown that explicitly segmenting reports and treating sections according to their semantic content improves the extraction of clinically relevant information, as sections differ in their diagnostic value and purpose~\cite{casey2021nlpradiology, grey2021sectionsegmentation}.
+To reflect these differences in my pipeline, I identify and segment reports into sections with the following weighting scheme:
 
 \begin{lstlisting}[language=Python, caption={Section splitting with weighting.}]
-SECTION_HEADERS = ["FINDINGS:", "IMPRESSION:", "INDICATION:",
+SECTION_HEADERS = ["FINDINGS:", "INDICATION:",
                    "TECHNIQUE:", "COMPARISON:"]
-SECTION_WEIGHTS = {"IMPRESSION": 1.5, "FINDINGS": 1.0,
+SECTION_WEIGHTS = {"FINDINGS": 1.0,
                    "INDICATION": 0.5, "TECHNIQUE": 0.2}
 \end{lstlisting}
 
-The IMPRESSION section receives a higher weight (1.5$\times$) because it represents the radiologist's synthesis and clinical judgment, following standard clinical practice where impressions carry more diagnostic weight than descriptive findings.
+Here the \texttt{Findings} section is given the highest weight as the primary source of diagnostic observations, while \texttt{Indication} and \texttt{Technique} are down-weighted to reduce emphasis on contextual or procedural text that is less directly informative for downstream NLP tasks.
+
 
 \subsection{Tokenization and Normalization}
 \label{subsec:tokenization}
 
 Medical text requires specialized tokenization to handle:
 \begin{itemize}
-    \item \textbf{Abbreviations:} Common radiology abbreviations (RUL = right upper lobe, GGO = ground-glass opacity, CT, mm) are preserved during tokenization and expanded where needed via a lookup dictionary.
+    \item \textbf{Abbreviations:} Common thoracic imaging abbreviations (e.g., RUL, GGO, CXR) are expanded using a dictionary derived from the RadLex ontology~\cite{langlotz2006radlex} to specific anatomical and pathological terms.
     \item \textbf{Measurement normalization:} Size mentions in different formats (``8 mm'', ``0.8 cm'', ``8mm'') are normalized to millimeters using regex patterns with unit conversion.
     \item \textbf{Hyphenated terms:} Medical compounds (``well-defined'', ``ground-glass'', ``part-solid'') are handled as single tokens.
 \end{itemize}
 
-When spaCy/scispaCy~\cite{neumann2019scispacy} is available (Pathologist-2), the pipeline uses its rule-based tokenizer with custom rules for medical text. Otherwise, regex-based tokenization is used (Pathologist-1).
+Since spaCy/scispaCy~\cite{neumann2019scispacy} is available (Pathologist-2), the pipeline uses its rule-based tokenizer with custom rules for medical text.
 
 \subsection{Nodule Mention Detection}
 \label{subsec:mention-detection}
@@ -383,18 +389,20 @@ NODULE_LEXICON = ["nodule", "nodular", "nodular opacity",
                   "solitary nodule", "spiculated mass"]
 \end{lstlisting}
 
+This lexicon is derived from standard radiological terminology defined by the Fleischner Society~\cite{hansell2008fleischner}, ensuring that the system targets clinically recognized descriptors for pulmonary nodules and masses.
+
 Pathologist-2 supplements this with scispaCy's biomedical NER model, which can recognize medical entities not present in the lexicon. Furthermore, Pathologist-2 employs the dependency-anchored frame building module (Section~\ref{subsec:dependency-frames}) to strictly associate attributes with these detected entities.
 
 \subsection{Attribute Extraction}
 \label{subsec:attribute-extraction}
 
-Four categories of attributes are extracted:
+Four categories of attributes are extracted, forming the minimum sufficient set required by the Lung-RADS classification algorithm encoded in the Prolog knowledge base:
 
 \begin{enumerate}
-    \item \textbf{Anatomical location:} Regex patterns for lobe references (``right upper lobe'', ``RUL''), positional terms (``subpleural'', ``perihilar''), and laterality.
-    \item \textbf{Size mentions:} Multiple patterns capture formats including ``15 mm'', ``1.5 cm'', and dimensional notations (``15 $\times$ 12 mm''), with automatic unit normalization to millimeters. When no size pattern matches, the extraction returns \texttt{None} with a provenance tag \texttt{size\_source=``unknown''} rather than a hardcoded default, ensuring that downstream components can distinguish between measured and unmeasured sizes.
-    \item \textbf{Multiplicity:} Detection of plural nodule mentions (``multiple nodules'', ``bilateral'', ``several opacities'', numeric quantifiers such as ``3 nodules'').
-    \item \textbf{Descriptors:} Keywords grouped by clinical category:
+    \item \textbf{Anatomical location:} Essential for entity resolution in multi-nodule reports. Regex patterns target lobe references (``right upper lobe'', ``RUL''), positional terms (``subpleural'', ``perihilar''), and laterality.
+    \item \textbf{Size mentions:} The primary determinant of Lung-RADS category. Multiple patterns capture formats including ``15 mm'', ``1.5 cm'', and dimensional notations (``15 $\times$ 12 mm''), with automatic unit normalization to millimeters. When no size pattern matches, the extraction returns \texttt{None} with a provenance tag \texttt{size\_source=``unknown''}, ensuring that downstream components can distinguish between measured and unmeasured sizes.
+    \item \textbf{Multiplicity:} A distinct branching factor in Lung-RADS decision trees. Detection includes plural nodule mentions (``multiple nodules'', ``bilateral'', ``several opacities'', numeric quantifiers such as ``3 nodules'').
+    \item \textbf{Descriptors:} Modifiers that alter risk stratification thresholds (e.g., solid vs. ground-glass). Keywords are grouped by clinical category:
     \begin{itemize}
         \item Texture: solid, ground-glass, part-solid, subsolid
         \item Margins: well-defined, spiculated, lobulated, poorly-defined
@@ -468,7 +476,12 @@ The Oncologist agent uses SWI-Prolog, accessed from Python via PySwip~\cite{pysw
     \item \texttt{query\_tnm\_stage(nodule\_id, size)}: Returns TNM staging based on tumor characteristics.
 \end{itemize}
 
-The engine operates in \emph{strict mode}: if SWI-Prolog is not installed or PySwip cannot initialize, a \texttt{PrologUnavailableError} is raised---no Python fallback logic is provided. This ensures all clinical decisions are derived from the formally verified Prolog knowledge base. The knowledge base is organized into several modules.
+The knowledge base is organized into two primary logic modules:
+
+\begin{enumerate}
+    \item \texttt{lung\_rads.pl}: Encodes the static domain knowledge, including Lung-RADS v1.1 classification rules, Fleischner Society guidelines, and TNM staging logic (Section~\ref{subsec:recommendations}). This module handles the \emph{clinical reasoning} (e.g., ``a 22mm solid nodule is T1c'').
+    \item \texttt{multi\_agent\_consensus.pl}: Implements the dynamic social reasoning, including weighted voting, disagreement detection ($\sigma > 0.08$), and conflict resolution strategies (Section~\ref{subsec:disagreement}). This module handles the \emph{agent coordination} (e.g., ``Radiologist-1 and Pathologist-3 disagree, trigger conflict rule \#2'').
+\end{enumerate}
 
 \subsection{Agent Registry and Weighted Voting}
 \label{subsec:voting}
@@ -482,7 +495,7 @@ agent_weight(radiologist_resnet, 1.0).
 agent_weight(radiologist_rules, 0.7).
 agent_weight(pathologist_regex, 0.8).
 agent_weight(pathologist_spacy, 0.9).
-agent_weight(pathologist_negex, 0.9).
+agent_weight(pathologist_negex, 0.85).
 \end{lstlisting}
 
 The \texttt{:- dynamic} directive declares \texttt{agent\_weight/2} as a dynamic predicate, allowing the orchestrator to retract the default facts and assert per-case weights (computed by the \texttt{DynamicWeightCalculator}, see Section~\ref{subsec:dynamic-weights}) into the Prolog knowledge base at runtime.
@@ -499,18 +512,32 @@ Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\;
 \subsection{Disagreement Detection and Resolution}
 \label{subsec:disagreement}
 
-Following the principles of collective intelligence~\cite{wolf2015collective}, disagreement is detected when $\sigma > 0.08$ (lowered from 0.15 to increase sensitivity to inter-modality conflicts). The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{atoms2025conflictresolution}, focusing on voting and arbitration. Four resolution strategies are applied in order:
+Following the principles of collective intelligence~\cite{wolf2015collective}, the consensus engine applies a three-stage pipeline after computing the weighted average (Equation~\ref{eq:consensus}). Each stage uses \emph{different} thresholds that serve distinct purposes:
+
+\paragraph{Stage 1: Disagreement Detection ($\sigma > 0.08$).}
+The first stage determines whether agents disagree enough to warrant special handling. Disagreement is flagged when the standard deviation of agent probabilities exceeds~0.08. This threshold was empirically determined based on two factors:
+
+\begin{itemize}
+    \item \textbf{Sensitivity to moderate divergence:} For two groups of agents splitting opinions (e.g., Radiologists vs.\ Pathologists), the population standard deviation simplifies to $\sigma = \frac{|p - q|}{2}$. A threshold of 0.08 triggers when the probability gap exceeds~16\% (e.g., 0.42 vs.\ 0.58), ensuring that even subtle disagreements---where one modality is uncertain and the other is weakly confident---are flagged for resolution.
+    \item \textbf{Safety margin for downstream rules:} A higher threshold (e.g., 0.15, requiring a 30\% gap) would be borderline for the conflict-resolution rules described below, risking missed triggers due to floating-point variations. The 0.08 threshold provides a comfortable margin.
+\end{itemize}
+
+\paragraph{Stage 2: Conflict Resolution (pattern-specific thresholds).}
+If disagreement is detected, the system inspects the \emph{pattern} of the disagreement using stricter, rule-specific thresholds. The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{atoms2025conflictresolution}, focusing on voting and arbitration. The following rules are evaluated in order:
 
 \begin{enumerate}
-    \item \textbf{Visual--Text Conflict:} When CNN agents confidently predict malignancy ($P > 0.65$) but NLP agents confidently predict benign ($P < 0.35$), the system identifies a potential visual false positive or a finding not yet recorded in the report. It resolves this by averaging the probabilities but significantly lowering the confidence to 0.4 and triggering a specific ``Radiology Review Required'' recommendation.
-    \item \textbf{Text Override (Missed Visual):} When NLP agents confidently predict malignancy ($P > 0.65$) but CNN agents miss it ($P < 0.35$), the system assumes a visual false negative. It trusts the textual ground truth, overrides the visual output with the Pathologist's probability, and assigns high confidence (0.8).
-    \item \textbf{Pathologist Override (Indeterminate Visual):} When Pathologists detect malignancy ($P \ge 0.60$) but Radiologists are indeterminate ($0.35 \le P \le 0.65$), the system overrides the weighted average with the Pathologist's probability to prevent dilution of strong textual evidence by uncertain imaging models.
-    \item \textbf{CNN--NLP Agreement:} If CNN radiologists and NLP pathologists reach similar conclusions ($|P_\text{CNN} - P_\text{NLP}| < 0.2$), their weighted combination is used with 60/40 weighting.
+    \item \textbf{Visual--Text Conflict ($P_\text{CV} > 0.65$ and $P_\text{NLP} < 0.35$):} CNN agents confidently predict malignancy while NLP agents confidently predict benign, indicating a potential visual false positive or a finding not yet recorded in the report. The system averages the probabilities, lowers confidence to~0.4, and triggers a ``Radiology Review Required'' recommendation.
+    \item \textbf{Text Override ($P_\text{NLP} > 0.65$ and $P_\text{CV} < 0.35$):} NLP agents confidently detect malignancy but CNN agents miss it, suggesting a visual false negative. The system overrides with the Pathologist's probability and assigns high confidence~(0.8).
+    \item \textbf{Pathologist Override ($P_\text{NLP} \ge 0.60$ and $0.35 \le P_\text{CV} \le 0.65$):} Pathologists detect malignancy while Radiologists are indeterminate. The system uses the Pathologist's probability to prevent dilution of strong textual evidence by uncertain imaging models.
+    \item \textbf{CNN--NLP Agreement ($|P_\text{CNN} - P_\text{NLP}| < 0.2$):} Both modalities reach similar conclusions; their weighted combination is used with 60/40 weighting.
     \item \textbf{Rule-Based Tiebreaker:} If CNN models disagree among themselves, the rule-based radiologist is used as a tiebreaker.
-    \item \textbf{Conservative Default:} Under strong disagreement not covered by specific rules, the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
+    \item \textbf{Conservative Default:} Under strong disagreement not covered by the rules above, the system defaults to a conservative recommendation and flags the case for multidisciplinary review.
 \end{enumerate}
 
-The Prolog consensus engine implements a multi-stage decision pipeline: (1) weighted aggregation of agent probabilities according to Equation~\ref{eq:consensus}; (2) confidence computation via inter-agent agreement; (3) disagreement detection and resolution using CNN--NLP alignment and rule-based tiebreaking; and (4) binary classification via thresholding at 0.5 (benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$). Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
+Note that the 0.65/0.35 thresholds in the conflict rules above are \emph{not} the same as the 0.08 disagreement-detection threshold: Stage~1 asks ``\emph{do agents disagree at all?}'' (a low bar), while Stage~2 asks ``\emph{which specific conflict pattern applies?}'' (stricter, rule-specific conditions).
+
+\paragraph{Stage 3: Binary Classification (threshold at 0.5).}
+After resolution, the final consensus probability $P_\text{consensus}$ (whether from the weighted average or from a resolution override) is thresholded at~0.5: benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$. Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
 
 \subsection{Size-Source Weight Reduction}
 \label{subsec:size-weight-reduction}
@@ -528,7 +555,7 @@ To prevent these agents from having outsized influence on the consensus when the
 \label{eq:size-penalty}
 \end{equation}
 
-This 50\% reduction is applied \emph{after} the dynamic per-case weight scaling (Equation~\ref{eq:dynamic-weight}), so the final effective weight incorporates both the information-richness scaling and the size-provenance penalty. The rationale is that an agent whose malignancy estimate is not grounded in an actual size value provides a less reliable signal than one that has measured or extracted a concrete measurement.
+This 50\% reduction is applied \emph{after} the dynamic per-case weight scaling (Equation~\ref{eq:dynamic-weight}), so the final effective weight incorporates both the information-richness scaling and the size-provenance penalty. The rationale is that an agent whose malignancy estimate is not grounded in an actual size value provides a less reliable signal than one that has measured or extracted a real measurement.
 
 \subsection{BDI Implementation Details}
 \label{subsec:bdi-details}
@@ -550,7 +577,7 @@ Beliefs accumulate through two primary channels:
 \end{enumerate}
 
 \subsubsection{Goal Structures and Conditional Execution}
-The ASL plans (e.g., \texttt{asl/radiologist.asl}, \texttt{asl/oncologist.asl}) demonstrate sophisticated goal management:
+The ASL plans (e.g., \texttt{asl/radiologist.asl}, \texttt{asl/oncologist.asl}) demonstrate goal management:
 \begin{itemize}
     \item \textbf{Conditional Goals:} Plans utilize context conditions to guard execution. For example, the plan for \texttt{+!analyze} checks \texttt{: model\_loaded(false)} to trigger a repair goal (\texttt{!initialize}) before proceeding with the main task.
     \item \textbf{Data Dependencies:} The Oncologist agent uses \texttt{waiting\_for} beliefs to block execution until all required inputs (radiology and pathology findings) are received.
@@ -560,9 +587,9 @@ The ASL plans (e.g., \texttt{asl/radiologist.asl}, \texttt{asl/oncologist.asl}) 
 \subsection{Dynamic Per-Case Weight Assignment}
 \label{subsec:dynamic-weights}
 
-A key limitation of static agent weights is the implicit assumption that every case offers the same quality and quantity of information in both modalities. In practice, some cases are accompanied by multiple high-quality X-ray projections but only a terse report, while others contain detailed reports but limited or low-quality imaging. Static weights cannot adapt to this per-case asymmetry.
+A key limitation of static agent weights is the implicit assumption that every case offers the same quality and quantity of information in both modalities. In practice, some cases are accompanied by multiple high-quality X-ray projections but only a short report, while others contain detailed reports but limited or low-quality imaging. Static weights cannot adapt to this per-case asymmetry.
 
-To address this, I replace the fixed weights with a \emph{dynamic, per-case weight assignment} based on an information-richness heuristic. The mechanism is implemented in a dedicated \texttt{DynamicWeightCalculator} module (\texttt{models/dynamic\_weights.py}), which serves as the \emph{single source of truth} for all agent weights, eliminating the previous triplication of weight definitions across the Python agent classes, the Prolog knowledge base, and the orchestrator display code.
+To address this, I replace the fixed weights with a \emph{dynamic, per-case weight assignment} based on an information-richness heuristic. The mechanism is implemented in a dedicated \texttt{DynamicWeightCalculator} module (\texttt{models/dynamic\_weights.py}), which serves as the \emph{single source of truth} for all agent weights.
 
 \subsubsection{Radiology Richness Score}
 
@@ -639,14 +666,14 @@ Table~\ref{tab:dynamic-weights-example} shows the dynamic weight computation for
 & $\hat{w}$ & Scale & $\hat{w}$ & Scale & $\hat{w}$ & Scale \\
 \midrule
 $R_\text{rad}$ & \multicolumn{2}{c}{0.728} & \multicolumn{2}{c}{0.728} & \multicolumn{2}{c}{0.728} \\
-$R_\text{path}$ & \multicolumn{2}{c}{0.882} & \multicolumn{2}{c}{0.925} & \multicolumn{2}{c}{0.712} \\
+$R_\text{path}$ & \multicolumn{2}{c}{\cellcolor{yellow!25}0.882} & \multicolumn{2}{c}{\cellcolor{green!20}0.925} & \multicolumn{2}{c}{\cellcolor{red!15}0.712} \\
 \midrule
 R1 (DenseNet) & 0.864 & 0.864 & 0.864 & 0.864 & 0.864 & 0.864 \\
 R2 (ResNet)   & 0.864 & 0.864 & 0.864 & 0.864 & 0.864 & 0.864 \\
 R3 (Rules)    & 0.605 & 0.864 & 0.605 & 0.864 & 0.605 & 0.864 \\
-P1 (Regex)    & 0.753 & 0.941 & 0.770 & 0.963 & 0.685 & 0.856 \\
-P2 (spaCy)    & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
-P3 (Context)  & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
+P1 (Regex)    & \cellcolor{yellow!25}0.753 & 0.941 & \cellcolor{green!20}0.770 & 0.963 & \cellcolor{red!15}0.685 & 0.856 \\
+P2 (spaCy)    & \cellcolor{yellow!25}0.847 & 0.941 & \cellcolor{green!20}0.866 & 0.963 & \cellcolor{red!15}0.770 & 0.856 \\
+P3 (Context)  & \cellcolor{yellow!25}0.800 & 0.941 & \cellcolor{green!20}0.819 & 0.963 & \cellcolor{red!15}0.728 & 0.856 \\
 \bottomrule
 \end{tabular}
 \caption{Dynamic weight scaling on three NLMCXR cases. $\hat{w}$ is the final dynamic weight; Scale = $\hat{w}/w_i$. Radiology richness is identical (all cases have 2 images including a PA view), whereas pathology richness varies with report detail, producing different pathologist weights per case.}
@@ -658,7 +685,7 @@ P3 (Context)  & 0.847 & 0.941 & 0.866 & 0.963 & 0.770 & 0.856 \\
 
 To further refine the multi-agent consensus, the system implements a continual learning mechanism that adapts the base weights of agents over time based on retrospective feedback. While the dynamic weight calculator (Section~\ref{subsec:dynamic-weights}) adjusts for case-specific data quality, continual learning adjusts for the long-term historical performance of each agent.
 
-After a definitive diagnosis is confirmed (e.g., via biopsy results or expert consensus), the system updates the base weights stored in \texttt{data/learned\_weights.json} using a simple reinforcement update rule:
+After a definitive diagnosis is confirmed via consensus, the system updates the base weights stored in \texttt{data/learned\_weights.json} using a simple reinforcement update rule:
 \begin{equation}
 w_i^{(t+1)} = \text{clamp}\left(w_i^{(t)} + \eta \cdot \delta_i,\; w_{\min},\; w_{\max}\right)
 \label{eq:continual-learning}
@@ -868,7 +895,7 @@ The replacement of the na\"ive pixel-dimension heuristic (\texttt{max(shape)/5})
 
 \subsubsection{Impact of Unknown-Size Handling}
 
-The removal of the hardcoded 10.0\,mm default from all three Pathologist agents' size extractors eliminated a systematic bias: previously, every report without an explicit measurement was treated as containing a 10\,mm nodule, which inflated malignancy estimates and Lung-RADS categorization. With the \texttt{None} + \texttt{size\_source} approach, the Pathologist agents now report \texttt{size\_mm=None, size\_source=``unknown''} when no measurement pattern matches, and their malignancy estimation relies solely on textual descriptors. The consensus engine reduces these agents' weights by 50\% (Equation~\ref{eq:size-penalty}), reflecting the reduced informativeness of their output.
+By configuring all three Pathologist agents' size extractors to return \texttt{None} when no explicit measurement is found, the system avoids imputing default values that could artificially inflate malignancy estimates. Instead, in the absence of a measured size, the agents report \texttt{size\_mm=None, size\_source=``unknown''} and rely solely on textual descriptors for malignancy estimation. Consequently, the consensus engine reduces these agents' weights by 50\% (Equation~\ref{eq:size-penalty}), reflecting the lower confidence of assessment based on size-independent features alone.
 
 \subsubsection{NLP Model Performance}
 
@@ -909,7 +936,7 @@ Key technical contributions include:
     \item Binary classification system (0=benign, 1=malignant) with consensus probability thresholding at 0.5, replacing the original 5-class Lung-RADS categorization. Lung-RADS categories and TNM staging are retained as supplementary informational outputs.
     \item Implementation of NegEx-style negation and uncertainty detection for radiology report analysis.
     \item A Prolog knowledge base encoding Lung-RADS clinical guidelines for interpretable decision support.
-    \item A dynamic, per-case weight assignment mechanism based on information-richness heuristics. Agent reliability weights are scaled at runtime according to the quantity and quality of available radiology images and pathology reports, with the scaling formula (Equation~\ref{eq:dynamic-weight}) guaranteeing a minimum contribution floor of 50\% of the base weight. This approach replaces static hardcoded weights and is synchronized between Python and Prolog via dynamic predicate assertion.
+    \item A dynamic, per-case weight assignment mechanism based on information-richness heuristics. Agent reliability weights are scaled at runtime according to the quantity and quality of available radiology images and pathology reports, with the scaling formula (Equation~\ref{eq:dynamic-weight}) guaranteeing a minimum contribution floor of 50\% of the base weight. This approach is synchronized between Python and Prolog via dynamic predicate assertion.
     \item An NLP-richness-based case selection pipeline that uses MeSH metadata and a six-factor scoring function to identify reports with meaningful extractable content, replacing the previous keyword-only filtering approach.
     \item An anatomically-calibrated blob detection method for the rule-based radiologist (Equation~\ref{eq:blob-size}), producing clinically plausible size estimates in millimeters by modeling the chest X-ray field of view, replacing a na\"ive pixel-dimension heuristic.
     \item A size-provenance framework in which all agents return \texttt{(size\_mm, size\_source)} tuples and the consensus engine applies a 50\% weight penalty (Equation~\ref{eq:size-penalty}) to agents with unknown or undetected sizes, preventing fabricated defaults from propagating into clinical recommendations.

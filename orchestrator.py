@@ -375,7 +375,7 @@ class PrologConsensusEngine:
             mean_s = sum(scores) / len(scores)
             var_s = sum((x - mean_s) ** 2 for x in scores) / len(scores)
             std_s = var_s ** 0.5
-            if std_s > 0.15:
+            if std_s > 0.08:
                 fired_rules.append("disagreement_detected")
         
         if fired_rules:
