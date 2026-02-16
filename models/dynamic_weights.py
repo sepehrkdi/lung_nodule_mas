@@ -129,6 +129,17 @@ class RichnessScores:
 
 
 # =============================================================================
+# WEIGHTING MODES (for ablation studies)
+# =============================================================================
+
+class WeightingMode:
+    """Weighting modes for ablation studies."""
+    DYNAMIC = "dynamic"      # Per-case richness-based scaling (default)
+    STATIC = "static"        # Fixed BASE_WEIGHTS only
+    EQUAL = "equal"          # All weights = 1.0
+
+
+# =============================================================================
 # DYNAMIC WEIGHT CALCULATOR
 # =============================================================================
 
@@ -140,12 +151,23 @@ class DynamicWeightCalculator:
     Supports CONTINUAL LEARNING by persisting updated base weights
     to 'data/learned_weights.json'.
     
+    For ablation studies, supports different weighting modes:
+    - DYNAMIC: Per-case richness-based scaling (default)
+    - STATIC: Fixed BASE_WEIGHTS only
+    - EQUAL: All agents weight = 1.0
+    
     Usage:
         calculator = DynamicWeightCalculator()
         weights, rationale = calculator.compute_weights(case_metadata)
         
         # After diagnosis is confirmed:
         calculator.update_weights(agent_findings, ground_truth=1)
+        
+        # For ablation studies:
+        calculator = DynamicWeightCalculator(
+            mode=WeightingMode.STATIC,
+            use_size_penalty=False
+        )
     """
 
     # Sub-component weights for radiology richness
@@ -162,9 +184,28 @@ class DynamicWeightCalculator:
     # Scaling bounds: weight = base × (SCALE_FLOOR + (1-SCALE_FLOOR) × richness)
     SCALE_FLOOR = 0.5   # Minimum fraction of base weight (never zero out an agent)
 
-    def __init__(self):
-        """Initialize and ensure learned weights file exists."""
+    def __init__(
+        self,
+        mode: str = WeightingMode.DYNAMIC,
+        use_reliability_adjustment: bool = True,
+        use_size_penalty: bool = True
+    ):
+        """
+        Initialize weight calculator with ablation options.
+        
+        Args:
+            mode: Weighting mode (DYNAMIC, STATIC, or EQUAL)
+            use_reliability_adjustment: Enable continual learning updates
+            use_size_penalty: Apply 50% penalty for unknown size source
+        """
+        self.mode = mode
+        self.use_reliability_adjustment = use_reliability_adjustment
+        self.use_size_penalty = use_size_penalty
         self._ensure_weights_file()
+        
+        logger.info(f"DynamicWeightCalculator initialized: mode={mode}, "
+                   f"reliability_adj={use_reliability_adjustment}, "
+                   f"size_penalty={use_size_penalty}")
 
     def _ensure_weights_file(self):
         """Load or initialize learned weights."""
@@ -214,6 +255,30 @@ class DynamicWeightCalculator:
                 - weights_dict: {agent_name: dynamic_weight}
                 - rationale_dict: full breakdown for auditability
         """
+        # Handle different weighting modes for ablation studies
+        if self.mode == WeightingMode.EQUAL:
+            # All agents get equal weight of 1.0
+            equal_weights = {agent: 1.0 for agent in BASE_WEIGHTS.keys()}
+            rationale = {
+                "mode": "equal",
+                "dynamic_weights": equal_weights,
+                "base_weights": equal_weights,
+            }
+            logger.info(f"Equal weights mode: all agents = 1.0")
+            return equal_weights, rationale
+        
+        if self.mode == WeightingMode.STATIC:
+            # Use fixed BASE_WEIGHTS without dynamic scaling
+            static_weights = BASE_WEIGHTS.copy()
+            rationale = {
+                "mode": "static",
+                "dynamic_weights": static_weights,
+                "base_weights": static_weights,
+            }
+            logger.info(f"Static weights mode: {static_weights}")
+            return static_weights, rationale
+        
+        # DYNAMIC mode: full richness-based scaling
         # Load current learned weights if no override provided
         if base_weights is None:
             base_weights = self._load_weights()
@@ -235,6 +300,7 @@ class DynamicWeightCalculator:
 
         # Build rationale
         rationale = {
+            "mode": "dynamic",
             **richness.to_dict(),
             "dynamic_weights": dynamic_weights,
             "base_weights": dict(base_weights),
@@ -262,6 +328,11 @@ class DynamicWeightCalculator:
         Returns:
             The new updated base weights.
         """
+        # Skip update if reliability adjustment is disabled (ablation)
+        if not self.use_reliability_adjustment:
+            logger.info("Reliability adjustment disabled (ablation mode)")
+            return self._load_weights()
+        
         current_weights = self._load_weights()
         updated_weights = current_weights.copy()
         

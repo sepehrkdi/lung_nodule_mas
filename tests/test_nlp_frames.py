@@ -64,5 +64,120 @@ class TestNLPFrames(unittest.TestCase):
         # But ensure frames are captured
         self.assertEqual(len(findings["nodule_frames"]), 2)
 
+
+class TestLongDistanceDependencies(unittest.TestCase):
+    """Test enhanced long-distance dependency resolution."""
+    
+    def setUp(self):
+        self.extractor = MedicalNLPExtractor()
+    
+    def test_participial_chain_measuring(self):
+        """Test: 'A nodule, likely representing granuloma, measuring 5mm'"""
+        text = "A nodule, likely representing granuloma, measuring 5mm in the right upper lobe."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 4] Participial Chain: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should extract size from the "measuring 5mm" clause
+        self.assertEqual(nodule.size_mm, 5.0)
+        # Should extract characterization from "representing granuloma"
+        self.assertEqual(nodule.characterization, "granuloma")
+        # Should mark as uncertain due to "likely"
+        self.assertTrue(nodule.is_uncertain)
+        # Should extract location
+        self.assertIsNotNone(nodule.location)
+        
+    def test_relative_clause_which_measures(self):
+        """Test: 'a nodule which measures approximately 12 mm'"""
+        text = "There is a solid nodule which measures approximately 12 mm in the left lower lobe."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 5] Relative Clause: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should extract size from relative clause
+        self.assertEqual(nodule.size_mm, 12.0)
+        # Should extract texture
+        self.assertEqual(nodule.texture, "solid")
+        
+    def test_reduced_relative_clause(self):
+        """Test: 'nodule seen in the RUL measuring 8mm'"""
+        text = "A nodule seen in the right upper lobe measuring 8mm."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 6] Reduced Relative: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should extract size
+        self.assertEqual(nodule.size_mm, 8.0)
+        # Should extract location
+        self.assertTrue("right upper" in nodule.location.lower())
+        
+    def test_appositive_with_size(self):
+        """Test: 'a nodule, consistent with granuloma, 5mm'"""
+        text = "A nodule, consistent with granuloma, approximately 5 mm in size."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 7] Appositive: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should extract characterization
+        self.assertEqual(nodule.characterization, "granuloma")
+        # Should extract size
+        self.assertEqual(nodule.size_mm, 5.0)
+        
+    def test_complex_chain_multiple_modifiers(self):
+        """Test complex construction with multiple participial modifiers."""
+        text = "A part-solid nodule, possibly calcified, measuring 15 mm, located in the left upper lobe, suspicious for malignancy."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 8] Complex Chain: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should extract all attributes
+        self.assertEqual(nodule.texture, "part_solid")
+        self.assertEqual(nodule.size_mm, 15.0)
+        self.assertTrue("left upper" in nodule.location.lower())
+        self.assertTrue(nodule.is_uncertain)  # "possibly", "suspicious"
+        
+    def test_centimeter_conversion_in_clause(self):
+        """Test cm to mm conversion within clausal modifier."""
+        text = "A nodule measuring 1.5 cm in the right lung."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 9] CM Conversion in Clause: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should convert 1.5 cm to 15 mm
+        self.assertEqual(nodule.size_mm, 15.0)
+        
+    def test_extraction_paths_tracking(self):
+        """Test that extraction paths are properly tracked."""
+        text = "A nodule, representing granuloma, measuring 5mm."
+        result = self.extractor.extract(text)
+        
+        print(f"\n[Test 10] Extraction Paths: {[n.to_dict() for n in result.extracted_nodules]}")
+        
+        self.assertTrue(len(result.extracted_nodules) >= 1)
+        nodule = result.extracted_nodules[0]
+        
+        # Should have recorded extraction paths
+        self.assertTrue(len(nodule.extraction_paths) > 0)
+        print(f"  Extraction paths: {nodule.extraction_paths}")
+
+
 if __name__ == '__main__':
     unittest.main()
