@@ -1,0 +1,1423 @@
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS] Initializing 6-Agent Orchestrator...
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS]   - NLP filter: enabled (score >= 3.0)
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS]   - Weight mode: dynamic
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS]   - Consensus: python
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS]   - NegEx: enabled
+2026-02-16 15:45:42,988 - __main__ - INFO - [ExtendedMAS]   - Dependency parsing: enabled
+2026-02-16 15:45:42,988 - orchestrator - INFO - Initializing radiologist agents...
+2026-02-16 15:45:42,988 - orchestrator - INFO - Initializing pathologist agents...
+2026-02-16 15:45:44,506 - agents.pathologist_variants - INFO - [pathologist_context] Loaded NegEx detector and ReportParser
+2026-02-16 15:45:44,506 - orchestrator - INFO - Initializing Prolog consensus engine (STRICT MODE)...
+2026-02-16 15:45:44,527 - knowledge.prolog_engine - INFO - PySwip Prolog engine initialized successfully
+2026-02-16 15:45:44,529 - knowledge.prolog_engine - INFO - Loaded knowledge base: lung_rads.pl
+2026-02-16 15:45:44,532 - knowledge.prolog_engine - INFO - Loaded knowledge base: multi_agent_consensus.pl
+2026-02-16 15:45:44,532 - knowledge.prolog_engine - INFO - All Prolog knowledge bases loaded successfully
+2026-02-16 15:45:44,535 - knowledge.prolog_engine - INFO - Loaded additional knowledge base: multi_agent_consensus.pl
+2026-02-16 15:45:44,535 - orchestrator - INFO - Prolog consensus engine initialized successfully
+2026-02-16 15:45:44,535 - models.dynamic_weights - INFO - DynamicWeightCalculator initialized: mode=dynamic, reliability_adj=True, size_penalty=True
+2026-02-16 15:45:44,535 - orchestrator - INFO - Orchestrator initialized with 3 radiologists and 3 pathologists
+2026-02-16 15:45:44,546 - data.nlmcxr_loader - INFO - Indexing cases from /home/sepehrkhd/Desktop/NLPSDAIPROJECT/lung_nodule_mas/data/NLMCXR/ecgen-radiology
+2026-02-16 15:45:44,556 - data.nlmcxr_parser - INFO - Parsing 3955 XML files from /home/sepehrkhd/Desktop/NLPSDAIPROJECT/lung_nodule_mas/data/NLMCXR/ecgen-radiology
+2026-02-16 15:45:44,972 - data.nlmcxr_parser - INFO - Successfully parsed 3955 cases
+2026-02-16 15:45:44,972 - data.nlmcxr_loader - INFO - Indexed 3955 cases
+/home/sepehrkhd/Desktop/NLPSDAIPROJECT/lung_nodule_mas/venv/lib/python3.12/site-packages/spacy/language.py:2195: FutureWarning: Possible set union at position 6328
+  deserializers["tokenizer"] = lambda p: self.tokenizer.from_disk(  # type: ignore[union-attr]
+2026-02-16 15:45:45,548 - data.nlmcxr_loader - INFO - NLP extractor initialized for ground truth derivation
+2026-02-16 15:45:45,549 - data.nlmcxr_loader - INFO - NLMCXRLoader initialized with 3955 cases
+2026-02-16 15:45:45,656 - data.nlmcxr_loader - INFO - NLP richness filter (>= 3.0): 2639 cases qualify (out of 3955 total), returning 50 cases (offset 0, limit 50)
+2026-02-16 15:45:45,675 - __main__ - INFO - [ExtendedMAS] Added case CXR10 (count: 1/50)
+2026-02-16 15:45:45,697 - __main__ - INFO - [ExtendedMAS] Added case CXR1000 (count: 2/50)
+2026-02-16 15:45:45,709 - __main__ - INFO - [ExtendedMAS] Added case CXR1003 (count: 3/50)
+2026-02-16 15:45:45,719 - __main__ - INFO - [ExtendedMAS] Added case CXR1022 (count: 4/50)
+2026-02-16 15:45:45,728 - __main__ - INFO - [ExtendedMAS] Added case CXR1025 (count: 5/50)
+2026-02-16 15:45:45,738 - __main__ - INFO - [ExtendedMAS] Added case CXR1034 (count: 6/50)
+2026-02-16 15:45:45,751 - __main__ - INFO - [ExtendedMAS] Added case CXR1035 (count: 7/50)
+2026-02-16 15:45:45,761 - __main__ - INFO - [ExtendedMAS] Added case CXR1044 (count: 8/50)
+2026-02-16 15:45:45,771 - __main__ - INFO - [ExtendedMAS] Added case CXR1063 (count: 9/50)
+2026-02-16 15:45:45,779 - __main__ - INFO - [ExtendedMAS] Added case CXR1064 (count: 10/50)
+2026-02-16 15:45:45,797 - __main__ - INFO - [ExtendedMAS] Added case CXR1075 (count: 11/50)
+2026-02-16 15:45:45,809 - __main__ - INFO - [ExtendedMAS] Added case CXR1076 (count: 12/50)
+2026-02-16 15:45:45,819 - __main__ - INFO - [ExtendedMAS] Added case CXR1085 (count: 13/50)
+2026-02-16 15:45:45,829 - __main__ - INFO - [ExtendedMAS] Added case CXR1087 (count: 14/50)
+2026-02-16 15:45:45,843 - __main__ - INFO - [ExtendedMAS] Added case CXR1088 (count: 15/50)
+2026-02-16 15:45:45,855 - __main__ - INFO - [ExtendedMAS] Added case CXR1094 (count: 16/50)
+2026-02-16 15:45:45,865 - __main__ - INFO - [ExtendedMAS] Added case CXR1103 (count: 17/50)
+2026-02-16 15:45:45,878 - __main__ - INFO - [ExtendedMAS] Added case CXR1117 (count: 18/50)
+2026-02-16 15:45:45,888 - __main__ - INFO - [ExtendedMAS] Added case CXR1123 (count: 19/50)
+2026-02-16 15:45:45,899 - __main__ - INFO - [ExtendedMAS] Added case CXR1126 (count: 20/50)
+2026-02-16 15:45:45,910 - __main__ - INFO - [ExtendedMAS] Added case CXR113 (count: 21/50)
+2026-02-16 15:45:45,925 - __main__ - INFO - [ExtendedMAS] Added case CXR1130 (count: 22/50)
+2026-02-16 15:45:45,934 - __main__ - INFO - [ExtendedMAS] Added case CXR1131 (count: 23/50)
+2026-02-16 15:45:45,945 - __main__ - INFO - [ExtendedMAS] Added case CXR1135 (count: 24/50)
+2026-02-16 15:45:45,957 - __main__ - INFO - [ExtendedMAS] Added case CXR1157 (count: 25/50)
+2026-02-16 15:45:45,970 - __main__ - INFO - [ExtendedMAS] Added case CXR116 (count: 26/50)
+2026-02-16 15:45:45,983 - __main__ - INFO - [ExtendedMAS] Added case CXR1169 (count: 27/50)
+2026-02-16 15:45:45,994 - __main__ - INFO - [ExtendedMAS] Added case CXR1174 (count: 28/50)
+2026-02-16 15:45:46,005 - __main__ - INFO - [ExtendedMAS] Added case CXR1203 (count: 29/50)
+2026-02-16 15:45:46,016 - __main__ - INFO - [ExtendedMAS] Added case CXR1226 (count: 30/50)
+2026-02-16 15:45:46,027 - __main__ - INFO - [ExtendedMAS] Added case CXR1237 (count: 31/50)
+2026-02-16 15:45:46,039 - __main__ - INFO - [ExtendedMAS] Added case CXR1240 (count: 32/50)
+2026-02-16 15:45:46,051 - __main__ - INFO - [ExtendedMAS] Added case CXR1249 (count: 33/50)
+2026-02-16 15:45:46,062 - __main__ - INFO - [ExtendedMAS] Added case CXR126 (count: 34/50)
+2026-02-16 15:45:46,077 - __main__ - INFO - [ExtendedMAS] Added case CXR1265 (count: 35/50)
+2026-02-16 15:45:46,090 - __main__ - INFO - [ExtendedMAS] Added case CXR127 (count: 36/50)
+2026-02-16 15:45:46,105 - __main__ - INFO - [ExtendedMAS] Added case CXR1276 (count: 37/50)
+2026-02-16 15:45:46,118 - __main__ - INFO - [ExtendedMAS] Added case CXR1277 (count: 38/50)
+2026-02-16 15:45:46,129 - __main__ - INFO - [ExtendedMAS] Added case CXR1282 (count: 39/50)
+2026-02-16 15:45:46,138 - __main__ - INFO - [ExtendedMAS] Added case CXR1284 (count: 40/50)
+2026-02-16 15:45:46,152 - __main__ - INFO - [ExtendedMAS] Added case CXR1285 (count: 41/50)
+2026-02-16 15:45:46,161 - __main__ - INFO - [ExtendedMAS] Added case CXR1290 (count: 42/50)
+2026-02-16 15:45:46,180 - __main__ - INFO - [ExtendedMAS] Added case CXR1303 (count: 43/50)
+2026-02-16 15:45:46,191 - __main__ - INFO - [ExtendedMAS] Added case CXR1307 (count: 44/50)
+2026-02-16 15:45:46,201 - __main__ - INFO - [ExtendedMAS] Added case CXR1317 (count: 45/50)
+2026-02-16 15:45:46,211 - __main__ - INFO - [ExtendedMAS] Added case CXR1320 (count: 46/50)
+2026-02-16 15:45:46,218 - __main__ - INFO - [ExtendedMAS] Added case CXR1328 (count: 47/50)
+2026-02-16 15:45:46,229 - __main__ - INFO - [ExtendedMAS] Added case CXR1329 (count: 48/50)
+2026-02-16 15:45:46,249 - __main__ - INFO - [ExtendedMAS] Added case CXR1348 (count: 49/50)
+2026-02-16 15:45:46,262 - __main__ - INFO - [ExtendedMAS] Added case CXR1353 (count: 50/50)
+2026-02-16 15:45:46,262 - __main__ - INFO - [ExtendedMAS] Loaded 50 NLP-rich cases from NLMCXR (offset 0)
+2026-02-16 15:45:46,267 - __main__ - INFO - [ExtendedMAS] Extended MAS initialized with 6 specialized agents
+2026-02-16 15:45:46,267 - __main__ - INFO - [ExtendedMAS] Starting evaluation on 50 cases...
+2026-02-16 15:45:46,267 - __main__ - INFO - [ExtendedMAS] Case 1/50
+2026-02-16 15:45:46,267 - __main__ - INFO - [ExtendedMAS] Processing case CXR10...
+2026-02-16 15:45:46,267 - orchestrator - INFO - Analyzing case CXR10 with 6 agents...
+2026-02-16 15:45:46,267 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.541, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6164, 'pathologist_spacy': 0.6935, 'pathologist_context': 0.6935}
+2026-02-16 15:45:46,268 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR10 with 2 images
+2026-02-16 15:45:46,268 - agents.radiologist_variants - INFO - [radiologist_densenet] Loading TorchXRayVision DenseNet (STRICT MODE)...
+2026-02-16 15:45:47,426 - models.classifier - INFO - [NoduleClassifier] Loading TorchXRayVision DenseNet on cpu...
+2026-02-16 15:45:47,592 - models.classifier - INFO - [NoduleClassifier] TorchXRayVision model loaded successfully
+2026-02-16 15:45:47,592 - models.classifier - INFO - [NoduleClassifier] Model pathologies: ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia', 'Lung Lesion', 'Fracture', 'Lung Opacity', 'Enlarged Cardiomediastinum']
+2026-02-16 15:45:47,592 - agents.radiologist_variants - INFO - [radiologist_densenet] TorchXRayVision DenseNet loaded successfully
+2026-02-16 15:45:47,740 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR10: prob=0.508, class=1
+2026-02-16 15:45:47,741 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR10
+2026-02-16 15:45:47,742 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=3
+2026-02-16 15:45:47,742 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR10
+2026-02-16 15:45:47,743 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:45:47,743 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR10 with 2 images
+2026-02-16 15:45:47,743 - agents.radiologist_variants - INFO - [radiologist_resnet] Loading TorchXRayVision (Mass-focused, STRICT MODE)...
+2026-02-16 15:45:47,743 - models.classifier - INFO - [NoduleClassifier] Loading TorchXRayVision DenseNet on cpu...
+2026-02-16 15:45:48,058 - models.classifier - INFO - [NoduleClassifier] TorchXRayVision model loaded successfully
+2026-02-16 15:45:48,058 - models.classifier - INFO - [NoduleClassifier] Model pathologies: ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia', 'Lung Lesion', 'Fracture', 'Lung Opacity', 'Enlarged Cardiomediastinum']
+2026-02-16 15:45:48,058 - agents.radiologist_variants - INFO - [radiologist_resnet] TorchXRayVision loaded (Mass-focused) successfully
+2026-02-16 15:45:48,113 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR10: prob=0.532, class=1
+2026-02-16 15:45:48,114 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR10 with 2 images
+2026-02-16 15:45:48,190 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:45:48,212 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=8.8mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:45:48,221 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR10: prob=0.759, class=1
+2026-02-16 15:45:48,221 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR10
+2026-02-16 15:45:48,572 - agents.pathologist_variants - INFO - [pathologist_spacy] Loaded scispaCy medical model
+2026-02-16 15:45:48,585 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=12, malignancy_score=0.00
+2026-02-16 15:45:48,585 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right)
+2026-02-16 15:45:48,594 - knowledge.prolog_engine - INFO - Consensus for CXR10: prob=0.440, class=0, confidence=0.298
+2026-02-16 15:45:55,252 - orchestrator - INFO - Case CXR10: class=0, prob=0.440, confidence=0.298, agreement=majority
+2026-02-16 15:45:55,252 - __main__ - INFO - [ExtendedMAS] Case 2/50
+2026-02-16 15:45:55,252 - __main__ - INFO - [ExtendedMAS] Processing case CXR1000...
+2026-02-16 15:45:55,252 - orchestrator - INFO - Analyzing case CXR1000 with 6 agents...
+2026-02-16 15:45:55,252 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.742, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6967, 'pathologist_spacy': 0.7838, 'pathologist_context': 0.7838}
+2026-02-16 15:45:55,252 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1000 with 3 images
+2026-02-16 15:45:55,264 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.1mm (blob_estimation), texture=solid -> prob=0.100
+2026-02-16 15:45:55,287 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=52.4mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:45:55,313 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=9.6mm (blob_estimation), texture=solid -> prob=0.550
+2026-02-16 15:45:55,328 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1000: prob=0.493, class=0
+2026-02-16 15:45:55,329 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1000
+2026-02-16 15:45:55,330 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=4, overall=uncertain
+2026-02-16 15:45:55,330 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1000 with 3 images
+2026-02-16 15:45:55,444 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1000: prob=0.560, class=1
+2026-02-16 15:45:55,444 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1000
+2026-02-16 15:45:55,445 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:45:55,445 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1000
+2026-02-16 15:45:55,459 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=19, malignancy_score=0.65
+2026-02-16 15:45:55,460 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right)
+2026-02-16 15:45:55,460 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1000 with 3 images
+2026-02-16 15:45:55,657 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1000: prob=0.417, class=0
+2026-02-16 15:45:55,658 - knowledge.prolog_engine - INFO - Consensus for CXR1000: prob=0.527, class=1, confidence=0.764
+2026-02-16 15:46:02,533 - orchestrator - INFO - Case CXR1000: class=1, prob=0.527, confidence=0.764, agreement=majority
+2026-02-16 15:46:02,533 - __main__ - INFO - [ExtendedMAS] Case 3/50
+2026-02-16 15:46:02,533 - __main__ - INFO - [ExtendedMAS] Processing case CXR1003...
+2026-02-16 15:46:02,533 - orchestrator - INFO - Analyzing case CXR1003 with 6 agents...
+2026-02-16 15:46:02,533 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.825, path_richness=0.792, weights={'radiologist_densenet': 0.9125, 'radiologist_resnet': 0.9125, 'radiologist_rulebased': 0.6387, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:46:02,533 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1003 with 1 images
+2026-02-16 15:46:02,544 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:46:02,555 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1003: prob=0.500, class=1
+2026-02-16 15:46:02,555 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1003
+2026-02-16 15:46:02,556 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:46:02,556 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1003 with 1 images
+2026-02-16 15:46:02,620 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1003: prob=0.377, class=0
+2026-02-16 15:46:02,621 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1003
+2026-02-16 15:46:02,621 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=2
+2026-02-16 15:46:02,621 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1003
+2026-02-16 15:46:02,634 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=16, malignancy_score=0.20
+2026-02-16 15:46:02,634 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:46:02,634 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1003 with 1 images
+2026-02-16 15:46:02,669 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1003: prob=0.467, class=0
+2026-02-16 15:46:02,671 - knowledge.prolog_engine - INFO - Consensus for CXR1003: prob=0.420, class=0, confidence=0.730
+2026-02-16 15:46:09,316 - orchestrator - INFO - Case CXR1003: class=0, prob=0.420, confidence=0.730, agreement=majority
+2026-02-16 15:46:09,317 - __main__ - INFO - [ExtendedMAS] Case 4/50
+2026-02-16 15:46:09,317 - __main__ - INFO - [ExtendedMAS] Processing case CXR1022...
+2026-02-16 15:46:09,317 - orchestrator - INFO - Analyzing case CXR1022 with 6 agents...
+2026-02-16 15:46:09,317 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.479, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.5917, 'pathologist_spacy': 0.6656, 'pathologist_context': 0.6656}
+2026-02-16 15:46:09,317 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1022 with 2 images
+2026-02-16 15:46:09,326 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:46:09,345 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=13.1mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:46:09,360 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1022: prob=0.759, class=1
+2026-02-16 15:46:09,360 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1022
+2026-02-16 15:46:09,360 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:46:09,361 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1022 with 2 images
+2026-02-16 15:46:09,417 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1022: prob=0.415, class=0
+2026-02-16 15:46:09,417 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1022
+2026-02-16 15:46:09,417 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:46:09,417 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1022
+2026-02-16 15:46:09,426 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=11, malignancy_score=0.35
+2026-02-16 15:46:09,426 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right)
+2026-02-16 15:46:09,426 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1022 with 2 images
+2026-02-16 15:46:09,565 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1022: prob=0.494, class=0
+2026-02-16 15:46:09,566 - knowledge.prolog_engine - INFO - Consensus for CXR1022: prob=0.439, class=0, confidence=0.675
+2026-02-16 15:46:16,482 - orchestrator - INFO - Case CXR1022: class=0, prob=0.439, confidence=0.675, agreement=majority
+2026-02-16 15:46:16,482 - __main__ - INFO - [ExtendedMAS] Case 5/50
+2026-02-16 15:46:16,482 - __main__ - INFO - [ExtendedMAS] Processing case CXR1025...
+2026-02-16 15:46:16,482 - orchestrator - INFO - Analyzing case CXR1025 with 6 agents...
+2026-02-16 15:46:16,482 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.539, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6154, 'pathologist_spacy': 0.6923, 'pathologist_context': 0.6923}
+2026-02-16 15:46:16,483 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1025 with 2 images
+2026-02-16 15:46:16,491 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.4mm (blob_estimation), texture=part_solid -> prob=0.150
+2026-02-16 15:46:16,510 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=46.9mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:46:16,525 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1025: prob=0.503, class=1
+2026-02-16 15:46:16,525 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1025
+2026-02-16 15:46:16,525 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:46:16,525 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1025 with 2 images
+2026-02-16 15:46:16,683 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1025: prob=0.475, class=0
+2026-02-16 15:46:16,683 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1025
+2026-02-16 15:46:16,684 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:46:16,684 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1025
+2026-02-16 15:46:16,692 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=9, malignancy_score=0.15
+2026-02-16 15:46:16,692 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right base)
+2026-02-16 15:46:16,692 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1025 with 2 images
+2026-02-16 15:46:16,771 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1025: prob=0.405, class=0
+2026-02-16 15:46:16,772 - knowledge.prolog_engine - INFO - Consensus for CXR1025: prob=0.345, class=0, confidence=0.536
+2026-02-16 15:46:23,339 - orchestrator - INFO - Case CXR1025: class=0, prob=0.345, confidence=0.536, agreement=majority
+2026-02-16 15:46:23,339 - __main__ - INFO - [ExtendedMAS] Case 6/50
+2026-02-16 15:46:23,339 - __main__ - INFO - [ExtendedMAS] Processing case CXR1034...
+2026-02-16 15:46:23,339 - orchestrator - INFO - Analyzing case CXR1034 with 6 agents...
+2026-02-16 15:46:23,339 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.493, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.5972, 'pathologist_spacy': 0.6718, 'pathologist_context': 0.6718}
+2026-02-16 15:46:23,339 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1034 with 2 images
+2026-02-16 15:46:23,348 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:46:23,368 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:46:23,384 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1034: prob=0.733, class=1
+2026-02-16 15:46:23,384 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1034
+2026-02-16 15:46:23,384 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:46:23,384 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1034 with 2 images
+2026-02-16 15:46:23,452 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1034: prob=0.571, class=1
+2026-02-16 15:46:23,452 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1034
+2026-02-16 15:46:23,452 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=4
+2026-02-16 15:46:23,452 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1034
+2026-02-16 15:46:23,461 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=13, malignancy_score=0.00
+2026-02-16 15:46:23,461 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=Right middle lobe)
+2026-02-16 15:46:23,461 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1034 with 2 images
+2026-02-16 15:46:23,592 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1034: prob=0.561, class=1
+2026-02-16 15:46:23,594 - knowledge.prolog_engine - INFO - Consensus for CXR1034: prob=0.447, class=0, confidence=0.234
+2026-02-16 15:46:30,246 - orchestrator - INFO - Case CXR1034: class=0, prob=0.447, confidence=0.234, agreement=majority
+2026-02-16 15:46:30,246 - __main__ - INFO - [ExtendedMAS] Case 7/50
+2026-02-16 15:46:30,246 - __main__ - INFO - [ExtendedMAS] Processing case CXR1035...
+2026-02-16 15:46:30,246 - orchestrator - INFO - Analyzing case CXR1035 with 6 agents...
+2026-02-16 15:46:30,246 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.792, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:46:30,246 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1035 with 2 images
+2026-02-16 15:46:30,260 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=11.2mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:46:30,282 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=10.6mm (blob_estimation), texture=ground_glass -> prob=0.150
+2026-02-16 15:46:30,291 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1035: prob=0.388, class=0
+2026-02-16 15:46:30,291 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1035
+2026-02-16 15:46:30,292 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=2, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:46:30,292 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1035 with 2 images
+2026-02-16 15:46:30,449 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1035: prob=0.633, class=1
+2026-02-16 15:46:30,449 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1035
+2026-02-16 15:46:30,450 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:46:30,450 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1035
+2026-02-16 15:46:30,464 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=14, malignancy_score=0.50
+2026-02-16 15:46:30,464 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:46:30,464 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1035 with 2 images
+2026-02-16 15:46:30,542 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1035: prob=0.610, class=1
+2026-02-16 15:46:30,544 - knowledge.prolog_engine - INFO - Consensus for CXR1035: prob=0.579, class=1, confidence=0.856
+2026-02-16 15:46:37,460 - orchestrator - INFO - Case CXR1035: class=1, prob=0.579, confidence=0.856, agreement=majority
+2026-02-16 15:46:37,461 - __main__ - INFO - [ExtendedMAS] Case 8/50
+2026-02-16 15:46:37,461 - __main__ - INFO - [ExtendedMAS] Processing case CXR1044...
+2026-02-16 15:46:37,461 - orchestrator - INFO - Analyzing case CXR1044 with 6 agents...
+2026-02-16 15:46:37,461 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.711, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6844, 'pathologist_spacy': 0.77, 'pathologist_context': 0.77}
+2026-02-16 15:46:37,461 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1044 with 2 images
+2026-02-16 15:46:37,472 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=12.0mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:46:37,493 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:46:37,503 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1044: prob=0.553, class=1
+2026-02-16 15:46:37,503 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1044
+2026-02-16 15:46:37,503 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:46:37,503 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1044 with 2 images
+2026-02-16 15:46:37,573 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1044: prob=0.546, class=1
+2026-02-16 15:46:37,573 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1044
+2026-02-16 15:46:37,573 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:46:37,573 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1044
+2026-02-16 15:46:37,584 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=9, malignancy_score=0.50
+2026-02-16 15:46:37,584 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:46:37,584 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1044 with 2 images
+2026-02-16 15:46:37,736 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1044: prob=0.597, class=1
+2026-02-16 15:46:37,739 - knowledge.prolog_engine - INFO - Consensus for CXR1044: prob=0.523, class=1, confidence=0.809
+2026-02-16 15:46:45,275 - orchestrator - INFO - Case CXR1044: class=1, prob=0.523, confidence=0.809, agreement=majority
+2026-02-16 15:46:45,275 - __main__ - INFO - [ExtendedMAS] Case 9/50
+2026-02-16 15:46:45,275 - __main__ - INFO - [ExtendedMAS] Processing case CXR1063...
+2026-02-16 15:46:45,275 - orchestrator - INFO - Analyzing case CXR1063 with 6 agents...
+2026-02-16 15:46:45,275 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.999, path_richness=0.526, weights={'radiologist_densenet': 0.9997, 'radiologist_resnet': 0.9997, 'radiologist_rulebased': 0.6998, 'pathologist_regex': 0.6104, 'pathologist_spacy': 0.6867, 'pathologist_context': 0.6867}
+2026-02-16 15:46:45,276 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1063 with 2 images
+2026-02-16 15:46:45,289 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=8.3mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:46:45,321 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:46:45,340 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1063: prob=0.553, class=1
+2026-02-16 15:46:45,340 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1063
+2026-02-16 15:46:45,341 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:46:45,341 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1063 with 2 images
+2026-02-16 15:46:45,523 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1063: prob=0.593, class=1
+2026-02-16 15:46:45,523 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1063
+2026-02-16 15:46:45,523 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:46:45,523 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1063
+2026-02-16 15:46:45,533 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=9, malignancy_score=0.55
+2026-02-16 15:46:45,533 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left lung base)
+2026-02-16 15:46:45,533 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1063 with 2 images
+2026-02-16 15:46:45,631 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1063: prob=0.576, class=1
+2026-02-16 15:46:45,633 - knowledge.prolog_engine - INFO - Consensus for CXR1063: prob=0.572, class=1, confidence=0.938
+2026-02-16 15:46:53,285 - orchestrator - INFO - Case CXR1063: class=1, prob=0.572, confidence=0.938, agreement=unanimous
+2026-02-16 15:46:53,285 - __main__ - INFO - [ExtendedMAS] Case 10/50
+2026-02-16 15:46:53,285 - __main__ - INFO - [ExtendedMAS] Processing case CXR1064...
+2026-02-16 15:46:53,285 - orchestrator - INFO - Analyzing case CXR1064 with 6 agents...
+2026-02-16 15:46:53,286 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.825, path_richness=0.720, weights={'radiologist_densenet': 0.9125, 'radiologist_resnet': 0.9125, 'radiologist_rulebased': 0.6387, 'pathologist_regex': 0.6882, 'pathologist_spacy': 0.7742, 'pathologist_context': 0.7742}
+2026-02-16 15:46:53,286 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1064 with 1 images
+2026-02-16 15:46:53,301 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=8.1mm (blob_estimation), texture=solid -> prob=0.550
+2026-02-16 15:46:53,316 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1064: prob=0.550, class=1
+2026-02-16 15:46:53,316 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1064
+2026-02-16 15:46:53,317 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:46:53,317 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1064 with 1 images
+2026-02-16 15:46:53,364 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1064: prob=0.743, class=1
+2026-02-16 15:46:53,364 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1064
+2026-02-16 15:46:53,365 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=1
+2026-02-16 15:46:53,365 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1064
+2026-02-16 15:46:53,376 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=9, malignancy_score=0.30
+2026-02-16 15:46:53,376 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right)
+2026-02-16 15:46:53,376 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1064 with 1 images
+2026-02-16 15:46:53,458 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1064: prob=0.429, class=0
+2026-02-16 15:46:53,460 - knowledge.prolog_engine - INFO - Consensus for CXR1064: prob=0.467, class=0, confidence=0.541
+2026-02-16 15:47:01,020 - orchestrator - INFO - Case CXR1064: class=0, prob=0.467, confidence=0.541, agreement=majority
+2026-02-16 15:47:01,020 - __main__ - INFO - [ExtendedMAS] Case 11/50
+2026-02-16 15:47:01,020 - __main__ - INFO - [ExtendedMAS] Processing case CXR1075...
+2026-02-16 15:47:01,020 - orchestrator - INFO - Analyzing case CXR1075 with 6 agents...
+2026-02-16 15:47:01,020 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.792, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:47:01,020 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1075 with 2 images
+2026-02-16 15:47:01,032 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=6.0mm (blob_estimation), texture=part_solid -> prob=0.350
+2026-02-16 15:47:01,057 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:01,070 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1075: prob=0.609, class=1
+2026-02-16 15:47:01,070 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1075
+2026-02-16 15:47:01,072 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:47:01,072 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1075 with 2 images
+2026-02-16 15:47:01,251 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1075: prob=0.615, class=1
+2026-02-16 15:47:01,251 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1075
+2026-02-16 15:47:01,251 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:47:01,251 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1075
+2026-02-16 15:47:01,269 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=24, malignancy_score=0.55
+2026-02-16 15:47:01,269 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:47:01,269 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1075 with 2 images
+2026-02-16 15:47:01,360 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1075: prob=0.630, class=1
+2026-02-16 15:47:01,361 - knowledge.prolog_engine - INFO - Consensus for CXR1075: prob=0.594, class=1, confidence=0.906
+2026-02-16 15:47:08,204 - orchestrator - INFO - Case CXR1075: class=1, prob=0.594, confidence=0.906, agreement=unanimous
+2026-02-16 15:47:08,204 - __main__ - INFO - [ExtendedMAS] Case 12/50
+2026-02-16 15:47:08,204 - __main__ - INFO - [ExtendedMAS] Processing case CXR1076...
+2026-02-16 15:47:08,204 - orchestrator - INFO - Analyzing case CXR1076 with 6 agents...
+2026-02-16 15:47:08,204 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.732, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:47:08,204 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1076 with 2 images
+2026-02-16 15:47:08,213 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:47:08,227 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:47:08,232 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1076: prob=0.500, class=1
+2026-02-16 15:47:08,232 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1076
+2026-02-16 15:47:08,233 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:47:08,233 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1076 with 2 images
+2026-02-16 15:47:08,303 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1076: prob=0.653, class=1
+2026-02-16 15:47:08,304 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1076
+2026-02-16 15:47:08,304 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:47:08,304 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1076
+2026-02-16 15:47:08,317 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=12, malignancy_score=0.60
+2026-02-16 15:47:08,318 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=lobe)
+2026-02-16 15:47:08,318 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1076 with 2 images
+2026-02-16 15:47:08,452 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1076: prob=0.616, class=1
+2026-02-16 15:47:08,453 - knowledge.prolog_engine - INFO - Consensus for CXR1076: prob=0.600, class=1, confidence=0.860
+2026-02-16 15:47:15,445 - orchestrator - INFO - Case CXR1076: class=1, prob=0.600, confidence=0.860, agreement=unanimous
+2026-02-16 15:47:15,445 - __main__ - INFO - [ExtendedMAS] Case 13/50
+2026-02-16 15:47:15,445 - __main__ - INFO - [ExtendedMAS] Processing case CXR1085...
+2026-02-16 15:47:15,445 - orchestrator - INFO - Analyzing case CXR1085 with 6 agents...
+2026-02-16 15:47:15,445 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.732, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:47:15,445 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1085 with 2 images
+2026-02-16 15:47:15,453 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=39.4mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:15,481 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:15,500 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1085: prob=0.900, class=1
+2026-02-16 15:47:15,501 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1085
+2026-02-16 15:47:15,501 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=1, overall=uncertain
+2026-02-16 15:47:15,502 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1085 with 2 images
+2026-02-16 15:47:15,680 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1085: prob=0.455, class=0
+2026-02-16 15:47:15,680 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1085
+2026-02-16 15:47:15,680 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:47:15,680 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1085
+2026-02-16 15:47:15,697 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=19, malignancy_score=0.55
+2026-02-16 15:47:15,697 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left upper lobe)
+2026-02-16 15:47:15,697 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1085 with 2 images
+2026-02-16 15:47:15,780 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1085: prob=0.383, class=0
+2026-02-16 15:47:15,782 - knowledge.prolog_engine - INFO - Consensus for CXR1085: prob=0.445, class=0, confidence=0.520
+2026-02-16 15:47:22,591 - orchestrator - INFO - Case CXR1085: class=0, prob=0.445, confidence=0.520, agreement=majority
+2026-02-16 15:47:22,591 - __main__ - INFO - [ExtendedMAS] Case 14/50
+2026-02-16 15:47:22,591 - __main__ - INFO - [ExtendedMAS] Processing case CXR1087...
+2026-02-16 15:47:22,591 - orchestrator - INFO - Analyzing case CXR1087 with 6 agents...
+2026-02-16 15:47:22,592 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.574, weights={'radiologist_densenet': 0.9867, 'radiologist_resnet': 0.9867, 'radiologist_rulebased': 0.6907, 'pathologist_regex': 0.6294, 'pathologist_spacy': 0.7081, 'pathologist_context': 0.7081}
+2026-02-16 15:47:22,592 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1087 with 2 images
+2026-02-16 15:47:22,594 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:47:22,608 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:22,620 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1087: prob=0.733, class=1
+2026-02-16 15:47:22,620 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1087
+2026-02-16 15:47:22,620 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:47:22,620 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1087 with 2 images
+2026-02-16 15:47:22,694 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1087: prob=0.565, class=1
+2026-02-16 15:47:22,694 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1087
+2026-02-16 15:47:22,694 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:47:22,694 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1087
+2026-02-16 15:47:22,704 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=9, malignancy_score=0.10
+2026-02-16 15:47:22,704 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:47:22,705 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1087 with 2 images
+2026-02-16 15:47:22,871 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1087: prob=0.590, class=1
+2026-02-16 15:47:22,873 - knowledge.prolog_engine - INFO - Consensus for CXR1087: prob=0.480, class=0, confidence=0.375
+2026-02-16 15:47:29,669 - orchestrator - INFO - Case CXR1087: class=0, prob=0.480, confidence=0.375, agreement=majority
+2026-02-16 15:47:29,669 - __main__ - INFO - [ExtendedMAS] Case 15/50
+2026-02-16 15:47:29,669 - __main__ - INFO - [ExtendedMAS] Processing case CXR1088...
+2026-02-16 15:47:29,669 - orchestrator - INFO - Analyzing case CXR1088 with 6 agents...
+2026-02-16 15:47:29,670 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.552, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6209, 'pathologist_spacy': 0.6985, 'pathologist_context': 0.6985}
+2026-02-16 15:47:29,670 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1088 with 2 images
+2026-02-16 15:47:29,682 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.2mm (blob_estimation), texture=part_solid -> prob=0.150
+2026-02-16 15:47:29,705 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=53.8mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:47:29,717 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1088: prob=0.315, class=0
+2026-02-16 15:47:29,717 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1088
+2026-02-16 15:47:29,717 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=1, overall=uncertain
+2026-02-16 15:47:29,718 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1088 with 2 images
+2026-02-16 15:47:29,887 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1088: prob=0.484, class=0
+2026-02-16 15:47:29,888 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1088
+2026-02-16 15:47:29,888 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:47:29,888 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1088
+2026-02-16 15:47:29,897 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=10, malignancy_score=0.60
+2026-02-16 15:47:29,897 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right lung)
+2026-02-16 15:47:29,897 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1088 with 2 images
+2026-02-16 15:47:29,977 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1088: prob=0.566, class=1
+2026-02-16 15:47:29,979 - knowledge.prolog_engine - INFO - Consensus for CXR1088: prob=0.525, class=1, confidence=0.710
+2026-02-16 15:47:37,035 - orchestrator - INFO - Case CXR1088: class=1, prob=0.525, confidence=0.710, agreement=majority
+2026-02-16 15:47:37,035 - __main__ - INFO - [ExtendedMAS] Case 16/50
+2026-02-16 15:47:37,035 - __main__ - INFO - [ExtendedMAS] Processing case CXR1094...
+2026-02-16 15:47:37,035 - orchestrator - INFO - Analyzing case CXR1094 with 6 agents...
+2026-02-16 15:47:37,036 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.474, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.5897, 'pathologist_spacy': 0.6634, 'pathologist_context': 0.6634}
+2026-02-16 15:47:37,036 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1094 with 2 images
+2026-02-16 15:47:37,053 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=24.1mm (blob_estimation), texture=solid -> prob=0.750
+2026-02-16 15:47:37,089 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:37,107 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1094: prob=0.821, class=1
+2026-02-16 15:47:37,107 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1094
+2026-02-16 15:47:37,108 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=1, uncertain=0, overall=affirmed
+2026-02-16 15:47:37,108 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1094 with 2 images
+2026-02-16 15:47:37,182 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1094: prob=0.407, class=0
+2026-02-16 15:47:37,183 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1094
+2026-02-16 15:47:37,183 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:47:37,183 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1094
+2026-02-16 15:47:37,195 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=10, malignancy_score=0.60
+2026-02-16 15:47:37,195 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:47:37,195 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1094 with 2 images
+2026-02-16 15:47:37,333 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1094: prob=0.224, class=0
+2026-02-16 15:47:37,334 - knowledge.prolog_engine - INFO - Consensus for CXR1094: prob=0.510, class=1, confidence=0.428
+2026-02-16 15:47:44,109 - orchestrator - INFO - Case CXR1094: class=1, prob=0.510, confidence=0.428, agreement=majority
+2026-02-16 15:47:44,109 - __main__ - INFO - [ExtendedMAS] Case 17/50
+2026-02-16 15:47:44,109 - __main__ - INFO - [ExtendedMAS] Processing case CXR1103...
+2026-02-16 15:47:44,109 - orchestrator - INFO - Analyzing case CXR1103 with 6 agents...
+2026-02-16 15:47:44,109 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.552, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6207, 'pathologist_spacy': 0.6983, 'pathologist_context': 0.6983}
+2026-02-16 15:47:44,109 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1103 with 2 images
+2026-02-16 15:47:44,119 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:44,136 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=6.6mm (blob_estimation), texture=ground_glass -> prob=0.150
+2026-02-16 15:47:44,145 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1103: prob=0.547, class=1
+2026-02-16 15:47:44,145 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1103
+2026-02-16 15:47:44,146 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:47:44,146 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1103 with 2 images
+2026-02-16 15:47:44,280 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1103: prob=0.442, class=0
+2026-02-16 15:47:44,280 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1103
+2026-02-16 15:47:44,281 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=3
+2026-02-16 15:47:44,281 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1103
+2026-02-16 15:47:44,294 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=11, malignancy_score=0.00
+2026-02-16 15:47:44,294 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:47:44,295 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1103 with 2 images
+2026-02-16 15:47:44,358 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1103: prob=0.286, class=0
+2026-02-16 15:47:44,359 - knowledge.prolog_engine - INFO - Consensus for CXR1103: prob=0.290, class=0, confidence=0.474
+2026-02-16 15:47:51,302 - orchestrator - INFO - Case CXR1103: class=0, prob=0.290, confidence=0.474, agreement=majority
+2026-02-16 15:47:51,302 - __main__ - INFO - [ExtendedMAS] Case 18/50
+2026-02-16 15:47:51,302 - __main__ - INFO - [ExtendedMAS] Processing case CXR1117...
+2026-02-16 15:47:51,302 - orchestrator - INFO - Analyzing case CXR1117 with 6 agents...
+2026-02-16 15:47:51,303 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.742, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6967, 'pathologist_spacy': 0.7838, 'pathologist_context': 0.7838}
+2026-02-16 15:47:51,303 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1117 with 2 images
+2026-02-16 15:47:51,317 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=44.8mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:51,349 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:47:51,363 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1117: prob=0.712, class=1
+2026-02-16 15:47:51,363 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1117
+2026-02-16 15:47:51,364 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:47:51,364 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1117 with 2 images
+2026-02-16 15:47:51,426 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1117: prob=0.283, class=0
+2026-02-16 15:47:51,426 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1117
+2026-02-16 15:47:51,426 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=1
+2026-02-16 15:47:51,426 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1117
+2026-02-16 15:47:51,439 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=11, malignancy_score=0.35
+2026-02-16 15:47:51,439 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:47:51,439 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1117 with 2 images
+2026-02-16 15:47:51,579 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1117: prob=0.515, class=1
+2026-02-16 15:47:51,581 - knowledge.prolog_engine - INFO - Consensus for CXR1117: prob=0.426, class=0, confidence=0.665
+2026-02-16 15:47:58,524 - orchestrator - INFO - Case CXR1117: class=0, prob=0.426, confidence=0.665, agreement=majority
+2026-02-16 15:47:58,524 - __main__ - INFO - [ExtendedMAS] Case 19/50
+2026-02-16 15:47:58,524 - __main__ - INFO - [ExtendedMAS] Processing case CXR1123...
+2026-02-16 15:47:58,524 - orchestrator - INFO - Analyzing case CXR1123 with 6 agents...
+2026-02-16 15:47:58,524 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.672, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6687, 'pathologist_spacy': 0.7522, 'pathologist_context': 0.7522}
+2026-02-16 15:47:58,524 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1123 with 2 images
+2026-02-16 15:47:58,533 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=10.4mm (blob_estimation), texture=solid -> prob=0.550
+2026-02-16 15:47:58,553 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:47:58,564 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1123: prob=0.715, class=1
+2026-02-16 15:47:58,564 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1123
+2026-02-16 15:47:58,565 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=1, uncertain=0, overall=affirmed
+2026-02-16 15:47:58,565 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1123 with 2 images
+2026-02-16 15:47:58,710 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1123: prob=0.380, class=0
+2026-02-16 15:47:58,710 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1123
+2026-02-16 15:47:58,711 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=1
+2026-02-16 15:47:58,711 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1123
+2026-02-16 15:47:58,725 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=20, malignancy_score=0.35
+2026-02-16 15:47:58,725 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right apex)
+2026-02-16 15:47:58,725 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1123 with 2 images
+2026-02-16 15:47:58,790 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1123: prob=0.380, class=0
+2026-02-16 15:47:58,792 - knowledge.prolog_engine - INFO - Consensus for CXR1123: prob=0.408, class=0, confidence=0.726
+2026-02-16 15:48:05,650 - orchestrator - INFO - Case CXR1123: class=0, prob=0.408, confidence=0.726, agreement=majority
+2026-02-16 15:48:05,650 - __main__ - INFO - [ExtendedMAS] Case 20/50
+2026-02-16 15:48:05,650 - __main__ - INFO - [ExtendedMAS] Processing case CXR1126...
+2026-02-16 15:48:05,650 - orchestrator - INFO - Analyzing case CXR1126 with 6 agents...
+2026-02-16 15:48:05,650 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.999, path_richness=0.612, weights={'radiologist_densenet': 0.9994, 'radiologist_resnet': 0.9994, 'radiologist_rulebased': 0.6996, 'pathologist_regex': 0.6447, 'pathologist_spacy': 0.7252, 'pathologist_context': 0.7252}
+2026-02-16 15:48:05,650 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1126 with 2 images
+2026-02-16 15:48:05,659 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:48:05,678 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:48:05,688 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1126: prob=0.733, class=1
+2026-02-16 15:48:05,688 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1126
+2026-02-16 15:48:05,689 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:48:05,689 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1126 with 2 images
+2026-02-16 15:48:05,769 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1126: prob=0.335, class=0
+2026-02-16 15:48:05,769 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1126
+2026-02-16 15:48:05,770 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:48:05,770 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1126
+2026-02-16 15:48:05,784 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=28, malignancy_score=0.15
+2026-02-16 15:48:05,784 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1126 with 2 images
+2026-02-16 15:48:05,925 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1126: prob=0.532, class=1
+2026-02-16 15:48:05,928 - knowledge.prolog_engine - INFO - Consensus for CXR1126: prob=0.379, class=0, confidence=0.350
+2026-02-16 15:48:12,964 - orchestrator - INFO - Case CXR1126: class=0, prob=0.379, confidence=0.350, agreement=majority
+2026-02-16 15:48:12,964 - __main__ - INFO - [ExtendedMAS] Case 21/50
+2026-02-16 15:48:12,964 - __main__ - INFO - [ExtendedMAS] Processing case CXR113...
+2026-02-16 15:48:12,964 - orchestrator - INFO - Analyzing case CXR113 with 6 agents...
+2026-02-16 15:48:12,964 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.964, path_richness=0.547, weights={'radiologist_densenet': 0.982, 'radiologist_resnet': 0.982, 'radiologist_rulebased': 0.6874, 'pathologist_regex': 0.6189, 'pathologist_spacy': 0.6963, 'pathologist_context': 0.6963}
+2026-02-16 15:48:12,964 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR113 with 3 images
+2026-02-16 15:48:12,973 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=15.1mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:48:12,989 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.9mm (blob_estimation), texture=solid -> prob=0.100
+2026-02-16 15:48:13,012 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=23.8mm (blob_estimation), texture=solid -> prob=0.750
+2026-02-16 15:48:13,025 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR113: prob=0.534, class=1
+2026-02-16 15:48:13,025 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR113
+2026-02-16 15:48:13,026 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=1, overall=uncertain
+2026-02-16 15:48:13,026 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR113 with 3 images
+2026-02-16 15:48:13,267 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR113: prob=0.319, class=0
+2026-02-16 15:48:13,267 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR113
+2026-02-16 15:48:13,267 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=2
+2026-02-16 15:48:13,267 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR113
+2026-02-16 15:48:13,279 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=11, malignancy_score=0.10
+2026-02-16 15:48:13,279 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right lung)
+2026-02-16 15:48:13,279 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR113 with 3 images
+2026-02-16 15:48:13,394 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR113: prob=0.387, class=0
+2026-02-16 15:48:13,396 - knowledge.prolog_engine - INFO - Consensus for CXR113: prob=0.319, class=0, confidence=0.707
+2026-02-16 15:48:20,475 - orchestrator - INFO - Case CXR113: class=0, prob=0.319, confidence=0.707, agreement=majority
+2026-02-16 15:48:20,475 - __main__ - INFO - [ExtendedMAS] Case 22/50
+2026-02-16 15:48:20,475 - __main__ - INFO - [ExtendedMAS] Processing case CXR1130...
+2026-02-16 15:48:20,475 - orchestrator - INFO - Analyzing case CXR1130 with 6 agents...
+2026-02-16 15:48:20,475 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.792, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:48:20,475 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1130 with 2 images
+2026-02-16 15:48:20,485 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=56.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:48:20,509 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:48:20,527 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1130: prob=0.900, class=1
+2026-02-16 15:48:20,527 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1130
+2026-02-16 15:48:20,528 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:48:20,528 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1130 with 2 images
+2026-02-16 15:48:20,614 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1130: prob=0.347, class=0
+2026-02-16 15:48:20,614 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1130
+2026-02-16 15:48:20,614 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:48:20,614 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1130
+2026-02-16 15:48:20,626 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=10, malignancy_score=0.15
+2026-02-16 15:48:20,626 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right base)
+2026-02-16 15:48:20,627 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1130 with 2 images
+2026-02-16 15:48:20,804 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1130: prob=0.605, class=1
+2026-02-16 15:48:20,806 - knowledge.prolog_engine - INFO - Consensus for CXR1130: prob=0.440, class=0, confidence=0.273
+2026-02-16 15:48:27,711 - orchestrator - INFO - Case CXR1130: class=0, prob=0.440, confidence=0.273, agreement=majority
+2026-02-16 15:48:27,712 - __main__ - INFO - [ExtendedMAS] Case 23/50
+2026-02-16 15:48:27,712 - __main__ - INFO - [ExtendedMAS] Processing case CXR1131...
+2026-02-16 15:48:27,712 - orchestrator - INFO - Analyzing case CXR1131 with 6 agents...
+2026-02-16 15:48:27,712 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.974, path_richness=0.597, weights={'radiologist_densenet': 0.987, 'radiologist_resnet': 0.987, 'radiologist_rulebased': 0.6909, 'pathologist_regex': 0.6389, 'pathologist_spacy': 0.7188, 'pathologist_context': 0.7188}
+2026-02-16 15:48:27,712 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1131 with 2 images
+2026-02-16 15:48:27,714 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:48:27,725 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=24.4mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:48:27,734 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1131: prob=0.675, class=1
+2026-02-16 15:48:27,735 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1131
+2026-02-16 15:48:27,735 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:48:27,735 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1131 with 2 images
+2026-02-16 15:48:27,904 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1131: prob=0.575, class=1
+2026-02-16 15:48:27,904 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1131
+2026-02-16 15:48:27,904 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:48:27,904 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1131
+2026-02-16 15:48:27,915 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=13, malignancy_score=0.15
+2026-02-16 15:48:27,915 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right lung base)
+2026-02-16 15:48:27,915 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1131 with 2 images
+2026-02-16 15:48:27,980 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1131: prob=0.514, class=1
+2026-02-16 15:48:27,982 - knowledge.prolog_engine - INFO - Consensus for CXR1131: prob=0.410, class=0, confidence=0.357
+2026-02-16 15:48:34,926 - orchestrator - INFO - Case CXR1131: class=0, prob=0.410, confidence=0.357, agreement=majority
+2026-02-16 15:48:34,927 - __main__ - INFO - [ExtendedMAS] Case 24/50
+2026-02-16 15:48:34,927 - __main__ - INFO - [ExtendedMAS] Processing case CXR1135...
+2026-02-16 15:48:34,927 - orchestrator - INFO - Analyzing case CXR1135 with 6 agents...
+2026-02-16 15:48:34,927 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.599, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6397, 'pathologist_spacy': 0.7196, 'pathologist_context': 0.7196}
+2026-02-16 15:48:34,927 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1135 with 2 images
+2026-02-16 15:48:34,944 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=10.4mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:48:34,976 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:48:34,996 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1135: prob=0.553, class=1
+2026-02-16 15:48:34,996 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1135
+2026-02-16 15:48:34,997 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:48:34,997 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1135 with 2 images
+2026-02-16 15:48:35,083 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1135: prob=0.451, class=0
+2026-02-16 15:48:35,083 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1135
+2026-02-16 15:48:35,083 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=3
+2026-02-16 15:48:35,083 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1135
+2026-02-16 15:48:35,095 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=8, malignancy_score=0.00
+2026-02-16 15:48:35,095 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:48:35,095 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1135 with 2 images
+2026-02-16 15:48:35,270 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1135: prob=0.504, class=1
+2026-02-16 15:48:35,272 - knowledge.prolog_engine - INFO - Consensus for CXR1135: prob=0.344, class=0, confidence=0.415
+2026-02-16 15:48:42,333 - orchestrator - INFO - Case CXR1135: class=0, prob=0.344, confidence=0.415, agreement=majority
+2026-02-16 15:48:42,333 - __main__ - INFO - [ExtendedMAS] Case 25/50
+2026-02-16 15:48:42,333 - __main__ - INFO - [ExtendedMAS] Processing case CXR1157...
+2026-02-16 15:48:42,333 - orchestrator - INFO - Analyzing case CXR1157 with 6 agents...
+2026-02-16 15:48:42,333 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.723, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6892, 'pathologist_spacy': 0.7753, 'pathologist_context': 0.7753}
+2026-02-16 15:48:42,333 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1157 with 2 images
+2026-02-16 15:48:42,343 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:48:42,366 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=19.9mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:48:42,379 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1157: prob=0.675, class=1
+2026-02-16 15:48:42,379 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1157
+2026-02-16 15:48:42,379 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:48:42,379 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1157 with 2 images
+2026-02-16 15:48:42,568 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1157: prob=0.658, class=1
+2026-02-16 15:48:42,568 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1157
+2026-02-16 15:48:42,568 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:48:42,568 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1157
+2026-02-16 15:48:42,577 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=8, malignancy_score=0.55
+2026-02-16 15:48:42,577 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:48:42,577 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1157 with 2 images
+2026-02-16 15:48:42,671 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1157: prob=0.583, class=1
+2026-02-16 15:48:42,674 - knowledge.prolog_engine - INFO - Consensus for CXR1157: prob=0.563, class=1, confidence=0.756
+2026-02-16 15:48:50,090 - orchestrator - INFO - Case CXR1157: class=1, prob=0.563, confidence=0.756, agreement=majority
+2026-02-16 15:48:50,090 - __main__ - INFO - [ExtendedMAS] Case 26/50
+2026-02-16 15:48:50,090 - __main__ - INFO - [ExtendedMAS] Processing case CXR116...
+2026-02-16 15:48:50,090 - orchestrator - INFO - Analyzing case CXR116 with 6 agents...
+2026-02-16 15:48:50,090 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.572, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6289, 'pathologist_spacy': 0.7075, 'pathologist_context': 0.7075}
+2026-02-16 15:48:50,090 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR116 with 2 images
+2026-02-16 15:48:50,105 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=4.8mm (blob_estimation), texture=part_solid -> prob=0.150
+2026-02-16 15:48:50,142 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:48:50,162 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR116: prob=0.315, class=0
+2026-02-16 15:48:50,162 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR116
+2026-02-16 15:48:50,162 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:48:50,162 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR116 with 2 images
+2026-02-16 15:48:50,316 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR116: prob=0.272, class=0
+2026-02-16 15:48:50,316 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR116
+2026-02-16 15:48:50,317 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=3
+2026-02-16 15:48:50,317 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR116
+2026-02-16 15:48:50,329 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=10, malignancy_score=0.00
+2026-02-16 15:48:50,329 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left base)
+2026-02-16 15:48:50,329 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR116 with 2 images
+2026-02-16 15:48:50,529 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR116: prob=0.355, class=0
+2026-02-16 15:48:50,531 - knowledge.prolog_engine - INFO - Consensus for CXR116: prob=0.288, class=0, confidence=0.685
+2026-02-16 15:48:57,965 - orchestrator - INFO - Case CXR116: class=0, prob=0.288, confidence=0.685, agreement=majority
+2026-02-16 15:48:57,965 - __main__ - INFO - [ExtendedMAS] Case 27/50
+2026-02-16 15:48:57,965 - __main__ - INFO - [ExtendedMAS] Processing case CXR1169...
+2026-02-16 15:48:57,965 - orchestrator - INFO - Analyzing case CXR1169 with 6 agents...
+2026-02-16 15:48:57,965 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.773, path_richness=0.792, weights={'radiologist_densenet': 0.8864, 'radiologist_resnet': 0.8864, 'radiologist_rulebased': 0.6205, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:48:57,965 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1169 with 1 images
+2026-02-16 15:48:57,976 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=12.9mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:48:57,989 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1169: prob=0.600, class=1
+2026-02-16 15:48:57,989 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1169
+2026-02-16 15:48:57,990 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:48:57,990 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1169 with 1 images
+2026-02-16 15:48:58,068 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1169: prob=0.672, class=1
+2026-02-16 15:48:58,068 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1169
+2026-02-16 15:48:58,068 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=0
+2026-02-16 15:48:58,068 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1169
+2026-02-16 15:48:58,086 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=16, malignancy_score=0.55
+2026-02-16 15:48:58,086 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right upper lung)
+2026-02-16 15:48:58,086 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1169 with 1 images
+2026-02-16 15:48:58,127 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1169: prob=0.581, class=1
+2026-02-16 15:48:58,129 - knowledge.prolog_engine - INFO - Consensus for CXR1169: prob=0.593, class=1, confidence=0.876
+2026-02-16 15:49:05,265 - orchestrator - INFO - Case CXR1169: class=1, prob=0.593, confidence=0.876, agreement=unanimous
+2026-02-16 15:49:05,265 - __main__ - INFO - [ExtendedMAS] Case 28/50
+2026-02-16 15:49:05,265 - __main__ - INFO - [ExtendedMAS] Processing case CXR1174...
+2026-02-16 15:49:05,265 - orchestrator - INFO - Analyzing case CXR1174 with 6 agents...
+2026-02-16 15:49:05,265 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.532, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6129, 'pathologist_spacy': 0.6895, 'pathologist_context': 0.6895}
+2026-02-16 15:49:05,265 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1174 with 2 images
+2026-02-16 15:49:05,283 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=13.9mm (blob_estimation), texture=solid -> prob=0.550
+2026-02-16 15:49:05,315 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:05,325 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1174: prob=0.715, class=1
+2026-02-16 15:49:05,326 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1174
+2026-02-16 15:49:05,326 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:49:05,326 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1174 with 2 images
+2026-02-16 15:49:05,396 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1174: prob=0.596, class=1
+2026-02-16 15:49:05,396 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1174
+2026-02-16 15:49:05,396 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:49:05,396 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1174
+2026-02-16 15:49:05,405 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=9, malignancy_score=0.50
+2026-02-16 15:49:05,405 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:49:05,406 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1174 with 2 images
+2026-02-16 15:49:05,553 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1174: prob=0.484, class=0
+2026-02-16 15:49:05,555 - knowledge.prolog_engine - INFO - Consensus for CXR1174: prob=0.570, class=1, confidence=0.770
+2026-02-16 15:49:12,740 - orchestrator - INFO - Case CXR1174: class=1, prob=0.570, confidence=0.770, agreement=majority
+2026-02-16 15:49:12,740 - __main__ - INFO - [ExtendedMAS] Case 29/50
+2026-02-16 15:49:12,740 - __main__ - INFO - [ExtendedMAS] Processing case CXR1203...
+2026-02-16 15:49:12,740 - orchestrator - INFO - Analyzing case CXR1203 with 6 agents...
+2026-02-16 15:49:12,740 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.584, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6334, 'pathologist_spacy': 0.7126, 'pathologist_context': 0.7126}
+2026-02-16 15:49:12,740 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1203 with 2 images
+2026-02-16 15:49:12,752 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=16.0mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:49:12,774 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:49:12,782 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1203: prob=0.692, class=1
+2026-02-16 15:49:12,782 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1203
+2026-02-16 15:49:12,783 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:49:12,783 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1203 with 2 images
+2026-02-16 15:49:12,930 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1203: prob=0.505, class=1
+2026-02-16 15:49:12,931 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1203
+2026-02-16 15:49:12,931 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:49:12,931 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1203
+2026-02-16 15:49:12,944 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=11, malignancy_score=0.55
+2026-02-16 15:49:12,944 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:49:12,944 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1203 with 2 images
+2026-02-16 15:49:13,021 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1203: prob=0.547, class=1
+2026-02-16 15:49:13,022 - knowledge.prolog_engine - INFO - Consensus for CXR1203: prob=0.561, class=1, confidence=0.824
+2026-02-16 15:49:20,434 - orchestrator - INFO - Case CXR1203: class=1, prob=0.561, confidence=0.824, agreement=unanimous
+2026-02-16 15:49:20,434 - __main__ - INFO - [ExtendedMAS] Case 30/50
+2026-02-16 15:49:20,434 - __main__ - INFO - [ExtendedMAS] Processing case CXR1226...
+2026-02-16 15:49:20,434 - orchestrator - INFO - Analyzing case CXR1226 with 6 agents...
+2026-02-16 15:49:20,435 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.993, path_richness=0.529, weights={'radiologist_densenet': 0.9963, 'radiologist_resnet': 0.9963, 'radiologist_rulebased': 0.6974, 'pathologist_regex': 0.6114, 'pathologist_spacy': 0.6878, 'pathologist_context': 0.6878}
+2026-02-16 15:49:20,435 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1226 with 2 images
+2026-02-16 15:49:20,444 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=6.1mm (blob_estimation), texture=part_solid -> prob=0.350
+2026-02-16 15:49:20,469 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:20,489 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1226: prob=0.609, class=1
+2026-02-16 15:49:20,489 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1226
+2026-02-16 15:49:20,490 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:49:20,490 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1226 with 2 images
+2026-02-16 15:49:20,578 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1226: prob=0.378, class=0
+2026-02-16 15:49:20,579 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1226
+2026-02-16 15:49:20,579 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:49:20,579 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1226
+2026-02-16 15:49:20,590 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=12, malignancy_score=0.55
+2026-02-16 15:49:20,590 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1226 with 2 images
+2026-02-16 15:49:20,776 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1226: prob=0.575, class=1
+2026-02-16 15:49:20,778 - knowledge.prolog_engine - INFO - Consensus for CXR1226: prob=0.476, class=0, confidence=0.780
+2026-02-16 15:49:27,678 - orchestrator - INFO - Case CXR1226: class=0, prob=0.476, confidence=0.780, agreement=majority
+2026-02-16 15:49:27,678 - __main__ - INFO - [ExtendedMAS] Case 31/50
+2026-02-16 15:49:27,678 - __main__ - INFO - [ExtendedMAS] Processing case CXR1237...
+2026-02-16 15:49:27,678 - orchestrator - INFO - Analyzing case CXR1237 with 6 agents...
+2026-02-16 15:49:27,678 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.732, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:49:27,678 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1237 with 2 images
+2026-02-16 15:49:27,691 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:27,720 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:27,737 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1237: prob=0.900, class=1
+2026-02-16 15:49:27,737 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1237
+2026-02-16 15:49:27,738 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=2, uncertain=1, overall=uncertain
+2026-02-16 15:49:27,738 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1237 with 2 images
+2026-02-16 15:49:27,884 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1237: prob=0.637, class=1
+2026-02-16 15:49:27,885 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1237
+2026-02-16 15:49:27,885 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=1
+2026-02-16 15:49:27,885 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1237
+2026-02-16 15:49:27,898 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=16, malignancy_score=0.40
+2026-02-16 15:49:27,898 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:49:27,898 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1237 with 2 images
+2026-02-16 15:49:27,965 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1237: prob=0.549, class=1
+2026-02-16 15:49:27,967 - knowledge.prolog_engine - INFO - Consensus for CXR1237: prob=0.519, class=1, confidence=0.545
+2026-02-16 15:49:34,809 - orchestrator - INFO - Case CXR1237: class=1, prob=0.519, confidence=0.545, agreement=majority
+2026-02-16 15:49:34,809 - __main__ - INFO - [ExtendedMAS] Case 32/50
+2026-02-16 15:49:34,809 - __main__ - INFO - [ExtendedMAS] Processing case CXR1240...
+2026-02-16 15:49:34,809 - orchestrator - INFO - Analyzing case CXR1240 with 6 agents...
+2026-02-16 15:49:34,810 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.728, path_richness=0.792, weights={'radiologist_densenet': 0.864, 'radiologist_resnet': 0.864, 'radiologist_rulebased': 0.6048, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:49:34,810 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1240 with 2 images
+2026-02-16 15:49:34,822 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:49:34,843 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:49:34,851 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1240: prob=0.500, class=1
+2026-02-16 15:49:34,851 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1240
+2026-02-16 15:49:34,852 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:49:34,852 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1240 with 2 images
+2026-02-16 15:49:34,916 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1240: prob=0.679, class=1
+2026-02-16 15:49:34,916 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1240
+2026-02-16 15:49:34,916 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=1
+2026-02-16 15:49:34,916 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1240
+2026-02-16 15:49:34,931 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=18, malignancy_score=0.35
+2026-02-16 15:49:34,931 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1240 with 2 images
+2026-02-16 15:49:35,077 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1240: prob=0.526, class=1
+2026-02-16 15:49:35,079 - knowledge.prolog_engine - INFO - Consensus for CXR1240: prob=0.542, class=1, confidence=0.801
+2026-02-16 15:49:41,954 - orchestrator - INFO - Case CXR1240: class=1, prob=0.542, confidence=0.801, agreement=majority
+2026-02-16 15:49:41,954 - __main__ - INFO - [ExtendedMAS] Case 33/50
+2026-02-16 15:49:41,954 - __main__ - INFO - [ExtendedMAS] Processing case CXR1249...
+2026-02-16 15:49:41,954 - orchestrator - INFO - Analyzing case CXR1249 with 6 agents...
+2026-02-16 15:49:41,954 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.660, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6642, 'pathologist_spacy': 0.7472, 'pathologist_context': 0.7472}
+2026-02-16 15:49:41,954 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1249 with 2 images
+2026-02-16 15:49:41,965 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.7mm (blob_estimation), texture=solid -> prob=0.100
+2026-02-16 15:49:41,986 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:49:41,996 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1249: prob=0.288, class=0
+2026-02-16 15:49:41,996 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1249
+2026-02-16 15:49:41,996 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:49:41,996 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1249 with 2 images
+2026-02-16 15:49:42,170 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1249: prob=0.377, class=0
+2026-02-16 15:49:42,170 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1249
+2026-02-16 15:49:42,170 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:49:42,170 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1249
+2026-02-16 15:49:42,181 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=10, malignancy_score=0.10
+2026-02-16 15:49:42,181 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left lower lobe)
+2026-02-16 15:49:42,181 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1249 with 2 images
+2026-02-16 15:49:42,258 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1249: prob=0.291, class=0
+2026-02-16 15:49:42,259 - knowledge.prolog_engine - INFO - Consensus for CXR1249: prob=0.320, class=0, confidence=0.741
+2026-02-16 15:49:49,334 - orchestrator - INFO - Case CXR1249: class=0, prob=0.320, confidence=0.741, agreement=majority
+2026-02-16 15:49:49,334 - __main__ - INFO - [ExtendedMAS] Case 34/50
+2026-02-16 15:49:49,334 - __main__ - INFO - [ExtendedMAS] Processing case CXR126...
+2026-02-16 15:49:49,334 - orchestrator - INFO - Analyzing case CXR126 with 6 agents...
+2026-02-16 15:49:49,334 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.825, path_richness=0.742, weights={'radiologist_densenet': 0.9125, 'radiologist_resnet': 0.9125, 'radiologist_rulebased': 0.6387, 'pathologist_regex': 0.6967, 'pathologist_spacy': 0.7838, 'pathologist_context': 0.7838}
+2026-02-16 15:49:49,335 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR126 with 1 images
+2026-02-16 15:49:49,345 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:49:49,357 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR126: prob=0.500, class=1
+2026-02-16 15:49:49,357 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR126
+2026-02-16 15:49:49,358 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:49:49,358 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR126 with 1 images
+2026-02-16 15:49:49,398 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR126: prob=0.330, class=0
+2026-02-16 15:49:49,398 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR126
+2026-02-16 15:49:49,398 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=1
+2026-02-16 15:49:49,398 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR126
+2026-02-16 15:49:49,411 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=16, malignancy_score=0.35
+2026-02-16 15:49:49,411 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left lower lobe)
+2026-02-16 15:49:49,411 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR126 with 1 images
+2026-02-16 15:49:49,496 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR126: prob=0.538, class=1
+2026-02-16 15:49:49,498 - knowledge.prolog_engine - INFO - Consensus for CXR126: prob=0.410, class=0, confidence=0.846
+2026-02-16 15:49:56,501 - orchestrator - INFO - Case CXR126: class=0, prob=0.410, confidence=0.846, agreement=majority
+2026-02-16 15:49:56,502 - __main__ - INFO - [ExtendedMAS] Case 35/50
+2026-02-16 15:49:56,502 - __main__ - INFO - [ExtendedMAS] Processing case CXR1265...
+2026-02-16 15:49:56,502 - orchestrator - INFO - Analyzing case CXR1265 with 6 agents...
+2026-02-16 15:49:56,502 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.742, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6967, 'pathologist_spacy': 0.7838, 'pathologist_context': 0.7838}
+2026-02-16 15:49:56,502 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1265 with 2 images
+2026-02-16 15:49:56,516 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=56.3mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:56,543 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:49:56,555 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1265: prob=0.900, class=1
+2026-02-16 15:49:56,556 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1265
+2026-02-16 15:49:56,556 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=1, uncertain=0, overall=affirmed
+2026-02-16 15:49:56,556 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1265 with 2 images
+2026-02-16 15:49:56,728 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1265: prob=0.652, class=1
+2026-02-16 15:49:56,728 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1265
+2026-02-16 15:49:56,728 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:49:56,728 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1265
+2026-02-16 15:49:56,741 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=17, malignancy_score=0.20
+2026-02-16 15:49:56,741 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:49:56,741 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1265 with 2 images
+2026-02-16 15:49:56,827 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1265: prob=0.522, class=1
+2026-02-16 15:49:56,829 - knowledge.prolog_engine - INFO - Consensus for CXR1265: prob=0.538, class=1, confidence=0.355
+2026-02-16 15:50:03,638 - orchestrator - INFO - Case CXR1265: class=1, prob=0.538, confidence=0.355, agreement=majority
+2026-02-16 15:50:03,638 - __main__ - INFO - [ExtendedMAS] Case 36/50
+2026-02-16 15:50:03,638 - __main__ - INFO - [ExtendedMAS] Processing case CXR127...
+2026-02-16 15:50:03,638 - orchestrator - INFO - Analyzing case CXR127 with 6 agents...
+2026-02-16 15:50:03,638 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.998, path_richness=0.497, weights={'radiologist_densenet': 0.9991, 'radiologist_resnet': 0.9991, 'radiologist_rulebased': 0.6994, 'pathologist_regex': 0.5989, 'pathologist_spacy': 0.6738, 'pathologist_context': 0.6738}
+2026-02-16 15:50:03,638 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR127 with 2 images
+2026-02-16 15:50:03,651 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=23.3mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:50:03,674 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:03,689 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR127: prob=0.847, class=1
+2026-02-16 15:50:03,690 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR127
+2026-02-16 15:50:03,690 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:50:03,690 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR127 with 2 images
+2026-02-16 15:50:03,770 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR127: prob=0.298, class=0
+2026-02-16 15:50:03,771 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR127
+2026-02-16 15:50:03,771 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:50:03,771 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR127
+2026-02-16 15:50:03,780 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=8, malignancy_score=0.15
+2026-02-16 15:50:03,781 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left lung base)
+2026-02-16 15:50:03,781 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR127 with 2 images
+2026-02-16 15:50:03,941 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR127: prob=0.401, class=0
+2026-02-16 15:50:03,944 - knowledge.prolog_engine - INFO - Consensus for CXR127: prob=0.290, class=0, confidence=0.371
+2026-02-16 15:50:10,855 - orchestrator - INFO - Case CXR127: class=0, prob=0.290, confidence=0.371, agreement=majority
+2026-02-16 15:50:10,855 - __main__ - INFO - [ExtendedMAS] Case 37/50
+2026-02-16 15:50:10,855 - __main__ - INFO - [ExtendedMAS] Processing case CXR1276...
+2026-02-16 15:50:10,855 - orchestrator - INFO - Analyzing case CXR1276 with 6 agents...
+2026-02-16 15:50:10,856 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.964, path_richness=0.504, weights={'radiologist_densenet': 0.982, 'radiologist_resnet': 0.982, 'radiologist_rulebased': 0.6874, 'pathologist_regex': 0.6014, 'pathologist_spacy': 0.6766, 'pathologist_context': 0.6766}
+2026-02-16 15:50:10,856 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1276 with 3 images
+2026-02-16 15:50:10,867 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=solid -> prob=0.900
+2026-02-16 15:50:10,891 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=54.3mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:10,922 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=12.5mm (blob_estimation), texture=solid -> prob=0.550
+2026-02-16 15:50:10,934 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1276: prob=0.820, class=1
+2026-02-16 15:50:10,935 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1276
+2026-02-16 15:50:10,935 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:50:10,935 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1276 with 3 images
+2026-02-16 15:50:11,169 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1276: prob=0.346, class=0
+2026-02-16 15:50:11,169 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1276
+2026-02-16 15:50:11,170 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=1
+2026-02-16 15:50:11,170 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1276
+2026-02-16 15:50:11,180 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=10, malignancy_score=0.30
+2026-02-16 15:50:11,180 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right upper lobe)
+2026-02-16 15:50:11,180 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1276 with 3 images
+2026-02-16 15:50:11,283 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1276: prob=0.356, class=0
+2026-02-16 15:50:11,285 - knowledge.prolog_engine - INFO - Consensus for CXR1276: prob=0.371, class=0, confidence=0.573
+2026-02-16 15:50:18,270 - orchestrator - INFO - Case CXR1276: class=0, prob=0.371, confidence=0.573, agreement=majority
+2026-02-16 15:50:18,270 - __main__ - INFO - [ExtendedMAS] Case 38/50
+2026-02-16 15:50:18,270 - __main__ - INFO - [ExtendedMAS] Processing case CXR1277...
+2026-02-16 15:50:18,270 - orchestrator - INFO - Analyzing case CXR1277 with 6 agents...
+2026-02-16 15:50:18,270 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.550, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6199, 'pathologist_spacy': 0.6974, 'pathologist_context': 0.6974}
+2026-02-16 15:50:18,271 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1277 with 2 images
+2026-02-16 15:50:18,280 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=7.9mm (blob_estimation), texture=part_solid -> prob=0.350
+2026-02-16 15:50:18,299 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:18,309 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1277: prob=0.609, class=1
+2026-02-16 15:50:18,309 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1277
+2026-02-16 15:50:18,309 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:50:18,309 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1277 with 2 images
+2026-02-16 15:50:18,372 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1277: prob=0.478, class=0
+2026-02-16 15:50:18,372 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1277
+2026-02-16 15:50:18,372 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:50:18,372 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1277
+2026-02-16 15:50:18,383 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=13, malignancy_score=0.55
+2026-02-16 15:50:18,383 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1277 with 2 images
+2026-02-16 15:50:18,528 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1277: prob=0.456, class=0
+2026-02-16 15:50:18,530 - knowledge.prolog_engine - INFO - Consensus for CXR1277: prob=0.470, class=0, confidence=0.827
+2026-02-16 15:50:25,428 - orchestrator - INFO - Case CXR1277: class=0, prob=0.470, confidence=0.827, agreement=majority
+2026-02-16 15:50:25,428 - __main__ - INFO - [ExtendedMAS] Case 39/50
+2026-02-16 15:50:25,428 - __main__ - INFO - [ExtendedMAS] Processing case CXR1282...
+2026-02-16 15:50:25,428 - orchestrator - INFO - Analyzing case CXR1282 with 6 agents...
+2026-02-16 15:50:25,429 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.607, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6427, 'pathologist_spacy': 0.723, 'pathologist_context': 0.723}
+2026-02-16 15:50:25,429 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1282 with 2 images
+2026-02-16 15:50:25,434 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:50:25,447 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=7.0mm (blob_estimation), texture=part_solid -> prob=0.350
+2026-02-16 15:50:25,454 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1282: prob=0.413, class=0
+2026-02-16 15:50:25,455 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1282
+2026-02-16 15:50:25,455 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:50:25,455 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1282 with 2 images
+2026-02-16 15:50:25,626 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1282: prob=0.418, class=0
+2026-02-16 15:50:25,627 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1282
+2026-02-16 15:50:25,627 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:50:25,627 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1282
+2026-02-16 15:50:25,635 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=8, malignancy_score=0.50
+2026-02-16 15:50:25,635 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:50:25,636 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1282 with 2 images
+2026-02-16 15:50:25,720 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1282: prob=0.584, class=1
+2026-02-16 15:50:25,722 - knowledge.prolog_engine - INFO - Consensus for CXR1282: prob=0.481, class=0, confidence=0.813
+2026-02-16 15:50:32,925 - orchestrator - INFO - Case CXR1282: class=0, prob=0.481, confidence=0.813, agreement=majority
+2026-02-16 15:50:32,926 - __main__ - INFO - [ExtendedMAS] Case 40/50
+2026-02-16 15:50:32,926 - __main__ - INFO - [ExtendedMAS] Processing case CXR1284...
+2026-02-16 15:50:32,926 - orchestrator - INFO - Analyzing case CXR1284 with 6 agents...
+2026-02-16 15:50:32,926 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.580, path_richness=0.792, weights={'radiologist_densenet': 0.79, 'radiologist_resnet': 0.79, 'radiologist_rulebased': 0.553, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:50:32,926 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1284 with 1 images
+2026-02-16 15:50:32,935 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:50:32,945 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1284: prob=0.500, class=1
+2026-02-16 15:50:32,945 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1284
+2026-02-16 15:50:32,945 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=2, overall=uncertain
+2026-02-16 15:50:32,945 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1284 with 1 images
+2026-02-16 15:50:32,986 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1284: prob=0.633, class=1
+2026-02-16 15:50:32,986 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1284
+2026-02-16 15:50:32,986 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=1
+2026-02-16 15:50:32,986 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1284
+2026-02-16 15:50:32,999 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=16, malignancy_score=0.35
+2026-02-16 15:50:32,999 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:50:32,999 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1284 with 1 images
+2026-02-16 15:50:33,083 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1284: prob=0.648, class=1
+2026-02-16 15:50:33,085 - knowledge.prolog_engine - INFO - Consensus for CXR1284: prob=0.483, class=0, confidence=0.625
+2026-02-16 15:50:40,481 - orchestrator - INFO - Case CXR1284: class=0, prob=0.483, confidence=0.625, agreement=majority
+2026-02-16 15:50:40,481 - __main__ - INFO - [ExtendedMAS] Case 41/50
+2026-02-16 15:50:40,481 - __main__ - INFO - [ExtendedMAS] Processing case CXR1285...
+2026-02-16 15:50:40,481 - orchestrator - INFO - Analyzing case CXR1285 with 6 agents...
+2026-02-16 15:50:40,481 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.732, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:50:40,481 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1285 with 3 images
+2026-02-16 15:50:40,492 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:50:40,516 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=26.2mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:50:40,538 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=49.1mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:40,547 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1285: prob=0.738, class=1
+2026-02-16 15:50:40,547 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1285
+2026-02-16 15:50:40,548 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:50:40,548 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1285 with 3 images
+2026-02-16 15:50:40,808 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1285: prob=0.508, class=1
+2026-02-16 15:50:40,808 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1285
+2026-02-16 15:50:40,808 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:50:40,808 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1285
+2026-02-16 15:50:40,824 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=15, malignancy_score=0.55
+2026-02-16 15:50:40,824 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1285 with 3 images
+2026-02-16 15:50:40,934 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1285: prob=0.633, class=1
+2026-02-16 15:50:40,936 - knowledge.prolog_engine - INFO - Consensus for CXR1285: prob=0.532, class=1, confidence=0.723
+2026-02-16 15:50:48,094 - orchestrator - INFO - Case CXR1285: class=1, prob=0.532, confidence=0.723, agreement=majority
+2026-02-16 15:50:48,094 - __main__ - INFO - [ExtendedMAS] Case 42/50
+2026-02-16 15:50:48,094 - __main__ - INFO - [ExtendedMAS] Processing case CXR1290...
+2026-02-16 15:50:48,094 - orchestrator - INFO - Analyzing case CXR1290 with 6 agents...
+2026-02-16 15:50:48,094 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.825, path_richness=0.790, weights={'radiologist_densenet': 0.9125, 'radiologist_resnet': 0.9125, 'radiologist_rulebased': 0.6387, 'pathologist_regex': 0.7162, 'pathologist_spacy': 0.8057, 'pathologist_context': 0.8057}
+2026-02-16 15:50:48,094 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1290 with 1 images
+2026-02-16 15:50:48,104 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=48.1mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:48,114 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1290: prob=0.900, class=1
+2026-02-16 15:50:48,114 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1290
+2026-02-16 15:50:48,115 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=1, uncertain=0, overall=affirmed
+2026-02-16 15:50:48,115 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1290 with 1 images
+2026-02-16 15:50:48,146 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1290: prob=0.413, class=0
+2026-02-16 15:50:48,147 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1290
+2026-02-16 15:50:48,147 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=14.0mm (regex), texture=solid, suspicious=0, benign=1
+2026-02-16 15:50:48,147 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1290
+2026-02-16 15:50:48,159 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=14.0mm (spacy), texture=calcified, entities=13, malignancy_score=0.40
+2026-02-16 15:50:48,159 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=22.0mm, loc=left lower lobe)
+2026-02-16 15:50:48,159 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1290 with 1 images
+2026-02-16 15:50:48,247 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1290: prob=0.338, class=0
+2026-02-16 15:50:48,249 - knowledge.prolog_engine - INFO - Consensus for CXR1290: prob=0.600, class=1, confidence=0.750
+2026-02-16 15:50:55,432 - orchestrator - INFO - Case CXR1290: class=1, prob=0.600, confidence=0.750, agreement=majority
+2026-02-16 15:50:55,432 - __main__ - INFO - [ExtendedMAS] Case 43/50
+2026-02-16 15:50:55,432 - __main__ - INFO - [ExtendedMAS] Processing case CXR1303...
+2026-02-16 15:50:55,433 - orchestrator - INFO - Analyzing case CXR1303 with 6 agents...
+2026-02-16 15:50:55,433 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.957, path_richness=0.792, weights={'radiologist_densenet': 0.9784, 'radiologist_resnet': 0.9784, 'radiologist_rulebased': 0.6849, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:50:55,433 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1303 with 5 images
+2026-02-16 15:50:55,441 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=5.7mm (blob_estimation), texture=solid -> prob=0.100
+2026-02-16 15:50:55,459 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:50:55,482 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:50:55,513 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:50:55,539 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:50:55,549 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1303: prob=0.488, class=0
+2026-02-16 15:50:55,549 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1303
+2026-02-16 15:50:55,550 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=3, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:50:55,550 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1303 with 5 images
+2026-02-16 15:50:55,955 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1303: prob=0.498, class=0
+2026-02-16 15:50:55,955 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1303
+2026-02-16 15:50:55,955 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=8.0mm (regex), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:50:55,955 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1303
+2026-02-16 15:50:55,971 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=30.0mm (spacy), texture=calcified, entities=22, malignancy_score=0.20
+2026-02-16 15:50:55,971 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=30.0mm, loc=right upper lobe)
+2026-02-16 15:50:55,972 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1303 with 5 images
+2026-02-16 15:50:56,167 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1303: prob=0.695, class=1
+2026-02-16 15:50:56,169 - knowledge.prolog_engine - INFO - Consensus for CXR1303: prob=0.578, class=1, confidence=0.654
+2026-02-16 15:51:03,249 - orchestrator - INFO - Case CXR1303: class=1, prob=0.578, confidence=0.654, agreement=majority
+2026-02-16 15:51:03,249 - __main__ - INFO - [ExtendedMAS] Case 44/50
+2026-02-16 15:51:03,249 - __main__ - INFO - [ExtendedMAS] Processing case CXR1307...
+2026-02-16 15:51:03,249 - orchestrator - INFO - Analyzing case CXR1307 with 6 agents...
+2026-02-16 15:51:03,250 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.580, path_richness=0.732, weights={'radiologist_densenet': 0.79, 'radiologist_resnet': 0.79, 'radiologist_rulebased': 0.553, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:51:03,250 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1307 with 1 images
+2026-02-16 15:51:03,261 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=ground_glass -> prob=0.500
+2026-02-16 15:51:03,273 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1307: prob=0.500, class=1
+2026-02-16 15:51:03,273 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1307
+2026-02-16 15:51:03,274 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=2, uncertain=1, overall=uncertain
+2026-02-16 15:51:03,274 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1307 with 1 images
+2026-02-16 15:51:03,322 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1307: prob=0.648, class=1
+2026-02-16 15:51:03,322 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1307
+2026-02-16 15:51:03,323 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=2, benign=0
+2026-02-16 15:51:03,323 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1307
+2026-02-16 15:51:03,344 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=20, malignancy_score=1.00
+2026-02-16 15:51:03,344 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:51:03,344 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1307 with 1 images
+2026-02-16 15:51:03,441 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1307: prob=0.649, class=1
+2026-02-16 15:51:03,443 - knowledge.prolog_engine - INFO - Consensus for CXR1307: prob=0.725, class=1, confidence=0.750
+2026-02-16 15:51:10,705 - orchestrator - INFO - Case CXR1307: class=1, prob=0.725, confidence=0.750, agreement=majority
+2026-02-16 15:51:10,705 - __main__ - INFO - [ExtendedMAS] Case 45/50
+2026-02-16 15:51:10,705 - __main__ - INFO - [ExtendedMAS] Processing case CXR1317...
+2026-02-16 15:51:10,705 - orchestrator - INFO - Analyzing case CXR1317 with 6 agents...
+2026-02-16 15:51:10,705 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.663, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6652, 'pathologist_spacy': 0.7483, 'pathologist_context': 0.7483}
+2026-02-16 15:51:10,706 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1317 with 2 images
+2026-02-16 15:51:10,717 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=10.9mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:51:10,742 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:51:10,755 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1317: prob=0.741, class=1
+2026-02-16 15:51:10,755 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1317
+2026-02-16 15:51:10,756 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=1, overall=uncertain
+2026-02-16 15:51:10,756 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1317 with 2 images
+2026-02-16 15:51:10,925 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1317: prob=0.604, class=1
+2026-02-16 15:51:10,925 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1317
+2026-02-16 15:51:10,925 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:51:10,925 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1317
+2026-02-16 15:51:10,936 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=14, malignancy_score=0.55
+2026-02-16 15:51:10,936 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left)
+2026-02-16 15:51:10,936 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1317 with 2 images
+2026-02-16 15:51:11,001 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1317: prob=0.586, class=1
+2026-02-16 15:51:11,003 - knowledge.prolog_engine - INFO - Consensus for CXR1317: prob=0.554, class=1, confidence=0.728
+2026-02-16 15:51:17,955 - orchestrator - INFO - Case CXR1317: class=1, prob=0.554, confidence=0.728, agreement=majority
+2026-02-16 15:51:17,956 - __main__ - INFO - [ExtendedMAS] Case 46/50
+2026-02-16 15:51:17,956 - __main__ - INFO - [ExtendedMAS] Processing case CXR1320...
+2026-02-16 15:51:17,956 - orchestrator - INFO - Analyzing case CXR1320 with 6 agents...
+2026-02-16 15:51:17,956 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.973, path_richness=0.732, weights={'radiologist_densenet': 0.9865, 'radiologist_resnet': 0.9865, 'radiologist_rulebased': 0.6906, 'pathologist_regex': 0.6927, 'pathologist_spacy': 0.7792, 'pathologist_context': 0.7792}
+2026-02-16 15:51:17,956 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1320 with 2 images
+2026-02-16 15:51:17,966 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=24.5mm (blob_estimation), texture=solid -> prob=0.750
+2026-02-16 15:51:17,988 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=29.8mm (blob_estimation), texture=solid -> prob=0.750
+2026-02-16 15:51:18,008 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1320: prob=0.750, class=1
+2026-02-16 15:51:18,008 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1320
+2026-02-16 15:51:18,008 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:51:18,008 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1320 with 2 images
+2026-02-16 15:51:18,096 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1320: prob=0.448, class=0
+2026-02-16 15:51:18,096 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1320
+2026-02-16 15:51:18,096 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:51:18,097 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1320
+2026-02-16 15:51:18,108 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=14, malignancy_score=0.10
+2026-02-16 15:51:18,109 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left upper lobe)
+2026-02-16 15:51:18,109 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1320 with 2 images
+2026-02-16 15:51:18,279 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1320: prob=0.382, class=0
+2026-02-16 15:51:18,281 - knowledge.prolog_engine - INFO - Consensus for CXR1320: prob=0.369, class=0, confidence=0.507
+2026-02-16 15:51:25,295 - orchestrator - INFO - Case CXR1320: class=0, prob=0.369, confidence=0.507, agreement=majority
+2026-02-16 15:51:25,295 - __main__ - INFO - [ExtendedMAS] Case 47/50
+2026-02-16 15:51:25,295 - __main__ - INFO - [ExtendedMAS] Processing case CXR1328...
+2026-02-16 15:51:25,295 - orchestrator - INFO - Analyzing case CXR1328 with 6 agents...
+2026-02-16 15:51:25,295 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.825, path_richness=0.547, weights={'radiologist_densenet': 0.9125, 'radiologist_resnet': 0.9125, 'radiologist_rulebased': 0.6387, 'pathologist_regex': 0.6189, 'pathologist_spacy': 0.6963, 'pathologist_context': 0.6963}
+2026-02-16 15:51:25,296 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1328 with 1 images
+2026-02-16 15:51:25,306 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:51:25,316 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1328: prob=0.900, class=1
+2026-02-16 15:51:25,316 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1328
+2026-02-16 15:51:25,317 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=1, uncertain=0, overall=negated
+2026-02-16 15:51:25,317 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1328 with 1 images
+2026-02-16 15:51:25,415 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1328: prob=0.638, class=1
+2026-02-16 15:51:25,416 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1328
+2026-02-16 15:51:25,416 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=2
+2026-02-16 15:51:25,416 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1328
+2026-02-16 15:51:25,430 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=12, malignancy_score=0.15
+2026-02-16 15:51:25,430 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=None)
+2026-02-16 15:51:25,430 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1328 with 1 images
+2026-02-16 15:51:25,481 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1328: prob=0.516, class=1
+2026-02-16 15:51:25,483 - knowledge.prolog_engine - INFO - Consensus for CXR1328: prob=0.451, class=0, confidence=0.165
+2026-02-16 15:51:32,436 - orchestrator - INFO - Case CXR1328: class=0, prob=0.451, confidence=0.165, agreement=majority
+2026-02-16 15:51:32,436 - __main__ - INFO - [ExtendedMAS] Case 48/50
+2026-02-16 15:51:32,436 - __main__ - INFO - [ExtendedMAS] Processing case CXR1329...
+2026-02-16 15:51:32,436 - orchestrator - INFO - Analyzing case CXR1329 with 6 agents...
+2026-02-16 15:51:32,436 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.672, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6687, 'pathologist_spacy': 0.7522, 'pathologist_context': 0.7522}
+2026-02-16 15:51:32,436 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1329 with 2 images
+2026-02-16 15:51:32,449 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=56.3mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:51:32,469 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=10.4mm (blob_estimation), texture=part_solid -> prob=0.600
+2026-02-16 15:51:32,476 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1329: prob=0.759, class=1
+2026-02-16 15:51:32,476 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1329
+2026-02-16 15:51:32,477 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=2, uncertain=1, overall=affirmed
+2026-02-16 15:51:32,477 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1329 with 2 images
+2026-02-16 15:51:32,576 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1329: prob=0.367, class=0
+2026-02-16 15:51:32,576 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1329
+2026-02-16 15:51:32,576 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=13.0mm (regex), texture=solid, suspicious=0, benign=0
+2026-02-16 15:51:32,576 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1329
+2026-02-16 15:51:32,593 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=13.0mm (spacy), texture=solid, entities=22, malignancy_score=0.60
+2026-02-16 15:51:32,593 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=16.0mm, loc=right)
+2026-02-16 15:51:32,593 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1329 with 2 images
+2026-02-16 15:51:32,771 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1329: prob=0.633, class=1
+2026-02-16 15:51:32,773 - knowledge.prolog_engine - INFO - Consensus for CXR1329: prob=0.717, class=1, confidence=0.750
+2026-02-16 15:51:39,858 - orchestrator - INFO - Case CXR1329: class=1, prob=0.717, confidence=0.750, agreement=majority
+2026-02-16 15:51:39,859 - __main__ - INFO - [ExtendedMAS] Case 49/50
+2026-02-16 15:51:39,859 - __main__ - INFO - [ExtendedMAS] Processing case CXR1348...
+2026-02-16 15:51:39,859 - orchestrator - INFO - Analyzing case CXR1348 with 6 agents...
+2026-02-16 15:51:39,859 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.946, path_richness=0.792, weights={'radiologist_densenet': 0.973, 'radiologist_resnet': 0.973, 'radiologist_rulebased': 0.6811, 'pathologist_regex': 0.7167, 'pathologist_spacy': 0.8063, 'pathologist_context': 0.8063}
+2026-02-16 15:51:39,859 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1348 with 2 images
+2026-02-16 15:51:39,863 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: no size detected (size_source=none_detected), returning neutral prob=0.500
+2026-02-16 15:51:39,874 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=7.5mm (blob_estimation), texture=part_solid -> prob=0.350
+2026-02-16 15:51:39,883 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1348: prob=0.413, class=0
+2026-02-16 15:51:39,883 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1348
+2026-02-16 15:51:39,883 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=0, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:51:39,883 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1348 with 2 images
+2026-02-16 15:51:40,063 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1348: prob=0.602, class=1
+2026-02-16 15:51:40,063 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1348
+2026-02-16 15:51:40,064 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=0, benign=0
+2026-02-16 15:51:40,064 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1348
+2026-02-16 15:51:40,080 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=19, malignancy_score=0.50
+2026-02-16 15:51:40,080 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1348 with 2 images
+2026-02-16 15:51:40,171 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1348: prob=0.436, class=0
+2026-02-16 15:51:40,172 - knowledge.prolog_engine - INFO - Consensus for CXR1348: prob=0.503, class=1, confidence=0.808
+2026-02-16 15:51:47,307 - orchestrator - INFO - Case CXR1348: class=1, prob=0.503, confidence=0.808, agreement=majority
+2026-02-16 15:51:47,307 - __main__ - INFO - [ExtendedMAS] Case 50/50
+2026-02-16 15:51:47,307 - __main__ - INFO - [ExtendedMAS] Processing case CXR1353...
+2026-02-16 15:51:47,307 - orchestrator - INFO - Analyzing case CXR1353 with 6 agents...
+2026-02-16 15:51:47,307 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=1.000, path_richness=0.612, weights={'radiologist_densenet': 1.0, 'radiologist_resnet': 1.0, 'radiologist_rulebased': 0.7, 'pathologist_regex': 0.6447, 'pathologist_spacy': 0.7252, 'pathologist_context': 0.7252}
+2026-02-16 15:51:47,308 - agents.radiologist_variants - INFO - [radiologist_rulebased] Processing CXR1353 with 2 images
+2026-02-16 15:51:47,323 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=18.5mm (blob_estimation), texture=part_solid -> prob=0.800
+2026-02-16 15:51:47,351 - agents.radiologist_variants - INFO - [radiologist_rulebased] Rule-based: size=60.0mm (blob_estimation), texture=part_solid -> prob=0.900
+2026-02-16 15:51:47,363 - agents.radiologist_variants - INFO - [radiologist_rulebased] Aggregated result for CXR1353: prob=0.847, class=1
+2026-02-16 15:51:47,363 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for CXR1353
+2026-02-16 15:51:47,364 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:51:47,364 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing CXR1353 with 2 images
+2026-02-16 15:51:47,445 - agents.radiologist_variants - INFO - [radiologist_resnet] Aggregated result for CXR1353: prob=0.793, class=1
+2026-02-16 15:51:47,445 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for CXR1353
+2026-02-16 15:51:47,445 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=60.0mm (regex), texture=solid, suspicious=0, benign=0
+2026-02-16 15:51:47,446 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for CXR1353
+2026-02-16 15:51:47,460 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=60.0mm (spacy), texture=solid, entities=11, malignancy_score=0.55
+2026-02-16 15:51:47,461 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing CXR1353 with 2 images
+2026-02-16 15:51:47,633 - agents.radiologist_variants - INFO - [radiologist_densenet] Aggregated result for CXR1353: prob=0.591, class=1
+2026-02-16 15:51:47,635 - knowledge.prolog_engine - INFO - Consensus for CXR1353: prob=0.722, class=1, confidence=0.842
+2026-02-16 15:51:54,584 - orchestrator - INFO - Case CXR1353: class=1, prob=0.722, confidence=0.842, agreement=unanimous
+[NLPExtractor] Loaded spaCy model: en_core_sci_sm (negex=True, dependency=True)
+[NLPExtractor] Found 4 structured nodule frames
+[NLPExtractor] Found 2 structured nodule frames
+[NLPExtractor] Found 2 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 2 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+[NLPExtractor] Found 2 structured nodule frames
+[NLPExtractor] Found 1 structured nodule frames
+
+======================================================================
+EXTENDED MAS - 6-AGENT RESULTS SUMMARY
+======================================================================
+
+CXR10: Benign (prob=0.440) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.298
+  Time: 8.98s
+
+CXR1000: Malignant (prob=0.527) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.764
+  Time: 7.28s
+
+CXR1003: Benign (prob=0.420) | GT: Malignant
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.730
+  Time: 6.78s
+
+CXR1022: Benign (prob=0.439) | GT: N/A
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.675
+  Time: 7.17s
+
+CXR1025: Benign (prob=0.345) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.536
+  Time: 6.86s
+
+CXR1034: Benign (prob=0.447) | GT: N/A
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.234
+  Time: 6.91s
+
+CXR1035: Malignant (prob=0.579) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.856
+  Time: 7.21s
+
+CXR1044: Malignant (prob=0.523) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.809
+  Time: 7.81s
+
+CXR1063: Malignant (prob=0.572) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: unanimous | Confidence: 0.938
+  Time: 8.01s
+
+CXR1064: Benign (prob=0.467) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.541
+  Time: 7.73s
+
+CXR1075: Malignant (prob=0.594) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: unanimous | Confidence: 0.906
+  Time: 7.18s
+
+CXR1076: Malignant (prob=0.600) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: unanimous | Confidence: 0.860
+  Time: 7.24s
+
+CXR1085: Benign (prob=0.445) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.520
+  Time: 7.15s
+
+CXR1087: Benign (prob=0.480) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.375
+  Time: 7.08s
+
+CXR1088: Malignant (prob=0.525) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.710
+  Time: 7.37s
+
+CXR1094: Malignant (prob=0.510) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.428
+  Time: 7.07s
+
+CXR1103: Benign (prob=0.290) | GT: Benign
+  Lung-RADS: 2 | Continue annual screening
+  Agreement: majority | Confidence: 0.474
+  Time: 7.19s
+
+CXR1117: Benign (prob=0.426) | GT: Malignant
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.665
+  Time: 7.22s
+
+CXR1123: Benign (prob=0.408) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.726
+  Time: 7.13s
+
+CXR1126: Benign (prob=0.379) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.350
+  Time: 7.31s
+
+CXR113: Benign (prob=0.319) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.707
+  Time: 7.51s
+
+CXR1130: Benign (prob=0.440) | GT: N/A
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.273
+  Time: 7.24s
+
+CXR1131: Benign (prob=0.410) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.357
+  Time: 7.21s
+
+CXR1135: Benign (prob=0.344) | GT: N/A
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.415
+  Time: 7.41s
+
+CXR1157: Malignant (prob=0.563) | GT: N/A
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.756
+  Time: 7.76s
+
+CXR116: Benign (prob=0.288) | GT: N/A
+  Lung-RADS: 2 | Continue annual screening
+  Agreement: majority | Confidence: 0.685
+  Time: 7.87s
+
+CXR1169: Malignant (prob=0.593) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: unanimous | Confidence: 0.876
+  Time: 7.30s
+
+CXR1174: Malignant (prob=0.570) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.770
+  Time: 7.47s
+
+CXR1203: Malignant (prob=0.561) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: unanimous | Confidence: 0.824
+  Time: 7.69s
+
+CXR1226: Benign (prob=0.476) | GT: Malignant
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.780
+  Time: 7.24s
+
+CXR1237: Malignant (prob=0.519) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.545
+  Time: 7.13s
+
+CXR1240: Malignant (prob=0.542) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.801
+  Time: 7.14s
+
+CXR1249: Benign (prob=0.320) | GT: N/A
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.741
+  Time: 7.38s
+
+CXR126: Benign (prob=0.410) | GT: Malignant
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.846
+  Time: 7.17s
+
+CXR1265: Malignant (prob=0.538) | GT: N/A
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.355
+  Time: 7.14s
+
+CXR127: Benign (prob=0.290) | GT: Benign
+  Lung-RADS: 2 | Continue annual screening
+  Agreement: majority | Confidence: 0.371
+  Time: 7.22s
+
+CXR1276: Benign (prob=0.371) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.573
+  Time: 7.41s
+
+CXR1277: Benign (prob=0.470) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.827
+  Time: 7.16s
+
+CXR1282: Benign (prob=0.481) | GT: Malignant
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.813
+  Time: 7.50s
+
+CXR1284: Benign (prob=0.483) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.625
+  Time: 7.56s
+
+CXR1285: Malignant (prob=0.532) | GT: N/A
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.723
+  Time: 7.61s
+
+CXR1290: Malignant (prob=0.600) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.750
+  Time: 7.34s
+
+CXR1303: Malignant (prob=0.578) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.654
+  Time: 7.82s
+
+CXR1307: Malignant (prob=0.725) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.750
+  Time: 7.46s
+
+CXR1317: Malignant (prob=0.554) | GT: Benign
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.728
+  Time: 7.25s
+
+CXR1320: Benign (prob=0.369) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.507
+  Time: 7.34s
+
+CXR1328: Benign (prob=0.451) | GT: Benign
+  Lung-RADS: 3 | Follow-up CT in 6 months
+  Agreement: majority | Confidence: 0.165
+  Time: 7.14s
+
+CXR1329: Malignant (prob=0.717) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.750
+  Time: 7.42s
+
+CXR1348: Malignant (prob=0.503) | GT: N/A
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.808
+  Time: 7.45s
+
+CXR1353: Malignant (prob=0.722) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+2026-02-16 15:51:54,595 - __main__ - INFO - [ExtendedMAS] Results exported to dynamic_nlmcxr.json
+  Agreement: unanimous | Confidence: 0.842
+  Time: 7.28s
+
+--------------------------------------------------
+EVALUATION METRICS:
+--------------------------------------------------
+  total_cases: 50
+  cases_with_ground_truth: 50
+  accuracy: 0.5800
+  mean_absolute_error: 0.5000
+  average_confidence: 0.6402
+  average_processing_time_sec: 7.3663
+  agreement_statistics:
+    unanimous: 6
+    majority: 44
+    split: 0
+  agent_statistics:
+    cases_processed: 50
+    unanimous_decisions: 6
+    majority_decisions: 44
+    split_decisions: 0
+    unanimous_rate: 0.12
+    majority_rate: 0.88
+    split_rate: 0.0

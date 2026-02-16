@@ -1,0 +1,739 @@
+{
+  "metadata": {
+    "system": "Extended MAS - 5 Specialized Agents",
+    "agents": [
+      "RadiologistDenseNet",
+      "RadiologistResNet",
+      "RadiologistRuleBased",
+      "PathologistRegex",
+      "PathologistSpacy"
+    ],
+    "data_source": "sample"
+  },
+  "metrics": {
+    "total_cases": 5,
+    "cases_with_ground_truth": 5,
+    "accuracy": 0.8,
+    "mean_absolute_error": 0.4,
+    "average_confidence": 0.6297797433197385,
+    "average_processing_time_sec": 7.242913436889649,
+    "agreement_statistics": {
+      "unanimous": 0,
+      "majority": 5,
+      "split": 0
+    },
+    "agent_statistics": {
+      "cases_processed": 5,
+      "unanimous_decisions": 0,
+      "majority_decisions": 5,
+      "split_decisions": 0,
+      "unanimous_rate": 0.0,
+      "majority_rate": 1.0,
+      "split_rate": 0.0
+    }
+  },
+  "results": [
+    {
+      "nodule_id": "sample_001",
+      "ground_truth": 0,
+      "final_class": 0,
+      "final_probability": 0.44491505376743523,
+      "confidence": 0.5765959491444259,
+      "agreement_level": "majority",
+      "lung_rads": "2",
+      "recommendation": "Continue annual screening",
+      "processing_time": 8.951689004898071,
+      "agent_findings": {
+        "radiologist_densenet": {
+          "malignancy_probability": 0.2249762581147414,
+          "predicted_class": 0
+        },
+        "radiologist_resnet": {
+          "malignancy_probability": 0.680296143332265,
+          "predicted_class": 1
+        },
+        "radiologist_rulebased": {
+          "malignancy_probability": 0.15,
+          "predicted_class": 0,
+          "size_mm": 5,
+          "size_source": "features",
+          "texture": "ground-glass"
+        },
+        "pathologist_regex": {
+          "text_malignancy_probability": 0.4,
+          "predicted_class": 0,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "ground_glass",
+          "location": "left_upper_lobe",
+          "suspicious_terms": [],
+          "weak_suspicious_terms": [
+            "nodule",
+            "opacit(?:y|ies)"
+          ],
+          "benign_terms": [
+            "benign"
+          ],
+          "approach": "regex"
+        },
+        "pathologist_spacy": {
+          "text_malignancy_probability": 0.4,
+          "predicted_class": 0,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "ground_glass",
+          "location": "left upper lobe",
+          "entities": [
+            {
+              "text": "FINDINGS",
+              "label": "ENTITY",
+              "start": 0,
+              "end": 8
+            },
+            {
+              "text": "left upper lobe",
+              "label": "ENTITY",
+              "start": 40,
+              "end": 55
+            },
+            {
+              "text": "benign",
+              "label": "ENTITY",
+              "start": 64,
+              "end": 70
+            },
+            {
+              "text": "IMPRESSION",
+              "label": "ENTITY",
+              "start": 73,
+              "end": 83
+            },
+            {
+              "text": "benign nodule",
+              "label": "ENTITY",
+              "start": 94,
+              "end": 107
+            }
+          ],
+          "malignancy_score": 0.4,
+          "suspicious_terms": [],
+          "weak_suspicious_terms": [
+            "nodule",
+            "opacity"
+          ],
+          "benign_terms": [
+            "benign"
+          ],
+          "approach": "spacy_ner_v2_dependency",
+          "nodule_frames": [
+            {
+              "anchor": "opacity",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": "ground_glass",
+              "location": "left upper lobe",
+              "margins": null,
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "Small ground-glass opacity in left upper lobe",
+              "extraction_paths": [],
+              "uncertainty_quantification": {
+                "certainty_score": 0.715,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 0.95,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm,margins",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:0",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            },
+            {
+              "anchor": "nodule",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": null,
+              "location": null,
+              "margins": null,
+              "calcification": false,
+              "characterization": "benign",
+              "negated": false,
+              "uncertain": false,
+              "span": "Probably benign nodule",
+              "extraction_paths": [],
+              "uncertainty_quantification": {
+                "certainty_score": 0.55,
+                "aleatory_uncertainty": 0.3,
+                "epistemic_uncertainty": 1.0,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "strong_hedges:Probably",
+                  "missing_attributes:size_mm,margins,location,texture",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:0",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 1,
+                "negation_strength": 0.0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "nodule_id": "sample_002",
+      "ground_truth": 1,
+      "final_class": 1,
+      "final_probability": 0.7166666666666667,
+      "confidence": 0.8,
+      "agreement_level": "majority",
+      "lung_rads": "4A",
+      "recommendation": "Follow-up CT in 3 months or PET-CT",
+      "processing_time": 6.7236902713775635,
+      "agent_findings": {
+        "radiologist_densenet": {
+          "malignancy_probability": 0.12799284608849174,
+          "predicted_class": 0
+        },
+        "radiologist_resnet": {
+          "malignancy_probability": 0.5499009670295072,
+          "predicted_class": 1
+        },
+        "radiologist_rulebased": {
+          "malignancy_probability": 0.55,
+          "predicted_class": 1,
+          "size_mm": 12,
+          "size_source": "features",
+          "texture": "solid"
+        },
+        "pathologist_regex": {
+          "text_malignancy_probability": 0.8500000000000001,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "solid",
+          "location": "right_upper_lobe",
+          "suspicious_terms": [
+            "malignan(?:t|cy)",
+            "suspicio(?:us|n)",
+            "spicul"
+          ],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [],
+          "approach": "regex"
+        },
+        "pathologist_spacy": {
+          "text_malignancy_probability": 0.65,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "solid",
+          "location": "right upper lobe",
+          "entities": [
+            {
+              "text": "FINDINGS",
+              "label": "ENTITY",
+              "start": 0,
+              "end": 8
+            },
+            {
+              "text": "Solid nodule",
+              "label": "ENTITY",
+              "start": 10,
+              "end": 22
+            },
+            {
+              "text": "right upper lobe",
+              "label": "ENTITY",
+              "start": 26,
+              "end": 42
+            },
+            {
+              "text": "spiculated margins",
+              "label": "ENTITY",
+              "start": 44,
+              "end": 62
+            },
+            {
+              "text": "IMPRESSION",
+              "label": "ENTITY",
+              "start": 65,
+              "end": 75
+            },
+            {
+              "text": "Suspicious",
+              "label": "ENTITY",
+              "start": 77,
+              "end": 87
+            },
+            {
+              "text": "malignancy",
+              "label": "ENTITY",
+              "start": 92,
+              "end": 102
+            }
+          ],
+          "malignancy_score": 0.65,
+          "suspicious_terms": [
+            "suspicious"
+          ],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [],
+          "approach": "spacy_ner_v2_dependency",
+          "nodule_frames": [
+            {
+              "anchor": "nodule",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": "solid",
+              "location": "right upper lobe",
+              "margins": "spiculated",
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "Solid nodule in right upper lobe, spiculated margins",
+              "extraction_paths": [
+                "linear_chain:spiculated"
+              ],
+              "uncertainty_quantification": {
+                "certainty_score": 0.82,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 0.6,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:1",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "nodule_id": "sample_003",
+      "ground_truth": -1,
+      "final_class": 1,
+      "final_probability": 0.5007901725043798,
+      "confidence": 0.4842428057274335,
+      "agreement_level": "majority",
+      "lung_rads": "4A",
+      "recommendation": "Follow-up CT in 3 months or PET-CT",
+      "processing_time": 6.818535566329956,
+      "agent_findings": {
+        "radiologist_densenet": {
+          "malignancy_probability": 0.12772738390408572,
+          "predicted_class": 0
+        },
+        "radiologist_resnet": {
+          "malignancy_probability": 0.5356006305177129,
+          "predicted_class": 1
+        },
+        "radiologist_rulebased": {
+          "malignancy_probability": 0.6,
+          "predicted_class": 1,
+          "size_mm": 8,
+          "size_source": "features",
+          "texture": "part-solid"
+        },
+        "pathologist_regex": {
+          "text_malignancy_probability": 0.55,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "part_solid",
+          "location": "right_lower_lobe",
+          "suspicious_terms": [],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [],
+          "approach": "regex"
+        },
+        "pathologist_spacy": {
+          "text_malignancy_probability": 0.65,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "part_solid",
+          "location": "lower lobe",
+          "entities": [
+            {
+              "text": "FINDINGS",
+              "label": "ENTITY",
+              "start": 0,
+              "end": 8
+            },
+            {
+              "text": "Part-solid nodule",
+              "label": "ENTITY",
+              "start": 10,
+              "end": 27
+            },
+            {
+              "text": "right lower lobe",
+              "label": "ENTITY",
+              "start": 31,
+              "end": 47
+            },
+            {
+              "text": "IMPRESSION",
+              "label": "ENTITY",
+              "start": 50,
+              "end": 60
+            },
+            {
+              "text": "Indeterminate",
+              "label": "ENTITY",
+              "start": 62,
+              "end": 75
+            },
+            {
+              "text": "recommend",
+              "label": "ENTITY",
+              "start": 77,
+              "end": 86
+            },
+            {
+              "text": "follow-up",
+              "label": "ENTITY",
+              "start": 87,
+              "end": 96
+            }
+          ],
+          "malignancy_score": 0.65,
+          "suspicious_terms": [
+            "indeterminate"
+          ],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [],
+          "approach": "spacy_ner_v2_dependency",
+          "nodule_frames": [
+            {
+              "anchor": "nodule",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": "part_solid",
+              "location": "lower lobe",
+              "margins": null,
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "Part-solid nodule in right lower lobe",
+              "extraction_paths": [],
+              "uncertainty_quantification": {
+                "certainty_score": 0.715,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 0.95,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm,margins",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:0",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "nodule_id": "sample_004",
+      "ground_truth": 1,
+      "final_class": 1,
+      "final_probability": 0.7166666666666667,
+      "confidence": 0.8,
+      "agreement_level": "majority",
+      "lung_rads": "4B",
+      "recommendation": "Tissue sampling (biopsy) or PET-CT",
+      "processing_time": 6.864287376403809,
+      "agent_findings": {
+        "radiologist_densenet": {
+          "malignancy_probability": 0.12507419862986824,
+          "predicted_class": 0
+        },
+        "radiologist_resnet": {
+          "malignancy_probability": 0.4811862022351351,
+          "predicted_class": 0
+        },
+        "radiologist_rulebased": {
+          "malignancy_probability": 0.75,
+          "predicted_class": 1,
+          "size_mm": 20,
+          "size_source": "features",
+          "texture": "solid"
+        },
+        "pathologist_regex": {
+          "text_malignancy_probability": 0.8500000000000001,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "solid",
+          "location": "right_upper_lobe",
+          "suspicious_terms": [
+            "malignan(?:t|cy)",
+            "suspicio(?:us|n)",
+            "spicul"
+          ],
+          "weak_suspicious_terms": [
+            "mass"
+          ],
+          "benign_terms": [],
+          "approach": "regex"
+        },
+        "pathologist_spacy": {
+          "text_malignancy_probability": 0.65,
+          "predicted_class": 1,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "solid",
+          "location": "right",
+          "entities": [
+            {
+              "text": "FINDINGS",
+              "label": "ENTITY",
+              "start": 0,
+              "end": 8
+            },
+            {
+              "text": "right upper lobe",
+              "label": "ENTITY",
+              "start": 35,
+              "end": 51
+            },
+            {
+              "text": "IMPRESSION",
+              "label": "ENTITY",
+              "start": 54,
+              "end": 64
+            },
+            {
+              "text": "malignancy",
+              "label": "ENTITY",
+              "start": 88,
+              "end": 98
+            }
+          ],
+          "malignancy_score": 0.65,
+          "suspicious_terms": [
+            "suspicious"
+          ],
+          "weak_suspicious_terms": [
+            "mass"
+          ],
+          "benign_terms": [],
+          "approach": "spacy_ner_v2_dependency",
+          "nodule_frames": [
+            {
+              "anchor": "mass",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": null,
+              "location": "right",
+              "margins": null,
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "mass",
+              "extraction_paths": [
+                "linear_chain:right",
+                "linear_chain:upper"
+              ],
+              "uncertainty_quantification": {
+                "certainty_score": 0.79,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 0.7,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm,margins,texture",
+                  "missing_size_critical",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "nodule_id": "sample_005",
+      "ground_truth": 0,
+      "final_class": 0,
+      "final_probability": 0.31355863415225743,
+      "confidence": 0.4880599617268334,
+      "agreement_level": "majority",
+      "lung_rads": "2",
+      "recommendation": "Continue annual screening",
+      "processing_time": 6.856364965438843,
+      "agent_findings": {
+        "radiologist_densenet": {
+          "malignancy_probability": 0.12772738390408572,
+          "predicted_class": 0
+        },
+        "radiologist_resnet": {
+          "malignancy_probability": 0.5396902854923278,
+          "predicted_class": 1
+        },
+        "radiologist_rulebased": {
+          "malignancy_probability": 0.1,
+          "predicted_class": 0,
+          "size_mm": 4,
+          "size_source": "features",
+          "texture": "solid"
+        },
+        "pathologist_regex": {
+          "text_malignancy_probability": 0.25,
+          "predicted_class": 0,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "calcified",
+          "location": "left_lower_lobe",
+          "suspicious_terms": [],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [
+            "benign",
+            "granuloma",
+            "calcified"
+          ],
+          "approach": "regex"
+        },
+        "pathologist_spacy": {
+          "text_malignancy_probability": 0.05,
+          "predicted_class": 0,
+          "size_mm": null,
+          "size_source": "unknown",
+          "texture": "calcified",
+          "location": "left lower lobe",
+          "entities": [
+            {
+              "text": "FINDINGS",
+              "label": "ENTITY",
+              "start": 0,
+              "end": 8
+            },
+            {
+              "text": "Tiny calcified nodule",
+              "label": "ENTITY",
+              "start": 10,
+              "end": 31
+            },
+            {
+              "text": "left lower lobe",
+              "label": "ENTITY",
+              "start": 35,
+              "end": 50
+            },
+            {
+              "text": "IMPRESSION",
+              "label": "ENTITY",
+              "start": 53,
+              "end": 63
+            },
+            {
+              "text": "Benign",
+              "label": "ENTITY",
+              "start": 65,
+              "end": 71
+            }
+          ],
+          "malignancy_score": 0,
+          "suspicious_terms": [],
+          "weak_suspicious_terms": [
+            "nodule"
+          ],
+          "benign_terms": [
+            "benign",
+            "granuloma",
+            "calcified"
+          ],
+          "approach": "spacy_ner_v2_dependency",
+          "nodule_frames": [
+            {
+              "anchor": "nodule",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": null,
+              "location": "left lower lobe",
+              "margins": null,
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "Tiny calcified nodule in left lower lobe",
+              "extraction_paths": [],
+              "uncertainty_quantification": {
+                "certainty_score": 0.7,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 1.0,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm,margins,texture",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:0",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            },
+            {
+              "anchor": "granuloma",
+              "size_mm": null,
+              "size_source": "unknown",
+              "texture": null,
+              "location": null,
+              "margins": null,
+              "calcification": false,
+              "characterization": null,
+              "negated": false,
+              "uncertain": false,
+              "span": "granuloma",
+              "extraction_paths": [],
+              "uncertainty_quantification": {
+                "certainty_score": 0.7,
+                "aleatory_uncertainty": 0.0,
+                "epistemic_uncertainty": 1.0,
+                "categorical_label": "affirmed",
+                "contributing_factors": [
+                  "missing_attributes:size_mm,margins,location,texture",
+                  "missing_size_critical",
+                  "sparse_extraction_paths:0",
+                  "size_source_unknown:unknown"
+                ],
+                "hedge_count": 0,
+                "negation_strength": 0.0
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
