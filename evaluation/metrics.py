@@ -285,12 +285,53 @@ class EvaluationMetrics:
         # Find optimal threshold
         optimal_threshold = self._find_optimal_threshold(gt_bin, probs)
         
+        # PR-AUC (better for imbalanced data)
+        pr_auc = self._calculate_pr_auc(gt_bin, probs)
+        
         return {
             "auc": float(auc),
+            "pr_auc": float(pr_auc),
             "brier_score": float(brier),
             "log_loss": float(log_loss),
             "optimal_threshold": float(optimal_threshold)
         }
+    
+    def _calculate_pr_auc(
+        self,
+        y_true: np.ndarray,
+        y_scores: np.ndarray
+    ) -> float:
+        """
+        Calculate Area Under Precision-Recall Curve.
+        
+        EDUCATIONAL NOTE:
+        PR-AUC is more informative than ROC-AUC for imbalanced datasets
+        because it focuses on the positive class performance without
+        being affected by the large number of true negatives.
+        """
+        # Sort by predicted probability (descending)
+        sorted_indices = np.argsort(y_scores)[::-1]
+        y_true_sorted = y_true[sorted_indices]
+        
+        n_pos = np.sum(y_true == 1)
+        if n_pos == 0:
+            return 0.0
+        
+        # Calculate precision and recall at each threshold
+        tp_cumsum = np.cumsum(y_true_sorted)
+        fp_cumsum = np.cumsum(1 - y_true_sorted)
+        
+        precision = tp_cumsum / (tp_cumsum + fp_cumsum + self.epsilon)
+        recall = tp_cumsum / n_pos
+        
+        # Add starting point
+        precision = np.concatenate([[1], precision])
+        recall = np.concatenate([[0], recall])
+        
+        # Trapezoidal integration
+        pr_auc = np.trapz(precision, recall)
+        
+        return pr_auc
     
     def _calculate_auc(
         self,

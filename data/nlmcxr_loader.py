@@ -365,7 +365,8 @@ class NLMCXRLoader(BaseNoduleLoader):
         min_score: float = 3.0,
         limit: int = 50,
         offset: int = 0,
-        require_valid_image: bool = True
+        require_valid_image: bool = True,
+        no_filter: bool = False
     ) -> List[str]:
         """
         Get case IDs filtered by NLP richness score using pagination.
@@ -379,6 +380,7 @@ class NLMCXRLoader(BaseNoduleLoader):
             limit: Maximum number of cases to return.
             offset: Number of cases to skip (for batch processing).
             require_valid_image: If True, only include cases with at least one image file.
+            no_filter: If True, skip NLP richness filtering entirely (for evaluation integrity).
 
         Returns:
             List of (case_id) sorted by richness score descending.
@@ -398,7 +400,9 @@ class NLMCXRLoader(BaseNoduleLoader):
                     continue
 
             score, breakdown = self.compute_nlp_richness(case)
-            if score >= min_score:
+            
+            # Apply NLP richness filter unless no_filter is set
+            if no_filter or score >= min_score:
                 scored_cases.append((case_id, score, breakdown))
 
         # Sort by score descending, then by case_id for deterministic order
@@ -407,13 +411,139 @@ class NLMCXRLoader(BaseNoduleLoader):
         # Apply pagination (offset + limit)
         selected = [case_id for case_id, _, _ in scored_cases[offset : offset + limit]]
 
+        filter_status = "DISABLED" if no_filter else f">= {min_score}"
         logger.info(
-            f"NLP richness filter: {len(scored_cases)} cases scored >= {min_score} "
+            f"NLP richness filter ({filter_status}): {len(scored_cases)} cases qualify "
             f"(out of {len(self._case_cache)} total), returning {len(selected)} cases "
             f"(offset {offset}, limit {limit})"
         )
 
         return selected
+
+    def get_all_labeled_case_ids(
+        self,
+        limit: int = None,
+        offset: int = 0,
+        require_valid_image: bool = True,
+        include_indeterminate: bool = False
+    ) -> List[str]:
+        """
+        Get ALL case IDs with ground truth labels (no NLP richness filtering).
+        
+        This method is for evaluation integrity - it returns cases based on
+        ground truth availability only, without filtering by NLP richness.
+        This prevents cherry-picking cases that favor NLP-based agents.
+        
+        Args:
+            limit: Maximum cases to return (None = all)
+            offset: Number of cases to skip (for pagination)
+            require_valid_image: If True, only include cases with images
+            include_indeterminate: If True, include cases with label=-1
+            
+        Returns:
+            List of case IDs sorted alphabetically
+        """
+        labeled_cases = []
+        
+        for case_id, case in sorted(self._case_cache.items()):
+            # Check image availability
+            if require_valid_image:
+                has_valid_image = any(
+                    self._find_image_file(img.image_id) is not None
+                    for img in case.images
+                )
+                if not has_valid_image:
+                    continue
+            
+            # Extract ground truth
+            ground_truth, _ = self._extract_ground_truth(
+                case.findings, case.impression
+            )
+            
+            # Filter by label validity
+            if include_indeterminate or ground_truth in (0, 1):
+                labeled_cases.append(case_id)
+        
+        # Apply pagination
+        if limit is not None:
+            labeled_cases = labeled_cases[offset:offset + limit]
+        elif offset > 0:
+            labeled_cases = labeled_cases[offset:]
+            
+        logger.info(
+            f"All labeled cases (no NLP filter): {len(labeled_cases)} cases "
+            f"with {'any' if include_indeterminate else 'definite'} labels"
+        )
+        
+        return labeled_cases
+
+    def get_filtering_comparison(
+        self,
+        min_score: float = 3.0,
+        limit: int = 100
+    ) -> Dict[str, Any]:
+        """
+        Compare filtered vs unfiltered case selection for evaluation integrity reporting.
+        
+        This method returns statistics about what cases are being excluded by
+        NLP richness filtering, enabling transparency about potential selection bias.
+        
+        Args:
+            min_score: NLP richness threshold
+            limit: Max cases to consider
+            
+        Returns:
+            Dict with comparison statistics
+        """
+        # Get unfiltered cases (all with valid labels)
+        all_cases = set(self.get_all_labeled_case_ids(limit=limit))
+        
+        # Get filtered cases (NLP richness threshold)
+        filtered_cases = set(self.get_nlp_rich_case_ids(
+            min_score=min_score, limit=limit, no_filter=False
+        ))
+        
+        # Compute overlap and exclusions
+        excluded_by_filter = all_cases - filtered_cases
+        
+        # Analyze excluded cases
+        excluded_stats = {"total": len(excluded_by_filter), "by_score": {}}
+        for case_id in excluded_by_filter:
+            case = self._case_cache.get(case_id)
+            if case:
+                score, _ = self.compute_nlp_richness(case)
+                score_bucket = int(score)
+                excluded_stats["by_score"][score_bucket] = \
+                    excluded_stats["by_score"].get(score_bucket, 0) + 1
+        
+        # Check class distribution in filtered vs unfiltered
+        def get_class_dist(case_ids):
+            dist = {0: 0, 1: 0, -1: 0}
+            for cid in case_ids:
+                case = self._case_cache.get(cid)
+                if case:
+                    gt, _ = self._extract_ground_truth(case.findings, case.impression)
+                    dist[gt] = dist.get(gt, 0) + 1
+            return dist
+        
+        all_dist = get_class_dist(all_cases)
+        filtered_dist = get_class_dist(filtered_cases)
+        
+        return {
+            "filter_threshold": min_score,
+            "total_unfiltered": len(all_cases),
+            "total_filtered": len(filtered_cases),
+            "excluded_count": len(excluded_by_filter),
+            "exclusion_rate": len(excluded_by_filter) / len(all_cases) if all_cases else 0,
+            "excluded_by_score": excluded_stats["by_score"],
+            "class_distribution": {
+                "unfiltered": all_dist,
+                "filtered": filtered_dist
+            },
+            "bias_warning": (
+                len(excluded_by_filter) > 0.2 * len(all_cases)
+            )  # Warn if >20% excluded
+        }
 
     def load_case(
         self,
@@ -489,6 +619,9 @@ class NLMCXRLoader(BaseNoduleLoader):
             case.findings, case.impression
         )
         
+        # Compute NLP richness score for transparency
+        nlp_richness_score, nlp_richness_breakdown = self.compute_nlp_richness(case)
+        
         metadata = {
             "case_id": case_id,
             "num_images": len(images),
@@ -503,7 +636,10 @@ class NLMCXRLoader(BaseNoduleLoader):
             # Ground truth derived from report text via NLP
             "ground_truth": ground_truth,
             "ground_truth_label": self._ground_truth_label(ground_truth),
-            "nlp_features": nlp_features
+            "nlp_features": nlp_features,
+            # NLP richness metadata (for evaluation integrity reporting)
+            "nlp_richness_score": nlp_richness_score,
+            "nlp_richness_breakdown": nlp_richness_breakdown
         }
 
         logger.debug(

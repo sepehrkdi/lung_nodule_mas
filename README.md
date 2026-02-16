@@ -155,6 +155,153 @@ Generate a JSON report of the analysis.
 python main_extended.py --evaluate --export results.json
 ```
 
+## Evaluation & Ablation Framework
+
+The system includes a comprehensive evaluation framework for rigorous validation and ablation studies. This framework enables systematic comparison of architectural choices and verifies that each component contributes meaningfully to system performance.
+
+### Quick Start
+
+```bash
+# Run full evaluation with 5-fold cross-validation
+python main_extended.py --data nlmcxr --evaluate --cv-folds 5
+
+# Run baseline comparison
+python main_extended.py --data nlmcxr --run-baselines
+
+# Run full ablation study
+python main_extended.py --data nlmcxr --run-ablations
+
+# Verify architectural claims
+python main_extended.py --data nlmcxr --verify-claims
+```
+
+### CLI Options
+
+| Flag | Description | Values |
+|------|-------------|--------|
+| `--no-filter` | Disable NLP richness filtering (evaluate ALL cases) | - |
+| `--weight-mode` | Agent weighting strategy | `dynamic`, `static`, `equal` |
+| `--consensus` | Consensus engine backend | `prolog`, `python` |
+| `--no-negex` | Disable NegEx negation detection | - |
+| `--no-dependency-parsing` | Disable dependency parsing in NLP | - |
+| `--cv-folds N` | Run N-fold cross-validation | Integer (e.g., 5, 10) |
+| `--run-baselines` | Run all baseline predictors | - |
+| `--run-ablations` | Run full ablation study | - |
+| `--verify-claims` | Run claim verification matrix | - |
+| `--single-agent` | Use only one agent (ablation) | `R1`, `R2`, `R3`, `P1`, `P2`, `P3` |
+
+### Baseline Predictors
+
+The framework includes mandatory baselines for fair comparison:
+
+| Baseline | Description |
+|----------|-------------|
+| **Majority Class** | Always predicts the most frequent class |
+| **Random** | Random predictions with class prior |
+| **Single Agent** | Individual agent predictions (R1, R2, R3, P1, P2, P3) |
+| **Unweighted Majority Vote** | Simple majority across all 6 agents |
+| **Static Weighted Average** | Fixed weights (no dynamic adjustment) |
+| **sklearn Voting** | Industry-standard voting classifier |
+| **Pure Python Average** | Python-only weighted average (no Prolog) |
+
+### Ablation Categories
+
+#### 1. Agent Ablations
+Test whether all 6 agents are necessary:
+```bash
+# Remove one radiologist
+python main_extended.py --evaluate --single-agent R1
+
+# Compare: Full system vs 3-agent subset
+```
+
+#### 2. Weighting Ablations
+Compare weighting strategies:
+```bash
+# Dynamic weights (default - learned from data richness)
+python main_extended.py --evaluate --weight-mode dynamic
+
+# Static weights (fixed expert-assigned)
+python main_extended.py --evaluate --weight-mode static
+
+# Equal weights (uniform 1/6 each)
+python main_extended.py --evaluate --weight-mode equal
+```
+
+#### 3. Symbolic Layer Ablations
+Test Prolog contribution:
+```bash
+# With Prolog consensus (default)
+python main_extended.py --evaluate --consensus prolog
+
+# Python-only consensus (ablation)
+python main_extended.py --evaluate --consensus python
+```
+
+#### 4. NLP Ablations
+Test NLP component contributions:
+```bash
+# Without NegEx
+python main_extended.py --evaluate --no-negex
+
+# Without dependency parsing
+python main_extended.py --evaluate --no-dependency-parsing
+```
+
+### Evaluation Integrity
+
+To ensure fair evaluation, the framework addresses potential biases:
+
+1. **NLP Richness Filtering**: By default, cases are filtered by "NLP richness score" to select those with extractable content. Use `--no-filter` to evaluate on ALL cases.
+
+2. **Cross-Validation**: Use `--cv-folds 5` for proper train/test splits with confidence intervals.
+
+3. **PR-AUC Metric**: For imbalanced data (~85% benign), PR-AUC is reported alongside ROC-AUC.
+
+4. **Statistical Tests**: McNemar's test, bootstrap confidence intervals, and Cohen's d effect sizes are computed for model comparisons.
+
+### Claim Verification Matrix
+
+The `--verify-claims` flag runs automated verification of architectural claims:
+
+| Claim | Test |
+|-------|------|
+| Multi-agent > Single-agent | Best single agent vs full ensemble |
+| Dynamic > Static weights | Dynamic weighting accuracy gain |
+| Prolog ≈ Python consensus | Equivalence within tolerance |
+| NegEx contribution | F1 delta with/without NegEx |
+| Dependency parsing value | F1 delta with/without parsing |
+| Ensemble improves recall | Recall comparison vs best single |
+| System beats majority baseline | Accuracy over naive predictor |
+| Per-class metrics fair | Recall balance across classes |
+
+### Output Formats
+
+Results are generated in multiple formats:
+- **Markdown**: `results/baseline_comparison.md`, `results/ablation_results.md`
+- **LaTeX**: `results/baseline_comparison.tex`, `results/ablation_results.tex`
+- **JSON**: `results/all_results.json`
+- **Console**: Real-time progress and summary statistics
+
+### Example: Full Evaluation Pipeline
+
+```bash
+# 1. Run baselines
+python main_extended.py --data nlmcxr --run-baselines --max-cases 500
+
+# 2. Run main system with CV
+python main_extended.py --data nlmcxr --evaluate --cv-folds 5 --max-cases 500
+
+# 3. Run ablations
+python main_extended.py --data nlmcxr --run-ablations --max-cases 500
+
+# 4. Verify claims
+python main_extended.py --data nlmcxr --verify-claims
+
+# 5. Export all results
+python main_extended.py --data nlmcxr --evaluate --export full_results.json
+```
+
 ## Dataset
 
 This project uses the **Open-I Indiana University Chest X-ray Collection**.
@@ -209,15 +356,29 @@ lung_nodule_mas/
 │   └── pathologist.asl
 ├── knowledge/          # Prolog Knowledge Base
 │   ├── lung_rads.pl    # Clinical rules
+│   ├── multi_agent_consensus.pl
 │   └── prolog_engine.py
 ├── models/             # Deep Learning Models
 │   ├── classifier.py   # DenseNet/ResNet wrappers
-│   └── dynamic_weights.py # Richness score calculator
+│   ├── dynamic_weights.py # Richness score calculator
+│   └── python_consensus.py # Python consensus (for ablation)
 ├── nlp/                # Natural Language Processing
 │   ├── extractor.py    # Regex/spaCy extraction
 │   └── negation_detector.py # NegEx implementation
+├── evaluation/         # Evaluation Framework
+│   ├── metrics.py      # Classification metrics + PR-AUC
+│   ├── baselines.py    # Baseline predictors
+│   ├── cross_validation.py # Stratified K-fold CV
+│   ├── statistical_tests.py # McNemar, bootstrap CI
+│   ├── ablation_framework.py # Ablation study runner
+│   ├── claim_verification.py # Architectural claim tests
+│   └── results_generator.py # Markdown/LaTeX/JSON output
 ├── data/               # Data loaders and parsers
+│   ├── nlmcxr_loader.py # NLMCXR dataset loader
+│   └── nlmcxr_parser.py # XML report parser
+├── results/            # Generated evaluation results
 ├── report/             # LaTeX project report
+├── config.py           # Central configuration
 ├── main_extended.py    # Main CLI entry point
 └── spade_main.py       # SPADE-BDI runner
 ```

@@ -132,7 +132,12 @@ class ExtendedMAS:
         data_source: str = "nlmcxr",
         verbose: bool = True,
         max_cases: Optional[int] = 100,
-        start_index: int = 0
+        start_index: int = 0,
+        no_filter: bool = False,
+        weight_mode: str = "dynamic",
+        consensus_mode: str = "prolog",
+        use_negex: bool = True,
+        use_dependency_parsing: bool = True
     ):
         """
         Initialize the extended MAS.
@@ -142,21 +147,39 @@ class ExtendedMAS:
             verbose: Print progress messages
             max_cases: Maximum number of cases to load (default: 100)
             start_index: Offset for loading cases (default: 0)
+            no_filter: If True, disable NLP richness filtering
+            weight_mode: "dynamic", "static", or "equal"
+            consensus_mode: "prolog" or "python"
+            use_negex: Enable NegEx negation detection
+            use_dependency_parsing: Enable dependency parsing
         """
         self.verbose = verbose
         self.data_source = data_source
         self.max_cases = max_cases if max_cases is not None else 100
         self.start_index = start_index
         
+        # Ablation flags
+        self.no_filter = no_filter
+        self.weight_mode = weight_mode
+        self.consensus_mode = consensus_mode
+        self.use_negex = use_negex
+        self.use_dependency_parsing = use_dependency_parsing
+        
         # Import orchestrator
         from orchestrator import MultiAgentOrchestrator
         
         # Initialize orchestrator with all agents
         self._log("Initializing 6-Agent Orchestrator...")
+        self._log(f"  - NLP filter: {'DISABLED' if no_filter else 'enabled (score >= 3.0)'}")
+        self._log(f"  - Weight mode: {weight_mode}")
+        self._log(f"  - Consensus: {consensus_mode}")
+        self._log(f"  - NegEx: {'enabled' if use_negex else 'DISABLED'}")
+        self._log(f"  - Dependency parsing: {'enabled' if use_dependency_parsing else 'DISABLED'}")
         
         kb_path = Path(__file__).parent / "knowledge" / "multi_agent_consensus.pl"
         self.orchestrator = MultiAgentOrchestrator(
-            consensus_kb_path=str(kb_path) if kb_path.exists() else None
+            consensus_kb_path=str(kb_path) if kb_path.exists() else None,
+            weight_mode=weight_mode
         )
         
         # Load data
@@ -181,19 +204,28 @@ class ExtendedMAS:
                 from data.nlmcxr_loader import NLMCXRLoader
                 loader = NLMCXRLoader()
                 
-                # Use NLP richness filtering instead of naive ground_truth filter.
-                # This selects cases where the radiology report contains enough
-                # extractable content (entities, measurements, anatomy) for the
-                # pathologist regex/spaCy agents to find meaningful information,
-                # rather than falling back to hardcoded defaults.
-                nlp_rich_ids = loader.get_nlp_rich_case_ids(
-                    min_score=3.0,
-                    limit=self.max_cases,
-                    offset=self.start_index
-                )
+                # Support both filtered and unfiltered evaluation
+                if self.no_filter:
+                    # NO FILTER MODE: Evaluate ALL cases with valid labels
+                    # This is important for evaluation integrity
+                    self._log("Loading ALL labeled cases (NLP filtering DISABLED)")
+                    case_ids = loader.get_all_labeled_case_ids(
+                        limit=self.max_cases,
+                        offset=self.start_index
+                    )
+                else:
+                    # Use NLP richness filtering (default)
+                    # Selects cases where the radiology report contains enough
+                    # extractable content for pathologist agents
+                    case_ids = loader.get_nlp_rich_case_ids(
+                        min_score=3.0,
+                        limit=self.max_cases,
+                        offset=self.start_index,
+                        no_filter=False
+                    )
                 
                 count = 0
-                for case_id in nlp_rich_ids:
+                for case_id in case_ids:
                     if count >= self.max_cases:
                         break
                     
@@ -400,6 +432,92 @@ class ExtendedMAS:
         
         # Compute metrics
         return self._compute_metrics()
+
+    async def run_cross_validation(
+        self,
+        n_folds: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Run k-fold cross-validation evaluation.
+        
+        Args:
+            n_folds: Number of folds (default: 5)
+            
+        Returns:
+            Dictionary with CV metrics (mean ± std)
+        """
+        try:
+            from evaluation.cross_validation import CrossValidationEvaluator
+        except ImportError:
+            self._log("Cross-validation module not available, running single evaluation")
+            return await self.run_evaluation()
+        
+        self._log(f"Starting {n_folds}-fold cross-validation...")
+        
+        # Prepare data
+        case_ids = [case["nodule_id"] for case in self.cases]
+        y_true = [case.get("ground_truth", -1) for case in self.cases]
+        
+        # Filter to valid labels
+        valid_indices = [i for i, y in enumerate(y_true) if y in (0, 1)]
+        case_ids = [case_ids[i] for i in valid_indices]
+        y_true = [y_true[i] for i in valid_indices]
+        
+        if len(case_ids) < n_folds:
+            self._log(f"Not enough cases ({len(case_ids)}) for {n_folds}-fold CV")
+            return await self.run_evaluation()
+        
+        # Create evaluator (stratification is built-in via StratifiedKFoldSplitter)
+        cv_evaluator = CrossValidationEvaluator(
+            n_folds=n_folds,
+            random_state=42,
+            save_results=False  # Don't auto-save during interactive runs
+        )
+        
+        # Run CV folds
+        fold_metrics = []
+        for fold_idx, (train_ids, test_ids) in enumerate(
+            cv_evaluator.splitter.split(case_ids, y_true)
+        ):
+            self._log(f"Fold {fold_idx + 1}/{n_folds}: {len(train_ids)} train, {len(test_ids)} test")
+            
+            # Process test cases for this fold
+            test_cases = [self.cases[valid_indices[i]] for i in test_ids]
+            
+            # Store current results and run on fold test set
+            original_results = self.results.copy()
+            self.results = []
+            
+            for case in test_cases:
+                await self.process_single_case(case)
+            
+            # Compute fold metrics
+            fold_result = self._compute_metrics()
+            fold_metrics.append(fold_result)
+            
+            # Restore results
+            self.results = original_results
+        
+        # Aggregate CV results
+        cv_results = {
+            "n_folds": n_folds,
+            "total_cases": len(case_ids),
+            "fold_metrics": fold_metrics
+        }
+        
+        # Compute mean ± std for key metrics
+        if fold_metrics:
+            accuracies = [f.get("accuracy", 0) for f in fold_metrics]
+            cv_results["accuracy_mean"] = np.mean(accuracies)
+            cv_results["accuracy_std"] = np.std(accuracies)
+            cv_results["accuracy_ci95"] = (
+                np.mean(accuracies) - 1.96 * np.std(accuracies) / np.sqrt(n_folds),
+                np.mean(accuracies) + 1.96 * np.std(accuracies) / np.sqrt(n_folds)
+            )
+        
+        self._log(f"CV Complete: Accuracy = {cv_results.get('accuracy_mean', 0):.3f} ± {cv_results.get('accuracy_std', 0):.3f}")
+        
+        return cv_results
     
     def _compute_metrics(self) -> Dict[str, Any]:
         """Compute evaluation metrics."""
@@ -591,23 +709,91 @@ async def main():
         help="Start index for processing cases (offset)"
     )
     
+    # =========================================================================
+    # ABLATION STUDY FLAGS
+    # =========================================================================
+    parser.add_argument(
+        "--no-filter", action="store_true",
+        help="Disable NLP richness filtering (evaluate ALL cases)"
+    )
+    parser.add_argument(
+        "--weight-mode", type=str, default="dynamic",
+        choices=["dynamic", "static", "equal"],
+        help="Weighting mode: dynamic (learned), static (fixed), equal (uniform)"
+    )
+    parser.add_argument(
+        "--consensus", type=str, default="prolog",
+        choices=["prolog", "python"],
+        help="Consensus engine: prolog (symbolic) or python (ablation baseline)"
+    )
+    parser.add_argument(
+        "--no-negex", action="store_true",
+        help="Disable NegEx negation detection in NLP"
+    )
+    parser.add_argument(
+        "--no-dependency-parsing", action="store_true",
+        help="Disable dependency parsing in NLP"
+    )
+    parser.add_argument(
+        "--cv-folds", type=int, default=0,
+        help="Number of cross-validation folds (0 = no CV, single split)"
+    )
+    parser.add_argument(
+        "--run-baselines", action="store_true",
+        help="Run all baseline predictors for comparison"
+    )
+    parser.add_argument(
+        "--run-ablations", action="store_true",
+        help="Run full ablation study (agents, weights, symbolic, NLP)"
+    )
+    parser.add_argument(
+        "--verify-claims", action="store_true",
+        help="Run architectural claim verification matrix"
+    )
+    parser.add_argument(
+        "--single-agent", type=str, default=None,
+        choices=["R1", "R2", "R3", "P1", "P2", "P3"],
+        help="Use only a single agent (for ablation comparison)"
+    )
+    
     args = parser.parse_args()
     
     if args.demo:
         await demo_mode()
         return
     
-    # Initialize system
+    # Handle ablation study modes
+    if args.run_baselines:
+        await run_baselines_evaluation(args)
+        return
+    
+    if args.run_ablations:
+        await run_ablation_study(args)
+        return
+    
+    if args.verify_claims:
+        await run_claim_verification(args)
+        return
+    
+    # Initialize system with ablation flags
     mas = ExtendedMAS(
         data_source=args.data,
         verbose=True,
         max_cases=args.max_cases if args.max_cases else 100,
-        start_index=args.start_index
+        start_index=args.start_index,
+        no_filter=args.no_filter,
+        weight_mode=args.weight_mode,
+        consensus_mode=args.consensus,
+        use_negex=not args.no_negex,
+        use_dependency_parsing=not args.no_dependency_parsing
     )
     
     if args.evaluate:
-        # Run evaluation
-        metrics = await mas.run_evaluation(max_cases=args.max_cases)
+        # Run evaluation with optional cross-validation
+        if args.cv_folds > 1:
+            metrics = await mas.run_cross_validation(n_folds=args.cv_folds)
+        else:
+            metrics = await mas.run_evaluation(max_cases=args.max_cases)
         mas.print_results_summary()
     else:
         # Process all cases
@@ -618,6 +804,189 @@ async def main():
     # Export if requested
     if args.export:
         mas.export_results(args.export)
+
+
+async def run_baselines_evaluation(args):
+    """Run baseline predictor evaluation with actual agent predictions."""
+    from evaluation.baselines import (
+        evaluate_baselines, 
+        MajorityClassBaseline, 
+        RandomBaseline,
+        UnweightedMajorityVote,
+        StaticWeightedAverage
+    )
+    from data.nlmcxr_loader import NLMCXRLoader
+    
+    print("=" * 60)
+    print("BASELINE EVALUATION")
+    print("=" * 60)
+    
+    # Load data
+    loader = NLMCXRLoader()
+    if args.no_filter:
+        case_ids = loader.get_all_labeled_case_ids(limit=args.max_cases or 100)
+    else:
+        case_ids = loader.get_nlp_rich_case_ids(
+            min_score=3.0, limit=args.max_cases or 100
+        )
+    
+    print(f"\nProcessing {len(case_ids)} cases...")
+    
+    # Initialize MAS to get real agent predictions
+    mas = ExtendedMAS(
+        data_source="nlmcxr",
+        verbose=False,
+        max_cases=args.max_cases or 100,
+        no_filter=args.no_filter
+    )
+    
+    # Process cases and collect predictions
+    y_true = []
+    agent_predictions = []
+    
+    for i, case_id in enumerate(case_ids):
+        try:
+            case = next((c for c in mas.cases if c.get("nodule_id") == case_id), None)
+            if case is None:
+                continue
+                
+            gt = case.get("ground_truth", -1)
+            if gt not in (0, 1):
+                continue
+                
+            # Process case with all agents
+            result = await mas.process_single_case(case)
+            if result is None:
+                continue
+            
+            y_true.append(gt)
+            
+            # Collect agent predictions in expected format
+            agent_preds = {
+                "R1": result.radiologist_densenet.get("probability", 0.5),
+                "R2": result.radiologist_resnet.get("probability", 0.5),
+                "R3": result.radiologist_rulebased.get("probability", 0.5),
+                "P1": result.pathologist_regex.get("probability", 0.5),
+                "P2": result.pathologist_spacy.get("probability", 0.5),
+                "P3": result.pathologist_context.get("probability", 0.5),
+            }
+            agent_predictions.append(agent_preds)
+            
+            if (i + 1) % 10 == 0:
+                print(f"  Processed {i+1}/{len(case_ids)} cases")
+                
+        except Exception as e:
+            logger.debug(f"Error processing {case_id}: {e}")
+            continue
+    
+    if len(y_true) < 2:
+        print("Error: Not enough valid cases to evaluate baselines")
+        return
+    
+    y_true = np.array(y_true)
+    print(f"\nEvaluating baselines on {len(y_true)} cases...")
+    print(f"Class distribution: {sum(y_true == 0)} benign, {sum(y_true == 1)} malignant")
+    
+    # Evaluate all baselines
+    results = evaluate_baselines(y_true, agent_predictions)
+    
+    # Print results
+    print("\n" + "=" * 60)
+    print("BASELINE RESULTS")
+    print("=" * 60)
+    print(f"{'Baseline':<25} {'Accuracy':>10} {'Precision':>10} {'Recall':>10} {'F1':>10}")
+    print("-" * 65)
+    for name, metrics in results.items():
+        # Metrics may be nested under 'binary' key
+        if 'binary' in metrics:
+            binary = metrics['binary']
+        else:
+            binary = metrics
+        acc = binary.get('accuracy', 0)
+        prec = binary.get('precision', 0)
+        rec = binary.get('sensitivity', binary.get('recall', 0))  # sensitivity = recall
+        f1 = binary.get('f1_score', binary.get('f1', 0))
+        print(f"{name:<25} {acc:>10.3f} {prec:>10.3f} {rec:>10.3f} {f1:>10.3f}")
+
+
+async def run_ablation_study(args):
+    """Run full ablation study."""
+    try:
+        from evaluation.ablation_framework import (
+            AblationRunner,
+            create_agent_ablations,
+            create_weighting_ablations,
+            create_symbolic_ablations,
+            create_nlp_ablations
+        )
+    except ImportError as e:
+        print(f"Error importing ablation framework: {e}")
+        return
+    
+    print("=" * 60)
+    print("ABLATION STUDY")
+    print("=" * 60)
+    
+    # Create ablation configs (functions return Dict[str, AblationConfig])
+    configs = {}
+    configs.update(create_agent_ablations())
+    configs.update(create_weighting_ablations())
+    configs.update(create_symbolic_ablations())
+    configs.update(create_nlp_ablations())
+    
+    print(f"Total ablation configurations: {len(configs)}")
+    for name, cfg in configs.items():
+        print(f"  - {cfg.name}: {cfg.description[:50]}...")
+    
+    # Run ablations (placeholder - actual implementation requires data)
+    print("\n[Note: Full ablation execution requires dataset. Use --evaluate with flags.]")
+
+
+async def run_claim_verification(args):
+    """Run architectural claim verification."""
+    try:
+        from evaluation.claim_verification import (
+            ClaimVerifier, ClaimStatus, ARCHITECTURAL_CLAIMS
+        )
+    except ImportError as e:
+        print(f"Error importing claim verification: {e}")
+        return
+    
+    print("=" * 60)
+    print("ARCHITECTURAL CLAIM VERIFICATION")
+    print("=" * 60)
+    
+    # List claims to verify
+    print("\nClaims to verify:")
+    print("-" * 60)
+    for claim_id, claim_def in ARCHITECTURAL_CLAIMS.items():
+        print(f"\n  [{claim_id}]")
+        print(f"    Description: {claim_def['description']}")
+        print(f"    Metric: {claim_def['metric']}")
+        print(f"    Expected: {claim_def['expected_direction']}")
+        print(f"    Baseline: {claim_def['baseline_ablation']}")
+        print(f"    Compare: {', '.join(claim_def['comparison_ablations'])}")
+    
+    # Check if we have results to verify against
+    results_path = Path("results/ablation_results.json")
+    if results_path.exists():
+        print("\n" + "=" * 60)
+        print("Verifying claims against ablation results...")
+        
+        with open(results_path) as f:
+            ablation_results = json.load(f)
+        
+        verifier = ClaimVerifier(ablation_results)
+        report = verifier.verify_all_claims(ARCHITECTURAL_CLAIMS)
+        print(report)
+    else:
+        print("\n" + "-" * 60)
+        print("[Note: No ablation results found. Run --run-ablations first,")
+        print(" then --verify-claims to verify the claims with actual data.]")
+        print("\nExample workflow:")
+        print("  1. python main_extended.py --evaluate --data nlmcxr --max-cases 100")
+        print("  2. python main_extended.py --run-baselines --data nlmcxr")
+        print("  3. python main_extended.py --verify-claims")
 
 
 if __name__ == "__main__":

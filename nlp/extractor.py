@@ -257,19 +257,41 @@ class MedicalNLPExtractor:
         'LN': 'lymph node',
     }
     
-    def __init__(self, use_scispacy: bool = True):
+    def __init__(
+        self, 
+        use_scispacy: bool = True,
+        use_negex: bool = True,
+        use_dependency_parsing: bool = True
+    ):
         """
         Initialize the NLP extractor.
         
         Args:
             use_scispacy: If True, try to load scispaCy model
+            use_negex: If True, enable negation detection (NegEx)
+            use_dependency_parsing: If True, enable dependency frame extraction
+        
+        For ablation studies:
+            - Set use_negex=False to disable NegEx
+            - Set use_dependency_parsing=False to disable dependency frames
+            - Set use_scispacy=False for regex-only extraction
         """
         self.nlp = None
         self.use_scispacy = use_scispacy
+        self.use_negex = use_negex
+        self.use_dependency_parsing = use_dependency_parsing
         
-        # Initialize section parser and negation detector
+        # Initialize section parser - always needed
         self.report_parser = ReportParser()
-        self.negation_detector = NegExDetector()
+        
+        # Initialize negation detector only if enabled
+        if self.use_negex:
+            self.negation_detector = NegExDetector()
+        else:
+            self.negation_detector = None
+        
+        # Dependency extractor initialized after spaCy model loads
+        self.dependency_extractor = None
         
         if use_scispacy:
             self._load_spacy_model()
@@ -285,10 +307,19 @@ class MedicalNLPExtractor:
         """
         import spacy
         self.nlp = spacy.load('en_core_sci_sm')
-        self.negation_detector = NegExDetector()
-        self.report_parser = ReportParser()
-        self.dependency_extractor = DependencyFrameExtractor(self.nlp)
-        print(f"[NLPExtractor] Loaded spaCy model: en_core_sci_sm")
+        
+        # Re-initialize negation detector with spaCy NLP if enabled
+        if self.use_negex:
+            self.negation_detector = NegExDetector()
+        
+        # Initialize dependency extractor only if enabled
+        if self.use_dependency_parsing:
+            self.dependency_extractor = DependencyFrameExtractor(self.nlp)
+        else:
+            self.dependency_extractor = None
+        
+        print(f"[NLPExtractor] Loaded spaCy model: en_core_sci_sm "
+              f"(negex={self.use_negex}, dependency={self.use_dependency_parsing})")
     
     def extract(self, text: str) -> ExtractionResult:
         """
@@ -353,6 +384,9 @@ class MedicalNLPExtractor:
     def _extract_with_spacy(self, text: str, result: ExtractionResult) -> ExtractionResult:
         """
         Use spaCy for tokenization, POS tagging, NER, and Dependency Parsing (Module 2).
+        
+        Respects ablation flags:
+        - If use_dependency_parsing=False, skips dependency frame extraction
         """
         doc = self.nlp(text)
         
@@ -367,14 +401,16 @@ class MedicalNLPExtractor:
             
         # EDUCATIONAL: Module 2 - Dependency-Anchored Frame Building
         # Extract structured nodule findings using grammatical dependencies
-        try:
-            frames = self.dependency_extractor.extract(doc)
-            result.extracted_nodules = frames
-            if frames:
-                # Log for demonstration
-                print(f"[NLPExtractor] Found {len(frames)} structured nodule frames")
-        except Exception as e:
-            print(f"[NLPExtractor] Dependency extraction error: {e}")
+        # Only run if dependency parsing is enabled (for ablation studies)
+        if self.dependency_extractor is not None:
+            try:
+                frames = self.dependency_extractor.extract(doc)
+                result.extracted_nodules = frames
+                if frames:
+                    # Log for demonstration
+                    print(f"[NLPExtractor] Found {len(frames)} structured nodule frames")
+            except Exception as e:
+                print(f"[NLPExtractor] Dependency extraction error: {e}")
         
         return result
     

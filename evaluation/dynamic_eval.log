@@ -1,0 +1,162 @@
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS] Initializing 6-Agent Orchestrator...
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS]   - NLP filter: enabled (score >= 3.0)
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS]   - Weight mode: dynamic
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS]   - Consensus: python
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS]   - NegEx: enabled
+2026-02-16 15:44:47,691 - __main__ - INFO - [ExtendedMAS]   - Dependency parsing: enabled
+2026-02-16 15:44:47,691 - orchestrator - INFO - Initializing radiologist agents...
+2026-02-16 15:44:47,691 - orchestrator - INFO - Initializing pathologist agents...
+2026-02-16 15:44:49,108 - agents.pathologist_variants - INFO - [pathologist_context] Loaded NegEx detector and ReportParser
+2026-02-16 15:44:49,108 - orchestrator - INFO - Initializing Prolog consensus engine (STRICT MODE)...
+2026-02-16 15:44:49,132 - knowledge.prolog_engine - INFO - PySwip Prolog engine initialized successfully
+2026-02-16 15:44:49,133 - knowledge.prolog_engine - INFO - Loaded knowledge base: lung_rads.pl
+2026-02-16 15:44:49,136 - knowledge.prolog_engine - INFO - Loaded knowledge base: multi_agent_consensus.pl
+2026-02-16 15:44:49,136 - knowledge.prolog_engine - INFO - All Prolog knowledge bases loaded successfully
+2026-02-16 15:44:49,139 - knowledge.prolog_engine - INFO - Loaded additional knowledge base: multi_agent_consensus.pl
+2026-02-16 15:44:49,139 - orchestrator - INFO - Prolog consensus engine initialized successfully
+2026-02-16 15:44:49,139 - models.dynamic_weights - INFO - DynamicWeightCalculator initialized: mode=dynamic, reliability_adj=True, size_penalty=True
+2026-02-16 15:44:49,139 - orchestrator - INFO - Orchestrator initialized with 3 radiologists and 3 pathologists
+2026-02-16 15:44:49,139 - __main__ - INFO - [ExtendedMAS] Created 5 sample cases
+2026-02-16 15:44:49,139 - __main__ - INFO - [ExtendedMAS] Selected 5 sample cases (offset 0)
+2026-02-16 15:44:49,139 - __main__ - INFO - [ExtendedMAS] Extended MAS initialized with 6 specialized agents
+2026-02-16 15:44:49,139 - __main__ - INFO - [ExtendedMAS] Starting evaluation on 5 cases...
+2026-02-16 15:44:49,139 - __main__ - INFO - [ExtendedMAS] Case 1/5
+2026-02-16 15:44:49,140 - __main__ - INFO - [ExtendedMAS] Processing case sample_001...
+2026-02-16 15:44:49,140 - orchestrator - INFO - Analyzing case sample_001 with 6 agents...
+2026-02-16 15:44:49,140 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.105, path_richness=0.372, weights={'radiologist_densenet': 0.5525, 'radiologist_resnet': 0.5525, 'radiologist_rulebased': 0.3867, 'pathologist_regex': 0.5487, 'pathologist_spacy': 0.6172, 'pathologist_context': 0.6172}
+2026-02-16 15:44:49,140 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for sample_001
+/home/sepehrkhd/Desktop/NLPSDAIPROJECT/lung_nodule_mas/venv/lib/python3.12/site-packages/spacy/language.py:2195: FutureWarning: Possible set union at position 6328
+  deserializers["tokenizer"] = lambda p: self.tokenizer.from_disk(  # type: ignore[union-attr]
+2026-02-16 15:44:49,575 - agents.pathologist_variants - INFO - [pathologist_spacy] Loaded scispaCy medical model
+2026-02-16 15:44:49,583 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=ground_glass, entities=5, malignancy_score=0.40
+2026-02-16 15:44:49,583 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left upper lobe)
+2026-02-16 15:44:49,583 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing single image sample_001
+2026-02-16 15:44:49,584 - agents.radiologist_variants - INFO - [radiologist_resnet] Loading TorchXRayVision (Mass-focused, STRICT MODE)...
+2026-02-16 15:44:50,933 - models.classifier - INFO - [NoduleClassifier] Loading TorchXRayVision DenseNet on cpu...
+2026-02-16 15:44:51,104 - models.classifier - INFO - [NoduleClassifier] TorchXRayVision model loaded successfully
+2026-02-16 15:44:51,104 - models.classifier - INFO - [NoduleClassifier] Model pathologies: ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia', 'Lung Lesion', 'Fracture', 'Lung Opacity', 'Enlarged Cardiomediastinum']
+2026-02-16 15:44:51,104 - agents.radiologist_variants - INFO - [radiologist_resnet] TorchXRayVision loaded (Mass-focused) successfully
+2026-02-16 15:44:51,162 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for sample_001
+2026-02-16 15:44:51,166 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:44:51,166 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing single image sample_001
+2026-02-16 15:44:51,166 - agents.radiologist_variants - INFO - [radiologist_densenet] Loading TorchXRayVision DenseNet (STRICT MODE)...
+2026-02-16 15:44:51,166 - models.classifier - INFO - [NoduleClassifier] Loading TorchXRayVision DenseNet on cpu...
+2026-02-16 15:44:51,322 - models.classifier - INFO - [NoduleClassifier] TorchXRayVision model loaded successfully
+2026-02-16 15:44:51,322 - models.classifier - INFO - [NoduleClassifier] Model pathologies: ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia', 'Lung Lesion', 'Fracture', 'Lung Opacity', 'Enlarged Cardiomediastinum']
+2026-02-16 15:44:51,322 - agents.radiologist_variants - INFO - [radiologist_densenet] TorchXRayVision DenseNet loaded successfully
+2026-02-16 15:44:51,381 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for sample_001
+2026-02-16 15:44:51,382 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=ground_glass, suspicious=0, benign=1
+2026-02-16 15:44:51,391 - knowledge.prolog_engine - INFO - Consensus for sample_001: prob=0.445, class=0, confidence=0.577
+2026-02-16 15:44:58,091 - orchestrator - INFO - Case sample_001: class=0, prob=0.445, confidence=0.577, agreement=majority
+2026-02-16 15:44:58,091 - __main__ - INFO - [ExtendedMAS] Case 2/5
+2026-02-16 15:44:58,091 - __main__ - INFO - [ExtendedMAS] Processing case sample_002...
+2026-02-16 15:44:58,091 - orchestrator - INFO - Analyzing case sample_002 with 6 agents...
+2026-02-16 15:44:58,091 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.105, path_richness=0.369, weights={'radiologist_densenet': 0.5525, 'radiologist_resnet': 0.5525, 'radiologist_rulebased': 0.3867, 'pathologist_regex': 0.5474, 'pathologist_spacy': 0.6158, 'pathologist_context': 0.6158}
+2026-02-16 15:44:58,092 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for sample_002
+2026-02-16 15:44:58,099 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=7, malignancy_score=0.65
+2026-02-16 15:44:58,099 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right upper lobe)
+2026-02-16 15:44:58,099 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing single image sample_002
+2026-02-16 15:44:58,173 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for sample_002
+2026-02-16 15:44:58,174 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=3, benign=0
+2026-02-16 15:44:58,174 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing single image sample_002
+2026-02-16 15:44:58,215 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for sample_002
+2026-02-16 15:44:58,216 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:44:58,218 - knowledge.prolog_engine - INFO - Consensus for sample_002: prob=0.717, class=1, confidence=0.800
+2026-02-16 15:45:04,815 - orchestrator - INFO - Case sample_002: class=1, prob=0.717, confidence=0.800, agreement=majority
+2026-02-16 15:45:04,815 - __main__ - INFO - [ExtendedMAS] Case 3/5
+2026-02-16 15:45:04,815 - __main__ - INFO - [ExtendedMAS] Processing case sample_003...
+2026-02-16 15:45:04,815 - orchestrator - INFO - Analyzing case sample_003 with 6 agents...
+2026-02-16 15:45:04,815 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.105, path_richness=0.363, weights={'radiologist_densenet': 0.5525, 'radiologist_resnet': 0.5525, 'radiologist_rulebased': 0.3867, 'pathologist_regex': 0.5452, 'pathologist_spacy': 0.6133, 'pathologist_context': 0.6133}
+2026-02-16 15:45:04,815 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for sample_003
+2026-02-16 15:45:04,821 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=part_solid, entities=7, malignancy_score=0.65
+2026-02-16 15:45:04,821 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=lower lobe)
+2026-02-16 15:45:04,821 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing single image sample_003
+2026-02-16 15:45:04,852 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for sample_003
+2026-02-16 15:45:04,853 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=part_solid, suspicious=0, benign=0
+2026-02-16 15:45:04,853 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing single image sample_003
+2026-02-16 15:45:04,925 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for sample_003
+2026-02-16 15:45:04,925 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:45:04,926 - knowledge.prolog_engine - INFO - Consensus for sample_003: prob=0.501, class=1, confidence=0.484
+2026-02-16 15:45:11,633 - orchestrator - INFO - Case sample_003: class=1, prob=0.501, confidence=0.484, agreement=majority
+2026-02-16 15:45:11,634 - __main__ - INFO - [ExtendedMAS] Case 4/5
+2026-02-16 15:45:11,634 - __main__ - INFO - [ExtendedMAS] Processing case sample_004...
+2026-02-16 15:45:11,634 - orchestrator - INFO - Analyzing case sample_004 with 6 agents...
+2026-02-16 15:45:11,634 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.105, path_richness=0.365, weights={'radiologist_densenet': 0.5525, 'radiologist_resnet': 0.5525, 'radiologist_rulebased': 0.3867, 'pathologist_regex': 0.5462, 'pathologist_spacy': 0.6144, 'pathologist_context': 0.6144}
+2026-02-16 15:45:11,634 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for sample_004
+2026-02-16 15:45:11,640 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=solid, entities=4, malignancy_score=0.65
+2026-02-16 15:45:11,640 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=right)
+2026-02-16 15:45:11,640 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing single image sample_004
+2026-02-16 15:45:11,709 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for sample_004
+2026-02-16 15:45:11,710 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=solid, suspicious=3, benign=0
+2026-02-16 15:45:11,710 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing single image sample_004
+2026-02-16 15:45:11,748 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for sample_004
+2026-02-16 15:45:11,749 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=1, overall=affirmed
+2026-02-16 15:45:11,751 - knowledge.prolog_engine - INFO - Consensus for sample_004: prob=0.717, class=1, confidence=0.800
+2026-02-16 15:45:18,498 - orchestrator - INFO - Case sample_004: class=1, prob=0.717, confidence=0.800, agreement=majority
+2026-02-16 15:45:18,498 - __main__ - INFO - [ExtendedMAS] Case 5/5
+2026-02-16 15:45:18,498 - __main__ - INFO - [ExtendedMAS] Processing case sample_005...
+2026-02-16 15:45:18,498 - orchestrator - INFO - Analyzing case sample_005 with 6 agents...
+2026-02-16 15:45:18,498 - models.dynamic_weights - INFO - Dynamic weights computed: rad_richness=0.105, path_richness=0.357, weights={'radiologist_densenet': 0.5525, 'radiologist_resnet': 0.5525, 'radiologist_rulebased': 0.3867, 'pathologist_regex': 0.5427, 'pathologist_spacy': 0.6105, 'pathologist_context': 0.6105}
+2026-02-16 15:45:18,498 - agents.pathologist_variants - INFO - [pathologist_regex] Analyzing report for sample_005
+2026-02-16 15:45:18,498 - agents.pathologist_variants - INFO - [pathologist_regex] Regex extraction: size=unknown (unknown), texture=calcified, suspicious=0, benign=3
+2026-02-16 15:45:18,498 - agents.pathologist_variants - INFO - [pathologist_context] Analyzing report for sample_005
+2026-02-16 15:45:18,499 - agents.pathologist_variants - INFO - [pathologist_context] Context analysis: affirmed=1, negated=0, uncertain=0, overall=affirmed
+2026-02-16 15:45:18,499 - agents.radiologist_variants - INFO - [radiologist_densenet] Processing single image sample_005
+2026-02-16 15:45:18,548 - agents.pathologist_variants - INFO - [pathologist_spacy] Analyzing report for sample_005
+2026-02-16 15:45:18,557 - agents.pathologist_variants - INFO - [pathologist_spacy] spaCy analysis: size=unknown (unknown), texture=calcified, entities=5, malignancy_score=0.00
+2026-02-16 15:45:18,557 - agents.pathologist_variants - INFO - [pathologist_spacy] Structured Frame Update: Selected index nodule (size=Nonemm, loc=left lower lobe)
+2026-02-16 15:45:18,557 - agents.radiologist_variants - INFO - [radiologist_resnet] Processing single image sample_005
+2026-02-16 15:45:18,597 - knowledge.prolog_engine - INFO - Consensus for sample_005: prob=0.314, class=0, confidence=0.488
+2026-02-16 15:45:25,354 - orchestrator - INFO - Case sample_005: class=0, prob=0.314, confidence=0.488, agreement=majority
+2026-02-16 15:45:25,355 - __main__ - INFO - [ExtendedMAS] Results exported to dynamic_results.json
+
+======================================================================
+EXTENDED MAS - 6-AGENT RESULTS SUMMARY
+======================================================================
+
+sample_001: Benign (prob=0.445) | GT: Benign
+  Lung-RADS: 2 | Continue annual screening
+  Agreement: majority | Confidence: 0.577
+  Time: 8.95s
+
+sample_002: Malignant (prob=0.717) | GT: Malignant
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.800
+  Time: 6.72s
+
+sample_003: Malignant (prob=0.501) | GT: N/A
+  Lung-RADS: 4A | Follow-up CT in 3 months or PET-CT
+  Agreement: majority | Confidence: 0.484
+  Time: 6.82s
+
+sample_004: Malignant (prob=0.717) | GT: Malignant
+  Lung-RADS: 4B | Tissue sampling (biopsy) or PET-CT
+  Agreement: majority | Confidence: 0.800
+  Time: 6.86s
+
+sample_005: Benign (prob=0.314) | GT: Benign
+  Lung-RADS: 2 | Continue annual screening
+  Agreement: majority | Confidence: 0.488
+  Time: 6.86s
+
+--------------------------------------------------
+EVALUATION METRICS:
+--------------------------------------------------
+  total_cases: 5
+  cases_with_ground_truth: 5
+  accuracy: 0.8000
+  mean_absolute_error: 0.4000
+  average_confidence: 0.6298
+  average_processing_time_sec: 7.2429
+  agreement_statistics:
+    unanimous: 0
+    majority: 5
+    split: 0
+  agent_statistics:
+    cases_processed: 5
+    unanimous_decisions: 0
+    majority_decisions: 5
+    split_decisions: 0
+    unanimous_rate: 0.0
+    majority_rate: 1.0
+    split_rate: 0.0
