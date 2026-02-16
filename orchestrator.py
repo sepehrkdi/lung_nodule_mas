@@ -440,7 +440,8 @@ class MultiAgentOrchestrator:
     def __init__(
         self,
         consensus_kb_path: Optional[str] = None,
-        use_gpu: bool = True
+        use_gpu: bool = True,
+        weight_mode: str = "dynamic"
     ):
         """
         Initialize the orchestrator with all agents.
@@ -448,8 +449,10 @@ class MultiAgentOrchestrator:
         Args:
             consensus_kb_path: Path to multi_agent_consensus.pl
             use_gpu: Whether to use GPU for CNN agents
+            weight_mode: Weighting mode (dynamic, static, or equal)
         """
         self.use_gpu = use_gpu
+        self.weight_mode = weight_mode
         
         # Initialize radiologists
         logger.info("Initializing radiologist agents...")
@@ -462,8 +465,8 @@ class MultiAgentOrchestrator:
         # Initialize Prolog consensus engine
         self.consensus_engine = PrologConsensusEngine(consensus_kb_path)
         
-        # Initialize dynamic weight calculator
-        self.weight_calculator = DynamicWeightCalculator()
+        # Initialize dynamic weight calculator with specified mode
+        self.weight_calculator = DynamicWeightCalculator(mode=weight_mode)
         
         # Statistics
         self.stats = {
