@@ -10,45 +10,6 @@ This module demonstrates an extended Multi-Agent System with:
 - 3 Pathologist agents (Regex, spaCy NER, Context Analyzer)
 - Prolog-based weighted consensus
 
-ARCHITECTURE:
-
-    ┌─────────────────────────────────────────────────────────────────┐
-    │                    EXTENDED MAS ARCHITECTURE                    │
-    ├─────────────────────────────────────────────────────────────────┤
-    │                                                                 │
-    │   RADIOLOGIST AGENTS (Image Analysis)                          │
-    │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-    │   │  DenseNet121 │  │   ResNet50   │  │  Rule-Based  │         │
-    │   │   W = 1.0    │  │   W = 1.0    │  │   W = 0.7    │         │
-    │   │   (Deep CNN) │  │  (Deep CNN)  │  │ (Heuristics) │         │
-    │   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
-    │          │                 │                  │                 │
-    │          └────────────────┬┴──────────────────┘                │
-    │                           │                                     │
-    │   PATHOLOGIST AGENTS (Report Analysis)                         │
-    │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-    │   │ Regex-Based  │  │  spaCy NER   │  │   Context    │         │
-    │   │   W = 0.8    │  │   W = 0.9    │  │   W = 0.9    │         │
-    │   │(Pattern Match)│  │(Statistical) │  │ (Negation)   │         │
-    │   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
-    │          │                 │                  │                 │
-    │          └────────────────┬┴──────────────────┘                │
-    │                           │                                     │
-    │   ┌───────────────────────┴───────────────────────┐            │
-    │   │              PROLOG CONSENSUS                  │            │
-    │   │   • Weighted voting (agent expertise weights)  │            │
-    │   │   • Disagreement detection & resolution        │            │
-    │   │   • Confidence interval computation            │            │
-    │   │   • Dempster-Shafer evidence combination       │            │
-    │   └───────────────────────┬───────────────────────┘            │
-    │                           │                                     │
-    │                    ┌──────┴──────┐                             │
-    │                    │   FINAL     │                             │
-    │                    │ DIAGNOSIS   │                             │
-    │                    │ + LUNG-RADS │                             │
-    │                    └─────────────┘                             │
-    └─────────────────────────────────────────────────────────────────┘
-
 AGENT DIVERSITY RATIONALE (Academic Justification):
 
 1. RadiologistDenseNet vs RadiologistResNet:

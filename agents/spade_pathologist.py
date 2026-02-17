@@ -8,31 +8,6 @@ This module implements the Pathologist agent using SPADE-BDI.
 The agent uses scispaCy for medical NLP, with the NLP code
 called as internal actions from AgentSpeak plans.
 
-ARCHITECTURE:
-    ┌─────────────────────────────────────────────────┐
-    │          PathologistAgent (SPADE-BDI)           │
-    ├─────────────────────────────────────────────────┤
-    │  AgentSpeak Plans (pathologist.asl)             │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ +!analyze(Id, Report) : nlp_loaded(true)│    │
-    │  │   <- .extract_entities(...);            │    │
-    │  │      .analyze_context(...);             │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  Internal Actions (Python)                      │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ @action                                 │    │
-    │  │ def extract_entities(self, ...):        │    │
-    │  │     return self.nlp_processor.extract() │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  scispaCy NLP Processor                         │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ en_core_sci_sm medical NER model        │    │
-    │  │ Rule-based entity extraction            │    │
-    │  └─────────────────────────────────────────┘    │
-    └─────────────────────────────────────────────────┘
-
 NLP PIPELINE:
 1. Named Entity Recognition (medical terms)
 2. Entity classification (anatomy, finding, etc.)

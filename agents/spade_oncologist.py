@@ -8,31 +8,6 @@ This module implements the Oncologist agent using SPADE-BDI.
 The agent uses Prolog for symbolic reasoning (Lung-RADS rules),
 with the logic queries called as internal actions from AgentSpeak plans.
 
-ARCHITECTURE:
-    ┌─────────────────────────────────────────────────┐
-    │           OncologistAgent (SPADE-BDI)           │
-    ├─────────────────────────────────────────────────┤
-    │  AgentSpeak Plans (oncologist.asl)              │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ +!decide(Id) : findings_ready(Id)       │    │
-    │  │   <- .query_lung_rads(...);             │    │
-    │  │      .compute_consensus(...);           │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  Internal Actions (Python)                      │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ @action                                 │    │
-    │  │ def query_lung_rads(self, ...):         │    │
-    │  │     return self.prolog.query(...)       │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  Prolog Engine (PySwip)                         │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ lung_rads_category(Size, Texture, Cat)  │    │
-    │  │ management(Category, Recommendation)    │    │
-    │  └─────────────────────────────────────────┘    │
-    └─────────────────────────────────────────────────┘
-
 MULTI-AGENT CONSENSUS:
 The Oncologist handles multiple findings from multiple agents
 and implements weighted voting for final classification.

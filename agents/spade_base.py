@@ -29,34 +29,10 @@ KEY CONCEPTS:
    - Python functions decorated with @agent.action
    - Called from AgentSpeak as .action_name(args)
    - Bridge between symbolic plans and subsymbolic processing
-
-SPADE-BDI ARCHITECTURE:
-    
-    ┌──────────────────────────────────────────┐
-    │              SPADE-BDI Agent             │
-    ├──────────────────────────────────────────┤
-    │  AgentSpeak Interpreter                  │
-    │  ┌────────────────────────────────────┐  │
-    │  │ .asl Plans                         │  │
-    │  │ +!goal : context <- actions.       │  │
-    │  └────────────────────────────────────┘  │
-    ├──────────────────────────────────────────┤
-    │  Belief Base                             │
-    │  ┌────────────────────────────────────┐  │
-    │  │ belief(arg1, arg2)[source(agent)]  │  │
-    │  └────────────────────────────────────┘  │
-    ├──────────────────────────────────────────┤
-    │  Internal Actions (Python)               │
-    │  ┌────────────────────────────────────┐  │
-    │  │ @agent.action                      │  │
-    │  │ def classify_image(self, img): ... │  │
-    │  └────────────────────────────────────┘  │
-    ├──────────────────────────────────────────┤
-    │  XMPP Communication Layer                │
-    │  ┌────────────────────────────────────┐  │
-    │  │ .send() / message handler          │  │
-    │  └────────────────────────────────────┘  │
-    └──────────────────────────────────────────┘
+4. Belief Representation:
+   - Beliefs are Prolog-like terms with annotations
+   - Stored in the agent's belief base
+   - Can be queried and updated by plans
 """
 
 import asyncio

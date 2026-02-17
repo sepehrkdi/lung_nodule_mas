@@ -8,31 +8,6 @@ This module implements the Radiologist agent using SPADE-BDI.
 The agent uses DenseNet121 for image classification, with the
 ML code called as internal actions from AgentSpeak plans.
 
-ARCHITECTURE:
-    ┌─────────────────────────────────────────────────┐
-    │           RadiologistAgent (SPADE-BDI)          │
-    ├─────────────────────────────────────────────────┤
-    │  AgentSpeak Plans (radiologist.asl)             │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ +!analyze(Id, Img) : model_loaded(true) │    │
-    │  │   <- .classify_image(...);              │    │
-    │  │      .extract_features(...);            │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  Internal Actions (Python)                      │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ @action                                 │    │
-    │  │ def classify_image(self, ...):          │    │
-    │  │     return self.classifier.classify()   │    │
-    │  └─────────────────────────────────────────┘    │
-    ├─────────────────────────────────────────────────┤
-    │  DenseNet121 Classifier                         │
-    │  ┌─────────────────────────────────────────┐    │
-    │  │ Pre-trained on ImageNet                 │    │
-    │  │ Zero implementation effort              │    │
-    │  └─────────────────────────────────────────┘    │
-    └─────────────────────────────────────────────────┘
-
 SPADE-BDI INTEGRATION:
 - Plans in .asl file define WHAT to do
 - Internal actions in Python define HOW to do it
