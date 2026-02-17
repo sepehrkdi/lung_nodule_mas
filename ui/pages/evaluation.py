@@ -69,12 +69,6 @@ def render_evaluation_page():
     
     st.success("✅ Connected to API")
     
-    # Warning about computation time
-    st.warning("""
-    ⚠️ **Note**: Computing metrics requires analyzing all 50 nodule cases.
-    This may take several minutes depending on hardware.
-    """)
-    
     # Compute metrics button
     if st.button("🔄 Compute Metrics", type="primary"):
         if start_metrics_computation():
@@ -198,25 +192,13 @@ def render_evaluation_page():
             st.metric("Total Cases", total_cases)
         
         with col2:
-            st.metric(
-                "Unanimous",
-                unanimous,
-                f"{unanimous/total_cases:.1%}" if total_cases > 0 else "0%"
-            )
+            st.metric("Unanimous", unanimous)
         
         with col3:
-            st.metric(
-                "Majority",
-                majority,
-                f"{majority/total_cases:.1%}" if total_cases > 0 else "0%"
-            )
+            st.metric("Majority", majority)
         
         with col4:
-            st.metric(
-                "Split",
-                split,
-                f"{split/total_cases:.1%}" if total_cases > 0 else "0%"
-            )
+            st.metric("Split", split)
         
         # Agreement pie chart
         agreement_data = {
@@ -241,34 +223,6 @@ def render_evaluation_page():
         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
         
         st.plotly_chart(fig_pie, use_container_width=True)
-        
-        st.markdown("---")
-        
-        # Interpretation
-        st.header("📝 Interpretation")
-        
-        st.markdown(f"""
-        ### Summary
-        
-        - **Total Cases Analyzed**: {total_cases}
-        - **Overall Accuracy**: {metrics['accuracy']:.1%}
-        
-        ### Agreement Analysis
-        
-        - **Unanimous Agreement** ({unanimous/total_cases:.1%}): All 6 agents agreed on the classification
-        - **Majority Agreement** ({majority/total_cases:.1%}): At least 4 of 6 agents agreed
-        - **Split Decision** ({split/total_cases:.1%}): No clear majority among agents
-        
-        ### Key Insights
-        
-        {"✅ **High Agreement**: Most cases show unanimous or majority agreement, indicating consistent agent behavior." if (unanimous + majority) / total_cases > 0.7 else "⚠️ **Moderate Agreement**: Consider reviewing agent configurations for better consistency."}
-        
-        {"✅ **Good Accuracy**: The system achieves strong classification performance." if metrics['accuracy'] > 0.7 else "⚠️ **Room for Improvement**: Consider fine-tuning models or adding more training data."}
-        """)
-        
-        # Detailed metrics table
-        with st.expander("📊 View Raw Metrics"):
-            st.json(metrics)
     
     else:
         st.info("👆 Click 'Compute Metrics' to generate evaluation statistics")

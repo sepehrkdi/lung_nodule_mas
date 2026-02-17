@@ -112,7 +112,7 @@ Table~\ref{tab:richness-dist} shows the score distribution throughout the whole 
 \label{tab:richness-dist}
 \end{table}
 
-This richness-based filtering ensures that the selected cases contain sufficient textual content for the Pathologist agents' regex, NER, and negation-detection pipelines to operate on, rather than relying solely on binary keyword presence.
+This richness-based filtering ensures that the selected cases contain sufficient textual content for the Pathologist agents' regex, NER, and negation-detection pipelines to operate on, rather than relying only on binary keyword presence.
 
 \subsection{Ground Truth Definition}
 \label{subsec:groundtruth}
@@ -343,7 +343,7 @@ P3 & NegEx/Context & 0.85 & Negation and uncertainty detection \\
 \paragraph{Explicit Unknown-Size Handling.}
 All three Pathologist agents' size extraction methods return a \texttt{(size\_mm, size\_source)} tuple rather than a bare numeric value. When a measurement is found in the text, \texttt{size\_source} is set to \texttt{``regex''} (P1, P3) or \texttt{``spacy''} (P2). When no measurement is detected, the agents return \texttt{(None, ``unknown'')}. This design has three downstream effects:
 \begin{itemize}
-    \item The malignancy-estimation heuristic in each Pathologist skips the size-based adjustment when \texttt{size\_mm} is \texttt{None}, relying solely on textual descriptors (suspicious/benign terms, texture keywords).
+    \item The malignancy-estimation heuristic in each Pathologist skips the size-based adjustment when \texttt{size\_mm} is \texttt{None}, relying only on textual descriptors (suspicious/benign terms, texture keywords).
     \item The \texttt{size\_source} tag is propagated into the agent's findings, making the provenance of every size value transparent.
     \item The consensus engine reduces the weight of any agent whose \texttt{size\_source} is \texttt{``unknown''} or \texttt{``none\_detected''} (Section~\ref{subsec:size-weight-reduction}).
 \end{itemize}
@@ -376,7 +376,7 @@ The NLP pipeline follows the radiology NLP architecture described by Pons et al.
 
 Radiology reports in the Open-I collection follow a semi-structured format with standard section headers.
 Different sections carry different semantic roles: the \texttt{Findings} section typically encodes the radiologist’s key observations, while \texttt{Indication} and \texttt{Technique} primarily reflect exam context or procedural details.
-Prior work in radiology NLP has shown that explicitly segmenting reports and treating sections according to their semantic content improves the extraction of clinically relevant information, as sections differ in their diagnostic value and purpose~\cite{casey2021nlpradiology, grey2021sectionsegmentation}.
+Prior work in radiology NLP has shown that segmenting reports and treating sections according to their semantic content improves the extraction of clinically relevant information, as sections differ in their diagnostic value and purpose~\cite{casey2021nlpradiology, grey2021sectionsegmentation}.
 To reflect these differences in my pipeline, I identify and segment reports into sections with the following weighting scheme:
 
 \begin{lstlisting}[language=Python, caption={Section splitting with weighting.}]
@@ -386,7 +386,7 @@ SECTION_WEIGHTS = {"FINDINGS": 1.0,
                    "INDICATION": 0.5, "TECHNIQUE": 0.2}
 \end{lstlisting}
 
-Here the \texttt{Findings} section is given the highest weight as the primary source of diagnostic observations, while \texttt{Indication} and \texttt{Technique} are down-weighted to reduce emphasis on contextual or procedural text that is less directly informative for downstream NLP tasks.
+Here the \texttt{Findings} section is given the highest weight as the primary source of diagnostic observations, while \texttt{Indication} and \texttt{Technique} are down-weighted to reduce emphasis on contextual or procedural text that is less informative for downstream NLP tasks.
 
 
 \subsection{Tokenization and Normalization}
@@ -550,7 +550,7 @@ To resolve this, I implemented a \textbf{Dependency-Anchored Frame Building} mod
 
 A key challenge is handling \emph{long-distance dependencies} in complex clinical constructions. For example, in ``\textit{A nodule, likely representing granuloma, measuring 5mm},'' the size ``5mm'' is syntactically distant from ``nodule'' due to intervening clausal modifiers. Standard subtree traversal fails to capture such relations because the measurement verb ``measuring'' attaches as an adverbial clause (\texttt{acl}) rather than a direct modifier.
 
-To address this, I propose a \textbf{novel four-pass traversal} strategy designed specifically for this project.
+To address this, I propose a \textbf{novel four-pass traversal} strategy designed for this project.
 
 The key constants for long-distance dependency resolution (\texttt{nlp/dependency\_parser.py}):
 
@@ -846,7 +846,7 @@ While categorical certainty labels (\textsc{affirmed}/\textsc{negated}/\textsc{u
 
 \begin{itemize}
     \item \textbf{Aleatory uncertainty:} Inherent randomness or ambiguity in the source text itself, which cannot be reduced by gathering more data from the same source. Caused by hedge phrases (``may represent'', ``cannot exclude''), conflicting evidence markers (``however'', ``but''), and equivocal language.
-    \item \textbf{Epistemic uncertainty:} Uncertainty due to incomplete knowledge or extraction, which can potentially be reduced by better extraction or additional data. Caused by missing attributes (size, location), sparse extraction paths, and unknown measurement sources.
+    \item \textbf{Epistemic uncertainty:} Uncertainty due to incomplete knowledge or extraction, which can be reduced by better extraction or additional data. Caused by missing attributes (size, location), sparse extraction paths, and unknown measurement sources.
 \end{itemize}
 
 This distinction follows the uncertainty taxonomy of Der Kiureghian \& Ditlevsen~\cite{kiureghian2009aleatory}, adapted for clinical NLP.
@@ -959,7 +959,7 @@ def _compute_epistemic_uncertainty(
         uncertainty += min(0.6, len(missing_attrs) * 0.15)
         factors.append(f"missing_attrs:{','.join(missing_attrs)}")
     
-    # Size specifically unknown: +0.15 extra penalty
+    # Size unknown: +0.15 extra penalty
     if attributes.get("size_mm") is None:
         uncertainty += 0.15
         factors.append("size_unknown")
@@ -984,7 +984,7 @@ This formulation reflects that the two uncertainty types are independent: a find
 
 The system classifies each finding's dominant uncertainty type:
 \begin{itemize}
-    \item \textbf{Aleatory-dominant}: $U_{\text{aleatory}} > U_{\text{epistemic}} + 0.1$ --- the text is genuinely ambiguous
+    \item \textbf{Aleatory-dominant}: $U_{\text{aleatory}} > U_{\text{epistemic}} + 0.1$ --- the text is ambiguous
     \item \textbf{Epistemic-dominant}: $U_{\text{epistemic}} > U_{\text{aleatory}} + 0.1$ --- extraction is incomplete
     \item \textbf{Mixed}: Neither dominates --- both contribute significantly
 \end{itemize}
@@ -1148,7 +1148,7 @@ average_pathologist_prob(NoduleId, Avg) :-
 
 The following rules are evaluated in order:
 \begin{enumerate}
-    \item \textbf{Visual--Text Conflict ($P_\text{CV} > 0.65$ and $P_\text{NLP} < 0.35$):} CNN agents confidently predict malignancy while NLP agents confidently predict benign, indicating a potential visual false positive or a finding not yet recorded in the report. The system averages the probabilities, lowers confidence to~0.4, and triggers a ``Radiology Review Required'' recommendation.
+    \item \textbf{Visual--Text Conflict ($P_\text{CV} > 0.65$ and $P_\text{NLP} < 0.35$):} CNN agents confidently predict malignancy while NLP agents confidently predict benign, indicating a visual false positive or a finding not yet recorded in the report. The system averages the probabilities, lowers confidence to~0.4, and triggers a ``Radiology Review Required'' recommendation.
     \item \textbf{Text Override ($P_\text{NLP} > 0.65$ and $P_\text{CV} < 0.35$):} NLP agents confidently detect malignancy but CNN agents miss it, suggesting a visual false negative. The system overrides with the Pathologist's probability and assigns high confidence~(0.8).
     \item \textbf{Pathologist Override ($P_\text{NLP} \ge 0.60$ and $0.35 \le P_\text{CV} \le 0.65$):} Pathologists detect malignancy while Radiologists are indeterminate. The system uses the Pathologist's probability to prevent dilution of strong textual evidence by uncertain imaging models.
     \item \textbf{CNN--NLP Agreement ($|P_\text{CNN} - P_\text{NLP}| < 0.2$):} Both modalities reach similar conclusions; their weighted combination is used with 60/40 weighting.
@@ -1517,7 +1517,7 @@ The system features a web-based user interface built with Streamlit, designed to
 The Case Analysis view (Figure~\ref{fig:ui-analysis}) serves as the primary workspace for the clinician. It displays the patient's chest X-ray image alongside the generated radiology report. Key features include:
 \begin{itemize}
     \item \textbf{Image Visualization:} High-resolution display of the X-ray with support for windowing and zooming.
-    \item \textbf{Highlighed Findings:} The NLP agents highlight extracted entities (nodules, sizes, locations) directly in the report text, color-coded by certainty (affirmed vs. negated).
+    \item \textbf{Highlighed Findings:} The NLP agents highlight extracted entities (nodules, sizes, locations) in the report text, color-coded by certainty (affirmed vs. negated).
 \end{itemize}
 
 \begin{figure}[ht]
@@ -1633,14 +1633,14 @@ The replacement of the na\"ive pixel-dimension heuristic (\texttt{max(shape)/5})
 
 \subsubsection{Impact of Unknown-Size Handling}
 
-By configuring all three Pathologist agents' size extractors to return \texttt{None} when no explicit measurement is found, the system avoids imputing default values that could artificially inflate malignancy estimates. Instead, in the absence of a measured size, the agents report \texttt{size\_mm=None, size\_source=``unknown''} and rely solely on textual descriptors for malignancy estimation. Consequently, the consensus engine reduces these agents' weights by 50\% (Equation~\ref{eq:size-penalty}), reflecting the lower confidence of assessment based on size-independent features alone.
+By configuring all three Pathologist agents' size extractors to return \texttt{None} when no explicit measurement is found, the system avoids imputing default values that could inflate malignancy estimates. Instead, in the absence of a measured size, the agents report \texttt{size\_mm=None, size\_source=``unknown''} and rely only on textual descriptors for malignancy estimation. Consequently, the consensus engine reduces these agents' weights by 50\% (Equation~\ref{eq:size-penalty}), reflecting the lower confidence of assessment based on size-independent features alone.
 
 \subsubsection{NLP Model Performance}
 
 The scispaCy medical NER model (\texttt{en\_core\_sci\_sm}) was integrated into Pathologist-2, enabling domain-specific entity recognition. Across the 500-case evaluation, the spaCy agent detected an average of 9.4 medical entities per report, with malignancy probabilities adjusted based on entity context (e.g., calcified textures reduced malignancy estimates to 0.10--0.30, well below the 0.5 threshold for malignant classification).
 
 \paragraph{Dependency Frame Building.}
-The multi-pass dependency traversal successfully handles complex clinical constructions that would defeat simpler extraction methods. For constructions like ``\textit{A nodule, consistent with granuloma, approximately 5~mm in size},'' the four-pass architecture correctly:
+The multi-pass dependency traversal handles complex clinical constructions that would defeat simpler extraction methods. For constructions like ``\textit{A nodule, consistent with granuloma, approximately 5~mm in size},'' the four-pass architecture correctly:
 \begin{itemize}
     \item Identifies ``nodule'' as the primary anchor (not ``granuloma'').
     \item Associates the 5~mm measurement with the nodule frame via appositive fallback (Pass~4), since the measurement is syntactically attached to the characterization term.
@@ -1651,7 +1651,7 @@ The \texttt{extraction\_paths} field in each \texttt{NoduleFinding} object provi
 
 \subsubsection{Negation Detection}
 
-Pathologist-3 (NegEx/Context) successfully detected negated findings across the evaluation set, reducing malignancy probabilities when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The inclusion of both benign and malignant cases in the Evaluation Subset provided a more comprehensive test of negation detection, since benign cases frequently contain negated finding mentions (e.g., ``lungs are clear, no masses or nodules'') that the agent must classify as benign (probability < 0.5).
+Pathologist-3 (NegEx/Context) detected negated findings across the evaluation set, reducing malignancy probabilities when phrases like ``no evidence of nodule'' or ``unremarkable'' appeared. The inclusion of both benign and malignant cases in the Evaluation Subset provided a more comprehensive test of negation detection, since benign cases frequently contain negated finding mentions (e.g., ``lungs are clear, no masses or nodules'') that the agent must classify as benign (probability < 0.5).
 
 
 \subsection{Ablation Studies}
@@ -1872,18 +1872,18 @@ Radiologist Rules (R3) & Image & 0.260 & 13/50 \\
 \subsubsection{Key Findings}
 
 \begin{enumerate}
-    \item \textbf{Multi-agent consensus outperforms majority baseline:} The ensemble achieves 68.0\% accuracy vs.\ the majority-class baseline of 44.0\% (class distribution: 22 benign, 18 malignant), a 24 percentage point improvement. This confirms that the system learns meaningful patterns rather than simply memorizing class priors.
+    \item \textbf{Multi-agent consensus outperforms majority baseline:} The ensemble achieves 68.0\% accuracy vs.\ the majority-class baseline of 44.0\% (class distribution: 22 benign, 18 malignant), a 24 percentage point improvement. This confirms that the system learns meaningful patterns rather than memorizing class priors.
     
-    \item \textbf{Ensemble provides modest improvement over best single agent:} The 6-agent ensemble (68.0\%) marginally outperforms the best individual agent, Pathologist-spaCy (56.0\%). This demonstrates that the consensus mechanism successfully aggregates diverse agent opinions.
+    \item \textbf{Ensemble provides modest improvement over best single agent:} The 6-agent ensemble (68.0\%) outperforms the best individual agent, Pathologist-spaCy (56.0\%). This demonstrates that the consensus mechanism aggregates diverse agent opinions.
     
-    \item \textbf{NLP agents outperform image agents:} The pathologist agents (NLP-based) consistently outperform radiologist agents (image-based) on this dataset. P2 (spaCy) achieves 56\% accuracy, while the best radiologist R2 (ResNet) achieves only 46\%. This highlights a key insight: on chest X-ray reports where the radiologist's clinical interpretation is available, NLP extraction of that interpretation provides more signal than re-analyzing the underlying images.
+    \item \textbf{NLP agents outperform image agents:} The pathologist agents (NLP-based) outperform radiologist agents (image-based) on this dataset. P2 (spaCy) achieves 56\% accuracy, while the best radiologist R2 (ResNet) achieves only 46\%. This highlights a key insight: on chest X-ray reports where the radiologist's clinical interpretation is available, NLP extraction of that interpretation provides more signal than re-analyzing the underlying images.
 \end{enumerate}
 
 \subsection{Limitations}
 \label{subsec:limitations}
 
 \begin{itemize}
-    \item Future work could validate the NLP extraction with expert radiologist annotations rather than relying solely on system-level binary outcomes.
+    \item Future work could validate the NLP extraction with expert radiologist annotations rather than relying only on system-level binary outcomes.
     \item The evaluation on 500 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
     \item The NLP richness scoring thresholds (minimum score 3, six binary criteria) were designed based on empirical analysis of the dataset's score distribution. Different thresholds or weighted criteria could yield different evaluation subsets; the sensitivity of the final results to these choices has not been exhaustively studied.
     \item The anatomically-calibrated blob detection assumes a standard PA chest X-ray field of view of 300\,mm. This assumption is approximate: actual chest widths vary across patients, and the NLMCXR images do not include DICOM pixel-spacing metadata. Despite this limitation, the calibrated estimates are more plausible than the prior pixel-division heuristic.
