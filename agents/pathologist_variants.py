@@ -10,18 +10,6 @@ text analysis strategies:
 1. PathologistRegex: Pattern matching with regular expressions
 2. PathologistSpacy: spaCy NER + semantic rules
 
-ARCHITECTURE:
-    ┌─────────────────────────────────────────────────────────────┐
-    │                 Two Pathologist Agents                      │
-    ├───────────────────────────┬─────────────────────────────────┤
-    │   Regex-Based             │   spaCy NER + Rules             │
-    │   (Pattern Matching)      │   (Statistical NLP)             │
-    ├───────────────────────────┼─────────────────────────────────┤
-    │   Weight: 0.8             │   Weight: 0.9                   │
-    │   Fast, Interpretable     │   More Robust, Contextual       │
-    │   Exact Pattern Match     │   Entity Recognition            │
-    └───────────────────────────┴─────────────────────────────────┘
-
 WHY DIFFERENT APPROACHES?
 - Regex is explicit and interpretable but brittle
 - spaCy handles variations and context better

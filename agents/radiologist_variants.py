@@ -12,17 +12,6 @@ and consensus:
 2. RadiologistResNet: Pre-trained ResNet50 (CNN)  
 3. RadiologistRules: Size/texture-based heuristics (rule-based)
 
-ARCHITECTURE:
-    ┌─────────────────────────────────────────────────────────────┐
-    │                 Three Radiologist Agents                    │
-    ├──────────────────┬──────────────────┬───────────────────────┤
-    │  DenseNet121     │   ResNet50       │   Rule-Based          │
-    │  (CNN, ImageNet) │  (CNN, ImageNet) │  (Size Heuristics)    │
-    ├──────────────────┼──────────────────┼───────────────────────┤
-    │  Weight: 1.0     │  Weight: 1.0     │   Weight: 0.7         │
-    │  Subsymbolic     │  Subsymbolic     │   Symbolic/Explicit   │
-    └──────────────────┴──────────────────┴───────────────────────┘
-
 WHY DIFFERENT APPROACHES?
 - CNNs may disagree due to different architectures/receptive fields
 - Rule-based provides interpretable baseline and tiebreaker
