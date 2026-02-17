@@ -1,18 +1,5 @@
 """
-Multi-Agent Orchestrator - Extended Architecture
-================================================
-
-EDUCATIONAL PURPOSE - 6-AGENT MULTI-AGENT SYSTEM:
-
-This orchestrator coordinates 6 specialized agents:
-- 3 Radiologists: DenseNet121, ResNet50, Rule-based
-- 3 Pathologists: Regex-based, spaCy NER, Context Analyzer
-
-CONSENSUS MECHANISM:
-- Weighted voting in Prolog (multi_agent_consensus.pl)
-- Automatic disagreement detection
-- Confidence interval computation
-- Final decision with justification
+Multi-Agent Orchestrator coordinating 6 agents with Prolog-based consensus.
 """
 
 import asyncio

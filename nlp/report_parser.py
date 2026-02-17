@@ -1,24 +1,5 @@
 """
-Report Parser - Section Splitting and Weighting
-================================================
-
-EDUCATIONAL PURPOSE - RADIOLOGY REPORT STRUCTURE:
-
-Radiology reports follow a standardized format with distinct sections:
-
-1. INDICATION: Why the exam was ordered (e.g., "cough, rule out pneumonia")
-2. TECHNIQUE: How the exam was performed (e.g., "PA and lateral views")
-3. COMPARISON: Previous exams compared to (e.g., "Comparison: CT 01/01/2025")
-4. FINDINGS: Detailed observations from the images
-5. IMPRESSION: Summary and clinical interpretation (most important!)
-
-SECTION WEIGHTING RATIONALE (per Pons et al., 2016):
-- IMPRESSION carries the radiologist's synthesized opinion → highest weight
-- FINDINGS contain detailed observations → standard weight
-- INDICATION provides context but not diagnostic info → lower weight
-
-Reference:
-    Pons et al. (2016). "Natural Language Processing in Radiology: A Systematic Review"
+Report parser for section splitting and weighting of radiology reports.
 """
 
 import re
@@ -91,20 +72,7 @@ class ParsedReport:
 
 
 class ReportParser:
-    """
-    Parse radiology reports into weighted sections.
-    
-    EDUCATIONAL PURPOSE:
-    This parser demonstrates how to:
-    1. Split reports into semantic sections
-    2. Assign differential weights for downstream processing
-    3. Handle variations in report formatting
-    
-    Usage:
-        parser = ReportParser()
-        parsed = parser.parse("FINDINGS: nodule present. IMPRESSION: suspicious.")
-        print(parsed.impression)  # "suspicious."
-    """
+    """Parse radiology reports into weighted sections."""
     
     # Section headers to detect (order matters for parsing)
     SECTION_HEADERS = [

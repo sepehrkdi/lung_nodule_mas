@@ -1,18 +1,5 @@
 """
-SPADE-BDI Pathologist Agent
-============================
-
-EDUCATIONAL PURPOSE - BDI AGENT WITH NLP:
-
-This module implements the Pathologist agent using SPADE-BDI.
-The agent uses scispaCy for medical NLP, with the NLP code
-called as internal actions from AgentSpeak plans.
-
-NLP PIPELINE:
-1. Named Entity Recognition (medical terms)
-2. Entity classification (anatomy, finding, etc.)
-3. Sentiment/severity analysis
-4. Report-based malignancy assessment
+SPADE-BDI Pathologist agent using scispaCy for medical NLP.
 """
 
 import asyncio

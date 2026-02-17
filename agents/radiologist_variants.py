@@ -1,21 +1,8 @@
 """
-Specialized Radiologist Agents
-==============================
-
-EDUCATIONAL PURPOSE - DIVERSE CLASSIFICATION APPROACHES:
-
-This module implements three radiologist agents with different 
-classification strategies to demonstrate multi-agent disagreement
-and consensus:
-
-1. RadiologistDenseNet: Pre-trained DenseNet121 (CNN)
-2. RadiologistResNet: Pre-trained ResNet50 (CNN)  
-3. RadiologistRules: Size/texture-based heuristics (rule-based)
-
-WHY DIFFERENT APPROACHES?
-- CNNs may disagree due to different architectures/receptive fields
-- Rule-based provides interpretable baseline and tiebreaker
-- Demonstrates real-world ensemble disagreement handling
+Specialized radiologist agents with different classification strategies:
+- RadiologistDenseNet: DenseNet121 CNN
+- RadiologistResNet: ResNet50 CNN
+- RadiologistRules: Size/texture heuristics
 """
 
 import asyncio

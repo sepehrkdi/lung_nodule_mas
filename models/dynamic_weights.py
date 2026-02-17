@@ -1,56 +1,11 @@
 """
-Dynamic Weight Assignment for Multi-Agent Consensus
-====================================================
+Dynamic weight assignment for multi-agent consensus.
 
-EDUCATIONAL PURPOSE - INFORMATION-RICHNESS HEURISTIC:
+Computes per-case weights based on information richness:
+- Radiology richness: image count, PA view presence, quality
+- Pathology richness: text length, entity count, section completeness
 
-Instead of using static, hardcoded weights for each agent, this module
-computes per-case dynamic weights based on how much usable information
-is available for each modality (radiology vs. pathology).
-
-MOTIVATION:
-    Static weights assume every case has equal quality of radiology images
-    and pathology reports. In practice:
-    - Some cases have multiple high-quality views → radiology is more reliable
-    - Some cases have detailed reports with many findings → pathology is more reliable
-    - Some cases have sparse/ambiguous data in one modality
-
-APPROACH (Information-Richness Heuristic):
-    1. Compute a RADIOLOGY RICHNESS score (0–1) from:
-       - Number of images available
-       - Presence of PA (posterior-anterior) view (most informative projection)
-       - Image quality signals (intensity variance, edge strength)
-
-    2. Compute a PATHOLOGY RICHNESS score (0–1) from:
-       - Report text length (combined FINDINGS + IMPRESSION)
-       - Number of NLP-extracted entities and measurements
-       - Section completeness (how many key sections are non-empty)
-       - Certainty signal (proportion of affirmed vs negated/uncertain mentions)
-
-    3. Scale each agent's BASE weight:
-       - Radiologist agents: base_weight × (0.5 + 0.5 × radiology_richness)
-       - Pathologist agents: base_weight × (0.5 + 0.5 × pathology_richness)
-
-    The scaling range [0.5×base, 1.0×base] ensures no agent is ever silenced —
-    even a modality with minimal data contributes, just with reduced influence.
-
-ARCHITECTURE:
-    ┌──────────────────────────────────────────────────────────────────┐
-    │                DYNAMIC WEIGHT CALCULATOR                        │
-    ├─────────────────────────────┬────────────────────────────────────┤
-    │   Radiology Richness (0-1) │   Pathology Richness (0-1)         │
-    │   ─────────────────────    │   ──────────────────────           │
-    │   • num_images             │   • report_length                  │
-    │   • PA view present        │   • entity_count                   │
-    │   • image quality          │   • section_completeness           │
-    │                            │   • certainty_signal               │
-    ├─────────────────────────────┴────────────────────────────────────┤
-    │   Per-agent weight = base_weight × (0.5 + 0.5 × richness)      │
-    └─────────────────────────────────────────────────────────────────┘
-
-SINGLE SOURCE OF TRUTH:
-    BASE_WEIGHTS defined here replaces the triplicated static weights
-    previously scattered across agents, Prolog KB, and orchestrator.
+BASE_WEIGHTS defined here is the single source of truth for agent weights.
 """
 
 import logging

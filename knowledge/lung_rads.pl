@@ -1,53 +1,11 @@
 /**
- * LUNG NODULE CLASSIFICATION - PROLOG KNOWLEDGE BASE
- * ===================================================
- * 
- * EDUCATIONAL PURPOSE - SYMBOLIC AI / FIRST-ORDER LOGIC:
- * 
- * This knowledge base demonstrates fundamental Prolog concepts:
- * 
- * 1. FACTS: Ground assertions about the world
- *    - nodule(id): Declares a nodule exists
- *    - size(id, mm): Nodule diameter
- *    
- * 2. RULES: Logical inference from facts
- *    - head :- body. (if body then head)
- *    - Uses logical AND (,) and OR (;)
- *    
- * 3. UNIFICATION: Pattern matching in rule heads
- *    - Variables (Capitalized) unify with values
- *    - high_risk(N) matches any nodule N
- *    
- * 4. BACKTRACKING: Finding multiple solutions
- *    - Prolog searches all possibilities
- *    - findall/3 collects all solutions
- *    
- * 5. NEGATION AS FAILURE (\+):
- *    - Closed World Assumption
- *    - \+ goal succeeds if goal fails
- *    
- * MEDICAL KNOWLEDGE ENCODED:
- * - Lung-RADS (Lung CT Screening Reporting and Data System)
- * - Fleischner Society guidelines for nodule management
- * - TNM staging basics
- * 
- * USAGE FROM PYTHON (PySwip):
- *   from pyswip import Prolog
- *   prolog = Prolog()
- *   prolog.consult("lung_rads.pl")
- *   prolog.assertz("size(n001, 15)")
- *   list(prolog.query("lung_rads_category(n001, Category)"))
+ * Lung nodule classification rules based on Lung-RADS and Fleischner guidelines.
  */
 
 
 /* ============================================================
  * SECTION 1: SEMANTIC MAPPINGS
  * ============================================================
- * These facts map categorical features to semantic labels.
- * This demonstrates knowledge representation in FOL.
- * 
- * NOTE: This system uses NLMCXR dataset with BINARY classification
- * (benign vs malignant) rather than the 5-level granularity.
  */
 
 % Texture mappings (categorical)

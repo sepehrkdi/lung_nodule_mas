@@ -1,16 +1,5 @@
 """
-SPADE-BDI Oncologist Agent
-===========================
-
-EDUCATIONAL PURPOSE - BDI AGENT WITH SYMBOLIC REASONING:
-
-This module implements the Oncologist agent using SPADE-BDI.
-The agent uses Prolog for symbolic reasoning (Lung-RADS rules),
-with the logic queries called as internal actions from AgentSpeak plans.
-
-MULTI-AGENT CONSENSUS:
-The Oncologist handles multiple findings from multiple agents
-and implements weighted voting for final classification.
+SPADE-BDI Oncologist agent for consensus coordination using Prolog reasoning.
 """
 
 import asyncio

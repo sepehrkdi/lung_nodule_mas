@@ -1,22 +1,5 @@
-// ============================================
 // Pathologist Agent Plans (AgentSpeak for SPADE-BDI)
-// ============================================
-//
-// EDUCATIONAL PURPOSE - NLP IN BDI AGENTS:
-//
-// The Pathologist agent focuses on text analysis
-// using Natural Language Processing techniques.
-//
-// NLP PIPELINE:
-// Raw Text -> Tokenization -> NER -> Pattern Matching -> Structured Output
-//
-// Internal actions (.action) call Python/scispaCy functions.
-// Plans coordinate the NLP pipeline and belief updates.
-//
-// PATHOLOGIST ROLE:
-// Analyzes radiology reports to extract structured
-// information about nodule characteristics.
-// ============================================
+// Analyzes radiology reports using NLP.
 
 // --------------------------------------------
 // Initial beliefs

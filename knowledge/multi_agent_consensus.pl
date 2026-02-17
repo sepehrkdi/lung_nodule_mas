@@ -1,33 +1,12 @@
 /**
- * MULTI-AGENT CONSENSUS KNOWLEDGE BASE
- * =====================================
- * 
- * EDUCATIONAL PURPOSE - SYMBOLIC AI FOR MULTI-AGENT SYSTEMS:
- * 
- * This Prolog knowledge base extends the Lung-RADS rules to support:
- * 1. Multi-agent evidence fusion from 3 radiologists + 3 pathologists
- * 2. Weighted voting with agent-specific reliability scores
- * 3. Disagreement detection and resolution strategies
- * 4. TNM staging from publicly available criteria
- * 
- * AGENT TYPES SUPPORTED:
- * - radiologist_densenet: DenseNet121 CNN (weight: 1.0)
- * - radiologist_resnet:   ResNet50 CNN (weight: 1.0)
- * - radiologist_rules:    Size-based heuristic (weight: 0.7)
- * - pathologist_regex:    Regex-based extraction (weight: 0.8)
- * - pathologist_spacy:    spaCy NER + rules (weight: 0.9)
- * - pathologist_context:  NegEx/Ucertainty (weight: 0.9)
- * 
- * REFERENCES:
- * - ACR Lung-RADS v1.1 (2019): https://www.acr.org/Clinical-Resources/Reporting-and-Data-Systems/Lung-Rads
- * - AJCC TNM Staging 8th Ed: https://www.cancer.org/cancer/lung-cancer/detection-diagnosis-staging/staging.html
+ * Multi-agent consensus knowledge base for weighted voting and disagreement resolution.
+ * Agent weights are set dynamically by DynamicWeightCalculator at runtime.
  */
 
 
 /* ============================================================
  * SECTION 1: AGENT REGISTRY AND WEIGHTS
  * ============================================================
- * Define agent types and their reliability weights for voting.
  */
 
 % Agent type definitions
@@ -614,11 +593,6 @@ class_to_risk(1, high).
 /* ============================================================
  * SECTION 11: NATURAL LANGUAGE EXPLANATION GENERATION
  * ============================================================
- * Generate human-readable explanations of consensus decisions.
- * 
- * EDUCATIONAL PURPOSE:
- * This demonstrates how Prolog can generate structured natural
- * language explanations for AI decisions, improving interpretability.
  */
 
 % Main explanation generator

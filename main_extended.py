@@ -1,42 +1,12 @@
 #!/usr/bin/env python3
 """
-Extended Multi-Agent System - 6 Specialized Agents
-==================================================
-
-EDUCATIONAL PURPOSE:
-
-This module demonstrates an extended Multi-Agent System with:
-- 3 Radiologist agents (DenseNet, ResNet, Rule-based)
-- 3 Pathologist agents (Regex, spaCy NER, Context Analyzer)
-- Prolog-based weighted consensus
-
-AGENT DIVERSITY RATIONALE (Academic Justification):
-
-1. RadiologistDenseNet vs RadiologistResNet:
-   - Different CNN architectures capture different visual features
-   - Ensemble of diverse architectures improves robustness
-   - Demonstrates deep learning approach diversity
-
-2. RadiologistRuleBased:
-   - Interpretable baseline for comparison
-   - Follows clinical guidelines (Lung-RADS)
-   - Provides sanity check for ML predictions
-
-3. PathologistRegex vs PathologistSpacy:
-   - Regex: Fast, explicit patterns, fully interpretable
-   - spaCy: Robust to variations, contextual understanding
-   - Demonstrates symbolic vs statistical NLP tradeoff
+Extended Multi-Agent System for lung nodule classification.
 
 Usage:
     python main_extended.py                    # Run with sample data
     python main_extended.py --demo             # Quick demo
     python main_extended.py --evaluate         # Full evaluation
     python main_extended.py --export results.json
-
-References:
-- Multi-Agent Systems: Wooldridge & Jennings (1995)
-- BDI Architecture: Rao & Georgeff (1991)
-- Lung-RADS: ACR (2022)
 """
 
 import argparse
@@ -80,13 +50,7 @@ class CaseResult:
 
 
 class ExtendedMAS:
-    """
-    Extended Multi-Agent System with 6 Specialized Agents.
-    
-    EDUCATIONAL PURPOSE:
-    Demonstrates agent diversity, weighted consensus, and
-    Prolog-based decision fusion in medical AI.
-    """
+    """Extended Multi-Agent System with 6 specialized agents."""
     
     def __init__(
         self,

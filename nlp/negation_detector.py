@@ -1,32 +1,5 @@
 """
-NegEx-Style Negation and Uncertainty Detection
-===============================================
-
-EDUCATIONAL PURPOSE - CLINICAL NLP FOR NEGATION:
-
-Negation detection is critical in medical NLP because:
-1. "No evidence of nodule" means ABSENCE of nodule
-2. "Cannot exclude malignancy" means UNCERTAINTY
-3. Simple keyword matching would miss these nuances
-
-THE NEGEX ALGORITHM (Chapman et al., 2001):
-
-1. Identify TRIGGER phrases ("no", "denies", "without")
-2. Define a SCOPE window (typically 5-6 words)
-3. Any medical entity within scope is NEGATED
-4. TERMINATION terms ("but", "however") end the scope
-
-EXTENSIONS FOR UNCERTAINTY (Harkema et al., 2009 - ConText):
-
-- "Possible", "probable", "cannot exclude" → UNCERTAIN
-- "Suspicious for", "consistent with" → UNCERTAIN
-- Not negated, but not definitively positive either
-
-References:
-    Chapman et al. (2001). "A Simple Algorithm for Identifying Negated 
-        Findings and Diseases in Discharge Summaries"
-    Harkema et al. (2009). "ConText: An Algorithm for Determining Negation,
-        Experiencer, and Temporal Status from Clinical Reports"
+NegEx-style negation and uncertainty detection for clinical NLP.
 """
 
 import re
@@ -205,27 +178,7 @@ SCOPE_TERMINATORS = [
 # =============================================================================
 
 class NegExDetector:
-    """
-    NegEx-style detector for negation and uncertainty in clinical text.
-    
-    EDUCATIONAL PURPOSE:
-    This class demonstrates the NegEx algorithm:
-    1. Find trigger phrases in text
-    2. Define scope window (forward or backward)
-    3. Check if entities fall within scope
-    4. Assign certainty labels (affirmed/negated/uncertain)
-    
-    Usage:
-        detector = NegExDetector()
-        entities = [("nodule", 15, 21)]  # (text, start, end)
-        results = detector.detect(text, entities)
-        for r in results:
-            print(f"{r.text}: {r.certainty.value}")
-    
-    References:
-        Chapman et al. (2001): Original NegEx algorithm
-        Harkema et al. (2009): ConText extension with uncertainty
-    """
+    """NegEx-style detector for negation and uncertainty in clinical text."""
     
     def __init__(self, scope_window: int = 6):
         """
