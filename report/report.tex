@@ -129,7 +129,30 @@ My ground-truth extraction pipeline follows the same architectural pattern as th
 \end{enumerate}
 The key difference is scope: while CheXpert labels 14 observations, my extractor targets a single binary decision (benign vs.\ malignant) optimized for lung nodule assessment.
 
-Note that the NLP agents (Section~\ref{subsubsec:pathologists}) are restricted to analyzing only the \texttt{FINDINGS} section, which contains the raw clinical observations. This separation prevents ``circular confirmation'' where agents re-read the diagnosis they are supposed to infer. Note that neither CheXpert nor MIMIC-CXR enforce this separation---both apply their labeler to the full report text. My approach is therefore more conservative: the agents must \emph{infer} the diagnosis from observations, while the ground truth is derived from the radiologist's explicit synthesis.
+Note that the NLP agents (Section~\ref{subsubsec:pathologists}) are restricted to analyzing only the \texttt{FINDINGS} section, which contains the raw clinical observations. This separation prevents ``circular confirmation'' where agents re-read the diagnosis they are supposed to infer. Note that neither CheXpert nor MIMIC-CXR enforce this separation since both apply their labeler to the full report text. My approach is therefore more conservative: the agents must \emph{infer} the diagnosis from observations, while the ground truth is derived from the radiologist's explicit synthesis.
+
+\subsection{Research Questions}
+\label{subsec:research-questions}
+
+Given the clinical motivation and technical design described above, this project investigates the following research questions:
+
+\begin{description}
+    \item[RQ1] \textbf{Does multi-agent consensus outperform individual agents?}\\
+    \emph{Hypothesis:} A weighted ensemble of six agents (3~CV + 3~NLP) achieves higher classification accuracy than the best-performing individual agent, because independent errors across modalities are partially cancelled by aggregation.\\
+    \emph{Tested by:} Comparing ensemble accuracy against each single-agent accuracy (Section~\ref{subsec:empirical-validation}, Table~\ref{tab:agent-accuracies}).
+
+    \item[RQ2] \textbf{Does dynamic per-case weighting improve classification over static or equal weighting?}\\
+    \emph{Hypothesis:} Adjusting agent weights per-case based on information richness (image quality and report completeness) yields higher accuracy than fixed expert-assigned weights or uniform weights, because it down-weights agents operating on degraded inputs.\\
+    \emph{Tested by:} Comparing dynamic, static, and equal weighting modes on the same evaluation subset (Section~\ref{subsec:empirical-validation}, Table~\ref{tab:validation-results}).
+
+    \item[RQ3] \textbf{Does negation detection improve NLP-based classification accuracy?}\\
+    \emph{Hypothesis:} NegEx-style negation and uncertainty detection reduces false positives caused by negated findings (e.g., ``no nodule''), improving precision and F1 score on reports that contain negated clinical entities.\\
+    \emph{Tested by:} The NegEx ablation within the evaluation framework (Section~\ref{subsec:ablation-framework}, Table~\ref{tab:claims}, claim \texttt{negex\_contribution}).
+
+    \item[RQ4] \textbf{Does the system outperform na\"ive baselines on imbalanced clinical data?}\\
+    \emph{Hypothesis:} The full multi-agent pipeline achieves higher accuracy than the majority-class baseline (always predicting the most frequent class), demonstrating that the system's complexity is justified beyond a trivial prediction strategy.\\
+    \emph{Tested by:} Comparing system accuracy against the majority-class prior (Section~\ref{subsec:empirical-validation}, Table~\ref{tab:validation-results}).
+\end{description}
 
 \subsection{Contributions}
 \label{subsec:contributions}
@@ -147,7 +170,7 @@ The main contributions of this project are:
     \item A multi-factor NLP-richness scoring function that combines MeSH metadata, entity detection, negation awareness, and structural completeness to select evaluation cases where the NLP agents can perform meaningful extraction.
     \item An anatomically-calibrated size estimation method for the rule-based radiologist that uses blob detection with a chest X-ray field-of-view model, replacing a na\"ive pixel-dimension heuristic that produced clinically implausible values.
     \item Explicit handling of unknown measurements: agents return \texttt{None} when no measurement is detected and the consensus engine reduces the weight of agents that could not determine nodule size.
-    \item A continual learning mechanism that adapts agent base weights based on retrospective diagnostic feedback, allowing the system to learn from its performance over time.
+    \item A retrospective base-weight adjustment heuristic that nudges agent weights based on diagnostic feedback, allowing the system to gradually favour empirically more reliable agents over time.
     \item An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification.
 \end{enumerate}
 
@@ -336,7 +359,7 @@ The Oncologist agent integrates all outputs using SWI-Prolog (accessed via PySwi
     \item Conflict detection: disagreement is flagged when the standard deviation of agent probabilities exceeds 0.08 (see Section~\ref{subsec:disagreement}).
     \item Resolution strategies: (1) trust CNN radiologists when NLP agrees; (2) pathologist override when pathologist consensus is high-confidence ($P \ge 0.6$) but radiologist consensus is indeterminate; (3) rule-based agent as tiebreaker; (4) conservative recommendation under strong disagreement.
     \item Explanation Generation: a natural-language summary of which experts agreed/disagreed, the dynamic weight rationale, and which Prolog rule fired.
-    \item Continual Learning: updating agent base weights based on retrospective diagnostic feedback to adapt to agent performance over time (see Section~\ref{subsec:continual-learning}).
+    \item Retrospective Weight Adjustment: a simple online heuristic that nudges agent base weights based on diagnostic feedback, gradually adapting to agent reliability over time (see Section~\ref{subsec:continual-learning}).
 \end{enumerate}
 
 
@@ -376,18 +399,84 @@ Medical text requires specialized tokenization to handle:
     \item \textbf{Hyphenated terms:} Medical compounds (``well-defined'', ``ground-glass'', ``part-solid'') are handled as single tokens.
 \end{itemize}
 
+The medical abbreviation dictionary (\texttt{nlp/extractor.py}) maps common abbreviations to their expanded forms:
+
+\begin{lstlisting}[language=Python, caption={RadLex-derived abbreviation dictionary.}]
+# Medical abbreviation dictionary based on RadLex (Langlotz, 2006)
+RADLEX_COMMON_TERMS = {
+    'RUL': 'right upper lobe',   'RML': 'right middle lobe',
+    'RLL': 'right lower lobe',   'LUL': 'left upper lobe',
+    'LLL': 'left lower lobe',    'GGO': 'ground-glass opacity',
+    'GGN': 'ground-glass nodule', 'CT': 'computed tomography',
+    'CXR': 'chest x-ray',        'PET': 'positron emission tomography',
+    'LDCT': 'low-dose computed tomography',
+    'SPN': 'solitary pulmonary nodule',
+    'LAD': 'lymphadenopathy',    'PA': 'posteroanterior',
+    'AP': 'anteroposterior',     'LN': 'lymph node',
+}
+\end{lstlisting}
+
+Size normalization uses cascading regex patterns with automatic unit conversion:
+
+\begin{lstlisting}[language=Python, caption={Size extraction and normalization patterns.}]
+SIZE_PATTERNS = [
+    r'(\d+\.?\d*)\s*(mm|millimeter)',      # "15 mm", "15mm"
+    r'(\d+\.?\d*)\s*(cm|centimeter)',      # "1.5 cm" -> converted to 15mm
+    r'(\d+\.?\d*)\s*x\s*\d+\.?\d*\s*(mm|cm)',  # "15 x 12 mm"
+]
+
+def _extract_size(self, text: str) -> Tuple[Optional[float], str]:
+    for pattern in self.SIZE_PATTERNS:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            value = float(match.group(1))
+            unit = match.group(2).lower()
+            # Convert cm to mm
+            if unit in ('cm', 'centimeter'):
+                value *= 10
+            return (value, 'regex')
+    return (None, 'unknown')  # Provenance tracking
+\end{lstlisting}
+
 Since spaCy/scispaCy~\cite{neumann2019scispacy} is available (Pathologist-2), the pipeline uses its rule-based tokenizer with custom rules for medical text.
 
 \subsection{Nodule Mention Detection}
 \label{subsec:mention-detection}
 
-Nodule mentions are detected using a lexicon-based approach combined with patterns:
+Nodule mentions are detected using a lexicon-based approach combined with patterns. The anchor terms serve as triggers for frame extraction (\texttt{nlp/dependency\_parser.py}):
 
-\begin{lstlisting}[language=Python, caption={Nodule mention lexicon.}]
-NODULE_LEXICON = ["nodule", "nodular", "nodular opacity",
-                  "mass", "lesion", "opacity", "tumor",
-                  "pulmonary nodule", "lung nodule",
-                  "solitary nodule", "spiculated mass"]
+\begin{lstlisting}[language=Python, caption={Anchor terms for nodule detection.}]
+# Trigger terms that start a frame (Fleischner Society terminology)
+ANCHOR_TERMS = {
+    "nodule", "nodules", "mass", "masses", 
+    "lesion", "lesions", "opacity", "opacities",
+    "density", "densities", "granuloma", "granulomas",
+    "tumor", "neoplasm"
+}
+
+# Characterization terms - describe findings, not standalone anchors
+CHARACTERIZATION_TERMS = {
+    "granuloma", "hamartoma", "carcinoma", "adenocarcinoma",
+    "metastasis", "metastases", "lymphoma", "infection",
+    "tuberculoma", "fungal", "malignancy", "benign",
+    "malignant", "inflammatory", "fibrosis", "atelectasis"
+}
+\end{lstlisting}
+
+The detection algorithm distinguishes between primary anchors and characterization terms:
+
+\begin{lstlisting}[language=Python, caption={Anchor detection with characterization filtering.}]
+def extract(self, doc) -> List[NoduleFinding]:
+    findings = []
+    for token in doc:
+        if token.lemma_.lower() in self.ANCHOR_TERMS:
+            # Skip if term is characterizing another finding
+            if self._is_descriptive_characterization(token):
+                continue
+            finding = self._build_frame(token, doc)
+            if finding:
+                findings.append(finding)
+    return findings
 \end{lstlisting}
 
 This lexicon is derived from standard radiological terminology defined by the Fleischner Society~\cite{hansell2008fleischner}, ensuring that the system targets clinically recognized descriptors for pulmonary nodules and masses.
@@ -403,13 +492,52 @@ Four categories of attributes are extracted, forming the minimum sufficient set 
     \item \textbf{Anatomical location:} Essential for entity resolution in multi-nodule reports. Regex patterns target lobe references (``right upper lobe'', ``RUL''), positional terms (``subpleural'', ``perihilar''), and laterality.
     \item \textbf{Size mentions:} The primary determinant of Lung-RADS category. Multiple patterns capture formats including ``15 mm'', ``1.5 cm'', and dimensional notations (``15 $\times$ 12 mm''), with automatic unit normalization to millimeters. When no size pattern matches, the extraction returns \texttt{None} with a provenance tag \texttt{size\_source=``unknown''}, ensuring that downstream components can distinguish between measured and unmeasured sizes.
     \item \textbf{Multiplicity:} A distinct branching factor in Lung-RADS decision trees. Detection includes plural nodule mentions (``multiple nodules'', ``bilateral'', ``several opacities'', numeric quantifiers such as ``3 nodules'').
-    \item \textbf{Descriptors:} Modifiers that alter risk stratification thresholds (e.g., solid vs. ground-glass). Keywords are grouped by clinical category:
-    \begin{itemize}
-        \item Texture: solid, ground-glass, part-solid, subsolid
-        \item Margins: well-defined, spiculated, lobulated, poorly-defined
-        \item Calcification: popcorn, laminated, central, eccentric, absent
-    \end{itemize}
+    \item \textbf{Descriptors:} Modifiers that alter risk stratification thresholds (e.g., solid vs. ground-glass). Keywords are grouped by clinical category.
 \end{enumerate}
+
+The keyword dictionaries used for descriptor extraction (\texttt{nlp/dependency\_parser.py} and \texttt{nlp/extractor.py}):
+
+\begin{lstlisting}[language=Python, caption={Texture and location term dictionaries.}]
+# Terms describing texture/type
+TEXTURE_TERMS = {
+    "solid": "solid",
+    "ground-glass": "ground_glass", "ggo": "ground_glass",
+    "part-solid": "part_solid", "subsolid": "part_solid",
+    "mixed": "part_solid", "calcified": "calcified"
+}
+
+# Terms describing location
+LOCATION_TERMS = {
+    "upper": "upper", "middle": "middle", "lower": "lower",
+    "right": "right", "left": "left", "bilateral": "bilateral",
+    "lobe": "lobe", "lung": "lung", "apex": "apex",
+    "base": "base", "hilum": "hilum", "hilus": "hilum",
+    "rul": "right_upper_lobe", "lul": "left_upper_lobe",
+    "rll": "right_lower_lobe", "lll": "left_lower_lobe",
+    "rml": "right_middle_lobe"
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={Margin and calcification keyword dictionaries.}]
+# Margin keywords (clinically significant for malignancy risk)
+MARGIN_KEYWORDS = {
+    'well_defined': ['well-defined', 'sharp', 'smooth', 
+                     'circumscribed'],
+    'poorly_defined': ['poorly-defined', 'indistinct', 'ill-defined'],
+    'spiculated': ['spiculated', 'spiculation', 'corona radiata', 
+                   'stellate'],
+    'lobulated': ['lobulated', 'lobulation', 'scalloped'],
+}
+
+# Calcification patterns (benign indicators)
+CALCIFICATION_KEYWORDS = {
+    'popcorn': ['popcorn', 'popcorn calcification'],
+    'laminated': ['laminated', 'laminated calcification'],
+    'central': ['central calcification', 'centrally calcified'],
+    'eccentric': ['eccentric', 'peripheral calcification'],
+    'absent': ['no calcification', 'non-calcified'],
+}
+\end{lstlisting}
 
 \subsection{Dependency-Anchored Frame Association}
 \label{subsec:dependency-frames}
@@ -422,7 +550,38 @@ To resolve this, I implemented a \textbf{Dependency-Anchored Frame Building} mod
 
 A key challenge is handling \emph{long-distance dependencies} in complex clinical constructions. For example, in ``\textit{A nodule, likely representing granuloma, measuring 5mm},'' the size ``5mm'' is syntactically distant from ``nodule'' due to intervening clausal modifiers. Standard subtree traversal fails to capture such relations because the measurement verb ``measuring'' attaches as an adverbial clause (\texttt{acl}) rather than a direct modifier.
 
-To address this, I propose a \textbf{novel four-pass traversal} strategy designed specifically for this project:
+To address this, I propose a \textbf{novel four-pass traversal} strategy designed specifically for this project.
+
+The key constants for long-distance dependency resolution (\texttt{nlp/dependency\_parser.py}):
+
+\begin{lstlisting}[language=Python, caption={Clausal modifier dependencies and measurement verbs.}]
+# Dependency relations that introduce clausal modifiers
+CLAUSAL_MODIFIER_DEPS = {
+    "acl",      # Clausal modifier: "nodule measuring 5mm"
+    "relcl",    # Relative clause: "nodule which measures 5mm"
+    "acl:relcl", # Combined tag in some models
+    "appos",    # Appositive: "nodule, a granuloma"
+    "advcl",    # Adverbial clause
+}
+
+# Verbs that commonly introduce measurements in radiology
+MEASUREMENT_VERBS = {
+    "measure", "measuring", "measures", "measured",
+    "size", "sizing", "show", "showing",
+    "demonstrate", "demonstrating", "reveal", "revealing",
+    "represent", "representing", "appear", "appearing",
+}
+
+# Dependencies where term characterizes, not primary anchor
+CHARACTERIZING_DEP_RELATIONS = {
+    "pobj",   # "with granuloma" (prep object)
+    "nmod",   # "consistent with granuloma" (scispaCy)
+    "dobj",   # "representing granuloma" (direct object)
+    "attr",   # "is granuloma" (predicate attribute)
+    "appos",  # "nodule, granuloma" (appositive)
+    "obl",    # oblique nominal (Universal Dependencies)
+}
+\end{lstlisting}
 
 \begin{enumerate}
     \item \textbf{Pass 1: Direct Modifiers:} Standard BFS traversal of the anchor's immediate subtree, collecting adjectives (\texttt{amod}), numeric modifiers (\texttt{nummod}), and compound nouns (\texttt{compound}). Traversal blocks crossing into coordinate structures (\texttt{conj}, \texttt{cc}) to prevent attribute leakage between findings.
@@ -434,41 +593,171 @@ To address this, I propose a \textbf{novel four-pass traversal} strategy designe
     \item \textbf{Pass 4: Appositive Fallback:} If no size was extracted in earlier passes, the system performs a sentence-wide scan for unclaimed measurements. A measurement is ``unclaimed'' if it does not belong to another anchor's subtree and is not associated with a characterization term that describes the current anchor.
 \end{enumerate}
 
+The multi-pass traversal is implemented in the \texttt{\_build\_frame} method:
+
+\begin{lstlisting}[language=Python, caption={Multi-pass frame building algorithm.}]
+def _build_frame(self, anchor: Token, doc) -> Optional[NoduleFinding]:
+    finding = NoduleFinding(anchor_text=anchor.text, anchor_idx=anchor.i)
+    visited = set()
+    
+    # PASS 1: Direct modifiers (amod, compound, nummod)
+    for token in anchor.subtree:
+        if token.dep_ in ("conj", "cc"):  # Block coordination
+            break
+        visited.add(token.i)
+        self._analyze_modifier(token, finding, path="direct")
+    
+    # PASS 2: Clausal modifiers (acl, relcl, appos, advcl)
+    for child in anchor.children:
+        if child.dep_ in CLAUSAL_MODIFIER_DEPS:
+            self._process_clausal_modifiers(child, finding, visited)
+    
+    # PASS 3: Linear participial chain scan
+    self._process_participial_chain(anchor, doc, finding, visited)
+    
+    # PASS 4: Appositive fallback for unclaimed measurements
+    if finding.size_mm is None:
+        self._extract_from_appositive_measurements(
+            anchor, doc, finding, visited)
+    
+    # PASS 5: Graded uncertainty quantification
+    self._quantify_uncertainty(anchor, finding)
+    
+    return finding
+\end{lstlisting}
+
 \subsubsection{Characterization Term Handling}
 
 Characterization terms (e.g., \textit{granuloma}, \textit{carcinoma}, \textit{metastasis}) present a disambiguation challenge: they appear in the anchor lexicon but often describe another finding rather than serving as primary anchors themselves. In ``\textit{consistent with granuloma},'' the term ``granuloma'' characterizes a nodule rather than introducing a new finding.
 
 The system uses dependency relations to distinguish these cases. A characterization term is classified as \emph{descriptive} (not a primary anchor) if its dependency relation is in $\{\texttt{pobj}, \texttt{nmod}, \texttt{dobj}, \texttt{attr}, \texttt{appos}, \texttt{obl}\}$ and its head traces back to another anchor term within 5 dependency hops. This prevents spurious frame creation while correctly extracting the characterization as an attribute of the parent finding.
 
+\begin{lstlisting}[language=Python, caption={Characterization term disambiguation.}]
+def _is_descriptive_characterization(self, token: Token) -> bool:
+    """Check if anchor is characterizing another finding."""
+    lemma = token.lemma_.lower()
+    if lemma not in self.CHARACTERIZATION_TERMS:
+        return False
+    
+    # Check if in characterizing dependency position
+    if token.dep_ in self.CHARACTERIZING_DEP_RELATIONS:
+        # Walk up tree to find another anchor
+        head = token.head
+        for _ in range(5):  # Max 5 hops
+            if head.lemma_.lower() in self.ANCHOR_TERMS:
+                return True  # Describes another finding
+            if head == head.head:
+                break
+            head = head.head
+    
+    # Check "with/consistent with" patterns
+    if token.head.lemma_ in ["with", "consistent", "represent"]:
+        return True
+    return False
+\end{lstlisting}
+
 \subsubsection{Structured Frame Generation}
 
-The output is a list of structured \texttt{NoduleFinding} dataclass objects, each containing:
-\begin{itemize}
-    \item \texttt{anchor\_text}, \texttt{size\_mm}, \texttt{size\_source} (provenance tracking)
-    \item \texttt{texture}, \texttt{location}, \texttt{margins}, \texttt{calcification}
-    \item \texttt{characterization} (e.g., ``granuloma'' from ``representing granuloma'')
-    \item \texttt{is\_negated}, \texttt{is\_uncertain} (from context analysis)
-    \item \texttt{extraction\_paths} (list of traversal paths that contributed attributes, e.g., \texttt{[``acl:measure'', ``appositive\_fallback:5'']})
-\end{itemize}
+The output is a list of structured \texttt{NoduleFinding} dataclass objects:
 
-The \texttt{extraction\_paths} field provides interpretability by recording which traversal pass contributed each attribute, supporting error analysis and debugging.
+\begin{lstlisting}[language=Python, caption={NoduleFinding dataclass definition.}]
+@dataclass
+class NoduleFinding:
+    """Structured representation of a single nodule finding."""
+    anchor_text: str           # Word that triggered frame ("nodule")
+    anchor_idx: int            # Token index of the anchor
+    
+    # Attributes linked via dependency parsing
+    size_mm: Optional[float] = None
+    size_source: str = "unknown"  # Provenance: "regex", "spacy", ...
+    texture: Optional[str] = None
+    location: Optional[str] = None
+    margins: Optional[str] = None
+    calcification: bool = False
+    
+    # Characterization from clausal modifiers
+    characterization: Optional[str] = None  # e.g., "granuloma"
+    
+    # Context flags
+    is_negated: bool = False
+    is_uncertain: bool = False
+    is_historical: bool = False  # e.g., "prior nodule"
+    
+    # Graded uncertainty (aleatory vs epistemic)
+    uncertainty: Optional[UncertaintyQuantification] = None
+    
+    # Interpretability: which passes contributed attributes
+    extraction_paths: List[str] = field(default_factory=list)
+\end{lstlisting}
 
-This structured approach allows the Pathologist agent to select the ``Index Nodule''---defined as the largest or most suspicious finding---for its primary report, while retaining the full structured data for conflict resolution.
+The \texttt{extraction\_paths} field provides interpretability by recording which traversal pass contributed each attribute (e.g., \texttt{[``acl:measure'', ``linear\_measurement:5'']}), supporting error analysis and debugging.
+
+This structured approach allows the Pathologist agent to select the ``Index Nodule'', defined as the largest or most suspicious finding, for its primary report, while retaining the full structured data for conflict resolution.
 
 \subsection{Negation Detection}
 \label{subsec:negation-detection}
 
-Pathologist-3 implements NegEx-style negation detection~\cite{chapman2001negex, harkema2009context} with the following components:
+Pathologist-3 implements NegEx-style negation detection~\cite{chapman2001negex, harkema2009context} with the following components.
+
+The \texttt{Trigger} dataclass encapsulates trigger metadata (\texttt{nlp/negation\_detector.py}):
+
+\begin{lstlisting}[language=Python, caption={Trigger dataclass for NegEx.}]
+@dataclass
+class Trigger:
+    """A trigger phrase for negation or uncertainty detection."""
+    phrase: str           # e.g., "no evidence of"
+    category: Certainty   # NEGATED or UNCERTAIN
+    direction: str        # "forward", "backward", or "bidirectional"
+
+class Certainty(Enum):
+    AFFIRMED = "affirmed"   # Positively stated
+    NEGATED = "negated"     # Explicitly denied
+    UNCERTAIN = "uncertain" # Hedged or uncertain
+\end{lstlisting}
 
 \textbf{Trigger phrases} are categorized by scope direction:
-\begin{itemize}
-    \item \emph{Pre-negation} (forward scope): ``no'', ``no evidence of'', ``without'', ``negative for'', ``denies'', ``absence of'', ``rules out'', ``unremarkable''
-    \item \emph{Post-negation} (backward scope): ``is ruled out'', ``unlikely'', ``not seen'', ``not identified'', ``not demonstrated''
-\end{itemize}
 
-\textbf{Scope determination:} After detecting a trigger, a window of up to 6 words is scanned in the indicated direction. Any nodule-related entity within this window is marked as negated. The scope is terminated early by \emph{termination terms} (``but'', ``however'', ``although'', ``except'') and sentence-ending punctuation.
+\begin{lstlisting}[language=Python, caption={Negation trigger phrases (NegEx-based).}]
+NEGATION_TRIGGERS = [
+    # Pre-negation triggers (scope goes FORWARD)
+    Trigger("no evidence of", Certainty.NEGATED, "forward"),
+    Trigger("no", Certainty.NEGATED, "forward"),
+    Trigger("without", Certainty.NEGATED, "forward"),
+    Trigger("negative for", Certainty.NEGATED, "forward"),
+    Trigger("denies", Certainty.NEGATED, "forward"),
+    Trigger("absence of", Certainty.NEGATED, "forward"),
+    Trigger("rules out", Certainty.NEGATED, "forward"),
+    Trigger("unremarkable", Certainty.NEGATED, "forward"),
+    Trigger("free of", Certainty.NEGATED, "forward"),
+    Trigger("fails to reveal", Certainty.NEGATED, "forward"),
+    
+    # Post-negation triggers (scope goes BACKWARD)
+    Trigger("is ruled out", Certainty.NEGATED, "backward"),
+    Trigger("unlikely", Certainty.NEGATED, "backward"),
+    Trigger("not seen", Certainty.NEGATED, "backward"),
+    Trigger("not identified", Certainty.NEGATED, "backward"),
+    Trigger("not demonstrated", Certainty.NEGATED, "backward"),
+    Trigger("is absent", Certainty.NEGATED, "backward"),
+]
+\end{lstlisting}
 
-\textbf{Algorithm:}
+\textbf{Scope determination:} After detecting a trigger, a window of up to 6 words is scanned in the indicated direction. Any nodule-related entity within this window is marked as negated. The scope is terminated early by \emph{termination terms} and sentence-ending punctuation:
+
+\begin{lstlisting}[language=Python, caption={Scope termination terms.}]
+SCOPE_TERMINATORS = [
+    # Conjunctions that change context
+    "but", "however", "although", "though", "except",
+    "apart from", "nevertheless", "yet", "whereas",
+    # Causal terms (change subject)
+    "cause", "causing", "secondary to", "due to", "because",
+    # Relative clauses
+    "which", "who", "that", "whose",
+    # Punctuation
+    ".", ";", ":", "\n"
+]
+\end{lstlisting}
+
+\textbf{Algorithm:} The NegEx detection follows a four-step process:
 \begin{enumerate}
     \item Identify all trigger phrases and their positions in the text.
     \item For each trigger, determine scope boundaries (direction + window + terminators).
@@ -476,15 +765,75 @@ Pathologist-3 implements NegEx-style negation detection~\cite{chapman2001negex, 
     \item If within a negation scope, label as \textsc{negated}; otherwise \textsc{affirmed}.
 \end{enumerate}
 
+\begin{lstlisting}[language=Python, caption={NegEx scope detection algorithm.}]
+class NegExDetector:
+    def __init__(self, scope_window: int = 6):  # Default from NegEx paper
+        self.scope_window = scope_window
+        self._triggers = NEGATION_TRIGGERS + UNCERTAINTY_TRIGGERS
+        
+    def _find_triggers(self, text: str) -> List[Tuple[Trigger, int, int]]:
+        """Find all trigger phrases and their positions."""
+        found = []
+        text_lower = text.lower()
+        for trigger in self._triggers:
+            start = 0
+            while True:
+                pos = text_lower.find(trigger.phrase, start)
+                if pos == -1:
+                    break
+                found.append((trigger, pos, pos + len(trigger.phrase)))
+                start = pos + 1
+        return sorted(found, key=lambda x: x[1])
+    
+    def _get_scope_boundary(self, text, trigger_end, direction):
+        """Compute scope boundary considering window and terminators."""
+        words_seen = 0
+        pos = trigger_end if direction == "forward" else trigger_end
+        while words_seen < self.scope_window:
+            # Check for terminator
+            for term in SCOPE_TERMINATORS:
+                if text[pos:].lower().startswith(term):
+                    return pos  # Early termination
+            pos += 1 if direction == "forward" else -1
+            if text[pos] == ' ':
+                words_seen += 1
+        return pos
+\end{lstlisting}
+
 \subsection{Uncertainty Detection}
 \label{subsec:uncertainty-detection}
 
 Uncertainty detection follows the same trigger-scope mechanism as negation, using a separate set of trigger phrases drawn from clinical NLP literature~\cite{irvin2019chexpert, harkema2009context}:
 
-\begin{itemize}
-    \item \emph{Pre-uncertainty} (forward scope): ``possible'', ``probable'', ``may represent'', ``cannot exclude'', ``cannot rule out'', ``questionable'', ``suspicious for'', ``suggestive of'', ``consistent with'', ``differential includes''
-    \item \emph{Post-uncertainty} (backward scope): ``is suspected'', ``is questionable'', ``cannot be excluded'', ``should be considered''
-\end{itemize}
+\begin{lstlisting}[language=Python, caption={Uncertainty trigger phrases (ConText-based).}]
+UNCERTAINTY_TRIGGERS = [
+    # Pre-uncertainty triggers (scope goes FORWARD)
+    Trigger("possible", Certainty.UNCERTAIN, "forward"),
+    Trigger("probable", Certainty.UNCERTAIN, "forward"),
+    Trigger("may represent", Certainty.UNCERTAIN, "forward"),
+    Trigger("might be", Certainty.UNCERTAIN, "forward"),
+    Trigger("cannot exclude", Certainty.UNCERTAIN, "forward"),
+    Trigger("cannot rule out", Certainty.UNCERTAIN, "forward"),
+    Trigger("questionable", Certainty.UNCERTAIN, "forward"),
+    Trigger("suspicious for", Certainty.UNCERTAIN, "forward"),
+    Trigger("suggestive of", Certainty.UNCERTAIN, "forward"),
+    Trigger("consistent with", Certainty.UNCERTAIN, "forward"),
+    Trigger("differential includes", Certainty.UNCERTAIN, "forward"),
+    Trigger("likely", Certainty.UNCERTAIN, "forward"),
+    
+    # Bidirectional triggers
+    Trigger("versus", Certainty.UNCERTAIN, "bidirectional"),
+    Trigger("vs", Certainty.UNCERTAIN, "bidirectional"),
+    Trigger("or", Certainty.UNCERTAIN, "bidirectional"),
+    
+    # Post-uncertainty triggers (scope goes BACKWARD)
+    Trigger("is suspected", Certainty.UNCERTAIN, "backward"),
+    Trigger("is questionable", Certainty.UNCERTAIN, "backward"),
+    Trigger("cannot be excluded", Certainty.UNCERTAIN, "backward"),
+    Trigger("should be considered", Certainty.UNCERTAIN, "backward"),
+    Trigger("is indeterminate", Certainty.UNCERTAIN, "backward"),
+]
+\end{lstlisting}
 
 Entities within an uncertainty scope are labeled \textsc{uncertain}. When both a negation trigger and an uncertainty trigger apply to the same entity, negation takes precedence, following the convention in CheXpert~\cite{irvin2019chexpert}.
 
@@ -504,14 +853,57 @@ This distinction follows the uncertainty taxonomy of Der Kiureghian \& Ditlevsen
 
 \subsubsection{Uncertainty Scoring}
 
-Each extracted \texttt{NoduleFinding} receives an \texttt{UncertaintyQuantification} object with the following fields:
-\begin{itemize}
-    \item \texttt{certainty\_score} $\in [0,1]$: Overall confidence in the extraction
-    \item \texttt{aleatory\_uncertainty} $\in [0,1]$: Degree of inherent text ambiguity
-    \item \texttt{epistemic\_uncertainty} $\in [0,1]$: Degree of knowledge gaps
-    \item \texttt{categorical\_label}: Backwards-compatible label (\textsc{affirmed}/\textsc{negated}/\textsc{uncertain})
-    \item \texttt{contributing\_factors}: List of factors that influenced the scores
-\end{itemize}
+Each extracted \texttt{NoduleFinding} receives an \texttt{UncertaintyQuantification} object (\texttt{nlp/uncertainty\_quantification.py}):
+
+\begin{lstlisting}[language=Python, caption={UncertaintyQuantification dataclass.}]
+@dataclass
+class UncertaintyQuantification:
+    certainty_score: float = 1.0       # [0,1] confidence
+    aleatory_uncertainty: float = 0.0  # Inherent ambiguity
+    epistemic_uncertainty: float = 0.0 # Knowledge gaps
+    categorical_label: CertaintyLabel = CertaintyLabel.AFFIRMED
+    contributing_factors: List[str] = field(default_factory=list)
+    hedge_count: int = 0
+    negation_strength: float = 0.0
+    
+    @property
+    def total_uncertainty(self) -> float:
+        # Quadrature combination: sqrt(a^2 + e^2)
+        combined = (self.aleatory_uncertainty**2 + 
+                    self.epistemic_uncertainty**2)**0.5
+        return min(1.0, combined)
+    
+    @property
+    def uncertainty_type(self) -> str:
+        if self.aleatory_uncertainty > self.epistemic_uncertainty + 0.1:
+            return "aleatory_dominant"
+        elif self.epistemic_uncertainty > self.aleatory_uncertainty + 0.1:
+            return "epistemic_dominant"
+        return "mixed"
+\end{lstlisting}
+
+The hedge phrase sets used for aleatory uncertainty computation:
+
+\begin{lstlisting}[language=Python, caption={Hedge phrase sets for aleatory uncertainty.}]
+# Strong hedges - high aleatory uncertainty (weight: 0.3 each)
+STRONG_HEDGES = {
+    "may represent", "could represent", "possibly", "probable",
+    "suggestive of", "suspicious for", "cannot exclude",
+    "questionable", "equivocal", "indeterminate"
+}
+
+# Weak hedges - moderate uncertainty (weight: 0.15 each)
+WEAK_HEDGES = {
+    "likely", "appears", "seems", "consistent with",
+    "compatible with", "suggests", "indicating", "representing"
+}
+
+# Conflicting evidence markers (weight: 0.2 each)
+CONFLICT_MARKERS = {
+    "however", "although", "but", "nevertheless",
+    "on the other hand", "alternatively", "versus", "vs"
+}
+\end{lstlisting}
 
 \paragraph{Aleatory uncertainty} is computed from hedge phrase detection:
 \begin{equation}
@@ -519,11 +911,67 @@ U_{\text{aleatory}} = \min\left(1.0,\; \sum_i c_i \cdot w_i\right)
 \end{equation}
 where $c_i$ is the count of triggers in category $i$ and $w_i$ is the weight (strong hedges: 0.3, weak hedges: 0.15, conflict markers: 0.2).
 
+\begin{lstlisting}[language=Python, caption={Aleatory uncertainty computation.}]
+def _compute_aleatory_uncertainty(self, text: str) -> Tuple[float, List[str]]:
+    factors, uncertainty = [], 0.0
+    
+    # Strong hedges: +0.3 each (capped at 0.6)
+    strong_matches = self._strong_hedge_pattern.findall(text)
+    if strong_matches:
+        uncertainty += min(0.6, len(strong_matches) * 0.3)
+        factors.append(f"strong_hedges:{','.join(set(strong_matches))}")
+    
+    # Weak hedges: +0.15 each (capped at 0.3)
+    weak_matches = self._weak_hedge_pattern.findall(text)
+    if weak_matches:
+        uncertainty += min(0.3, len(weak_matches) * 0.15)
+        factors.append(f"weak_hedges:{','.join(set(weak_matches))}")
+    
+    # Conflict markers: +0.2 each (capped at 0.4)
+    conflict_matches = self._conflict_pattern.findall(text)
+    if conflict_matches:
+        uncertainty += min(0.4, len(conflict_matches) * 0.2)
+        factors.append(f"conflict_markers:{','.join(set(conflict_matches))}")
+    
+    return min(1.0, uncertainty), factors
+\end{lstlisting}
+
 \paragraph{Epistemic uncertainty} is computed from extraction completeness:
 \begin{equation}
 U_{\text{epistemic}} = \min\left(1.0,\; 0.15 \cdot |\text{missing\_attrs}| + 0.15 \cdot \mathbb{1}_{\text{size}=\text{None}} + 0.2 \cdot \max(0, 2 - |\text{paths}|)\right)
 \end{equation}
 where $|\text{missing\_attrs}|$ counts missing critical attributes, and $|\text{paths}|$ is the number of extraction paths used.
+
+\begin{lstlisting}[language=Python, caption={Epistemic uncertainty computation.}]
+# Expected attributes for complete extraction
+EXPECTED_ATTRIBUTES = {"size_mm", "location", "texture", "margins"}
+MIN_EXTRACTION_PATHS = 2  # Minimum for low epistemic uncertainty
+
+def _compute_epistemic_uncertainty(
+    self, attributes: Dict[str, Any], extraction_paths: List[str]
+) -> Tuple[float, List[str]]:
+    factors, uncertainty = [], 0.0
+    
+    # Missing critical attributes: +0.15 each (capped at 0.6)
+    missing_attrs = [attr for attr in EXPECTED_ATTRIBUTES 
+                     if attributes.get(attr) is None]
+    if missing_attrs:
+        uncertainty += min(0.6, len(missing_attrs) * 0.15)
+        factors.append(f"missing_attrs:{','.join(missing_attrs)}")
+    
+    # Size specifically unknown: +0.15 extra penalty
+    if attributes.get("size_mm") is None:
+        uncertainty += 0.15
+        factors.append("size_unknown")
+    
+    # Few extraction paths: +0.2 x (MIN - actual)
+    if len(extraction_paths) < MIN_EXTRACTION_PATHS:
+        path_penalty = 0.2 * (MIN_EXTRACTION_PATHS - len(extraction_paths))
+        uncertainty += path_penalty
+        factors.append(f"sparse_paths:{len(extraction_paths)}")
+    
+    return min(1.0, uncertainty), factors
+\end{lstlisting}
 
 \paragraph{Total uncertainty} combines both sources via quadrature:
 \begin{equation}
@@ -568,19 +1016,36 @@ The knowledge base is organized into two primary logic modules:
 \subsection{Agent Registry and Weighted Voting}
 \label{subsec:voting}
 
-Each agent is registered with a type and \emph{base} reliability weight:
+The Prolog knowledge base defines agent types and their reliability weights (\texttt{knowledge/multi\_agent\_consensus.pl}):
 
-\begin{lstlisting}[language=Prolog, caption={Agent base weight definitions (defaults, overridden at runtime).}]
+\begin{lstlisting}[language=Prolog, caption={Agent type definitions and base weights.}]
+% Agent type definitions
+agent_type(radiologist_densenet, radiologist, cnn).
+agent_type(radiologist_resnet, radiologist, cnn).
+agent_type(radiologist_rulebased, radiologist, rule_based).
+agent_type(pathologist_regex, pathologist, regex).
+agent_type(pathologist_spacy, pathologist, nlp).
+agent_type(pathologist_context, pathologist, context).
+
+% Dynamic predicates - asserted at runtime
 :- dynamic agent_weight/2.
+:- dynamic agent_finding/4.  % agent_finding(NoduleId, Agent, Prob, Class)
+
+% Default weights (overridden by DynamicWeightCalculator)
 agent_weight(radiologist_densenet, 1.0).
 agent_weight(radiologist_resnet, 1.0).
-agent_weight(radiologist_rules, 0.7).
+agent_weight(radiologist_rulebased, 0.7).
 agent_weight(pathologist_regex, 0.8).
 agent_weight(pathologist_spacy, 0.9).
-agent_weight(pathologist_negex, 0.85).
+agent_weight(pathologist_context, 0.9).
+
+% Weight accessor with default fallback
+get_agent_weight(Agent, Weight) :-
+    agent_weight(Agent, Weight), !.
+get_agent_weight(_, 0.5).  % Default for unknown agents
 \end{lstlisting}
 
-The \texttt{:- dynamic} directive declares \texttt{agent\_weight/2} as a dynamic predicate, allowing the orchestrator to retract the default facts and assert per-case weights (computed by the \texttt{DynamicWeightCalculator}, see Section~\ref{subsec:dynamic-weights}) into the Prolog knowledge base at runtime.
+The \texttt{:- dynamic} directive declares predicates that can be modified at runtime, allowing the orchestrator to retract default facts and assert per-case weights computed by the \texttt{DynamicWeightCalculator} (Section~\ref{subsec:dynamic-weights}).
 
 The consensus probability is computed as:
 \begin{equation}
@@ -589,6 +1054,40 @@ P_\text{consensus} = \frac{\sum_{i=1}^{n} \hat{w}_i \cdot p_i}{\sum_{i=1}^{n} \h
 \end{equation}
 
 where $\hat{w}_i$ denotes the dynamic per-case weight for agent~$i$ (see Equation~\ref{eq:dynamic-weight}).
+
+\begin{lstlisting}[language=Prolog, caption={Weighted consensus calculation predicate.}]
+% Calculate weighted consensus from all agent findings
+calculate_consensus(NoduleId, WeightedProb, Confidence) :-
+    findall(
+        prob(Agent, Prob, Weight),
+        (agent_finding(NoduleId, Agent, Prob, _),
+         get_agent_weight(Agent, Weight)),
+        Findings
+    ),
+    Findings \= [],
+    sum_weighted_probs(Findings, TotalWeightedProb, TotalWeight),
+    TotalWeight > 0,
+    WeightedProb is TotalWeightedProb / TotalWeight,
+    calculate_agreement(Findings, WeightedProb, Confidence).
+
+% Helper: Sum weighted probabilities
+sum_weighted_probs([], 0, 0).
+sum_weighted_probs([prob(_, Prob, Weight)|Rest], TotalProb, TotalWeight) :-
+    sum_weighted_probs(Rest, RestProb, RestWeight),
+    TotalProb is RestProb + (Prob * Weight),
+    TotalWeight is RestWeight + Weight.
+
+% Agreement/confidence based on variance: Confidence = max(0, 1 - 3*StdDev)
+calculate_agreement(Findings, MeanProb, Confidence) :-
+    length(Findings, N), N > 1,
+    findall(Diff, (member(prob(_, Prob, _), Findings),
+                   Diff is (Prob - MeanProb) ** 2), Diffs),
+    sum_list(Diffs, SumDiffs),
+    Variance is SumDiffs / N,
+    StdDev is sqrt(Variance),
+    Confidence is max(0, 1 - (StdDev * 3)).
+\end{lstlisting}
+
 Confidence is derived from inter-agent agreement: $\text{Confidence} = \max(0,\; 1 - 3\sigma)$, where $\sigma$ is the standard deviation of agent probabilities.
 
 \subsection{Disagreement Detection and Resolution}
@@ -600,13 +1099,54 @@ Following the principles of collective intelligence~\cite{wolf2015collective}, t
 The first stage determines whether agents disagree enough to warrant special handling. Disagreement is flagged when the standard deviation of agent probabilities exceeds~0.08. This threshold was empirically determined based on two factors:
 
 \begin{itemize}
-    \item \textbf{Sensitivity to moderate divergence:} For two groups of agents splitting opinions (e.g., Radiologists vs.\ Pathologists), the population standard deviation simplifies to $\sigma = \frac{|p - q|}{2}$. A threshold of 0.08 triggers when the probability gap exceeds~16\% (e.g., 0.42 vs.\ 0.68), ensuring that even subtle disagreements---where one modality is uncertain and the other is weakly confident---are flagged for resolution.
+    \item \textbf{Sensitivity to moderate divergence:} For two groups of agents splitting opinions (e.g., Radiologists vs.\ Pathologists), the population standard deviation simplifies to $\sigma = \frac{|p - q|}{2}$. A threshold of 0.08 triggers when the probability gap exceeds~16\% (e.g., 0.42 vs.\ 0.68), ensuring that even subtle disagreements where one modality is uncertain and the other is weakly confident are flagged for resolution.
     \item \textbf{Safety margin for downstream rules:} A higher threshold (e.g., 0.15, requiring a 30\% gap) would be borderline for the conflict-resolution rules described below, risking missed triggers due to floating-point variations. The 0.08 threshold provides a comfortable margin.
 \end{itemize}
 
 \paragraph{Stage 2: Conflict Resolution (pattern-specific thresholds).}
-If disagreement is detected, the system inspects the \emph{pattern} of the disagreement using stricter, rule-specific thresholds. The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{atoms2025conflictresolution}, focusing on voting and arbitration. The following rules are evaluated in order:
+If disagreement is detected, the system inspects the \emph{pattern} of the disagreement using stricter, rule-specific thresholds. The resolution strategies are inspired by multi-agent conflict resolution taxonomies~\cite{atoms2025conflictresolution}, focusing on voting and arbitration.
 
+\begin{lstlisting}[language=Prolog, caption={Conflict resolution predicates.}]
+% Disagreement detection: std dev > 0.08
+has_disagreement(NoduleId) :-
+    findall(Prob, agent_finding(NoduleId, _, Prob, _), Probs),
+    length(Probs, N), N > 1,
+    msort(Probs, Sorted),
+    calculate_std_dev(Sorted, StdDev),
+    StdDev > 0.08.
+
+% Visual-Text Conflict: CNN malignant, NLP benign
+resolve_disagreement(NoduleId, FinalProb, 0.4, 'visual_text_conflict') :-
+    average_radiologist_prob(NoduleId, CNNProb), CNNProb > 0.65,
+    average_pathologist_prob(NoduleId, PathProb), PathProb < 0.35,
+    FinalProb is (CNNProb + PathProb) / 2.
+
+% Text Override: NLP malignant, CNN benign (trust NLP)
+resolve_disagreement(NoduleId, FinalProb, 0.8, 'text_override') :-
+    average_radiologist_prob(NoduleId, CNNProb), CNNProb < 0.35,
+    average_pathologist_prob(NoduleId, PathProb), PathProb > 0.65,
+    FinalProb is PathProb.
+
+% Pathologist Override: NLP confident, CNN indeterminate
+resolve_disagreement(NoduleId, FinalProb, 0.7, 'pathologist_override') :-
+    average_radiologist_prob(NoduleId, CNNProb),
+    CNNProb >= 0.35, CNNProb =< 0.65,
+    average_pathologist_prob(NoduleId, PathProb), PathProb >= 0.60,
+    FinalProb is PathProb.
+
+% Helper predicates
+average_radiologist_prob(NoduleId, Avg) :-
+    findall(P, (agent_finding(NoduleId, Agent, P, _),
+                agent_type(Agent, radiologist, _)), Probs),
+    sum_list(Probs, Sum), length(Probs, N), Avg is Sum / N.
+
+average_pathologist_prob(NoduleId, Avg) :-
+    findall(P, (agent_finding(NoduleId, Agent, P, _),
+                agent_type(Agent, pathologist, _)), Probs),
+    sum_list(Probs, Sum), length(Probs, N), Avg is Sum / N.
+\end{lstlisting}
+
+The following rules are evaluated in order:
 \begin{enumerate}
     \item \textbf{Visual--Text Conflict ($P_\text{CV} > 0.65$ and $P_\text{NLP} < 0.35$):} CNN agents confidently predict malignancy while NLP agents confidently predict benign, indicating a potential visual false positive or a finding not yet recorded in the report. The system averages the probabilities, lowers confidence to~0.4, and triggers a ``Radiology Review Required'' recommendation.
     \item \textbf{Text Override ($P_\text{NLP} > 0.65$ and $P_\text{CV} < 0.35$):} NLP agents confidently detect malignancy but CNN agents miss it, suggesting a visual false negative. The system overrides with the Pathologist's probability and assigns high confidence~(0.8).
@@ -619,7 +1159,7 @@ If disagreement is detected, the system inspects the \emph{pattern} of the disag
 Note that the 0.65/0.35 thresholds in the conflict rules above are \emph{not} the same as the 0.08 disagreement-detection threshold: Stage~1 asks ``\emph{do agents disagree at all?}'' (a low bar), while Stage~2 asks ``\emph{which specific conflict pattern applies?}'' (stricter, rule-specific conditions).
 
 \paragraph{Stage 3: Binary Classification (threshold at 0.5).}
-After resolution, the final consensus probability $P_\text{consensus}$ (whether from the weighted average or from a resolution override) is thresholded at~0.5: benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$. Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable---these are informational outputs for clinical context and are not used as the primary classification labels.
+After resolution, the final consensus probability $P_\text{consensus}$ (whether from the weighted average or from a resolution override) is thresholded at~0.5: benign if $P_\text{consensus} < 0.5$, malignant if $P_\text{consensus} \ge 0.5$. Additionally, the engine assigns a Lung-RADS category and TNM stage as \emph{supplementary clinical recommendations} when applicable,these are informational outputs for clinical context and are not used as the primary classification labels.
 
 \subsection{Size-Source Weight Reduction}
 \label{subsec:size-weight-reduction}
@@ -645,11 +1185,61 @@ This 50\% reduction is applied \emph{after} the dynamic per-case weight scaling 
 The agent logic relies on a dual-layer belief system that integrates Python-based perception modules with the BDI reasoning engine.
 
 \subsubsection{Belief Storage}
-Beliefs are maintained in two synchronized forms:
+
+Beliefs are maintained in two synchronized forms. The \texttt{Belief} dataclass (\texttt{agents/spade\_base.py}) encapsulates individual beliefs:
+
+\begin{lstlisting}[language=Python, caption={Belief dataclass for BDI agents.}]
+@dataclass
+class Belief:
+    """A single belief held by an agent."""
+    functor: str           # Predicate name, e.g., "classification"
+    args: tuple            # Arguments, e.g., ("nodule_001", 0.85)
+    annotations: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_asl(self) -> str:
+        """Convert to AgentSpeak literal format."""
+        args_str = ', '.join(str(a) for a in self.args)
+        base = f"{self.functor}({args_str})"
+        if self.annotations:
+            ann_strs = [f"{k}({v})" for k, v in self.annotations.items()]
+            base += "[" + ", ".join(ann_strs) + "]"
+        return base  # e.g., "classification(nodule_001, 0.85)[source(self)]"
+\end{lstlisting}
+
 \begin{itemize}
-    \item \textbf{Python Layer:} Each agent (inheriting from \texttt{MedicalAgentBase}) maintains a list of \texttt{Belief} objects (defined in \texttt{agents/spade\_base.py}). Each object encapsulates a predicate (functor), arguments, and metadata such as the information source.
-    \item \textbf{BDI Layer:} When the \texttt{spade\_bdi} runtime is active, these Python objects are serialized into AgentSpeak syntax (e.g., \texttt{classification(nodule\_001, 0.85)[source(self)]}) and synchronized with the internal belief base, making them accessible to logical plans.
+    \item \textbf{Python Layer:} Each agent (inheriting from \texttt{MedicalAgentBase}) maintains a list of \texttt{Belief} objects. Each object encapsulates a predicate (functor), arguments, and metadata such as the information source.
+    \item \textbf{BDI Layer:} When the \texttt{spade\_bdi} runtime is active, these Python objects are serialized into AgentSpeak syntax and synchronized with the internal belief base, making them accessible to logical plans.
 \end{itemize}
+
+The abstract \texttt{MedicalAgentBase} class provides the foundation for all agents:
+
+\begin{lstlisting}[language=Python, caption={MedicalAgentBase abstract class.}]
+class MedicalAgentBase(ABC):
+    """Abstract base class for all medical agents."""
+    
+    def __init__(self, name: str, asl_file: Optional[str] = None):
+        self.name = name
+        self.beliefs: List[Belief] = []
+        self.internal_actions: Dict[str, Callable] = {}
+        self._register_actions()
+    
+    def add_belief(self, functor: str, *args, **annotations):
+        belief = Belief(functor, args, annotations)
+        self.beliefs.append(belief)
+        return belief
+    
+    @abstractmethod
+    def _register_actions(self) -> None:
+        """Register internal actions for AgentSpeak plans."""
+        pass
+    
+    @abstractmethod
+    async def process_request(
+        self, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Process an analysis request and return findings."""
+        pass
+\end{lstlisting}
 
 \subsubsection{Belief Updates}
 Beliefs accumulate through two primary channels:
@@ -673,6 +1263,35 @@ A key limitation of static agent weights is the implicit assumption that every c
 
 To address this, I replace the fixed weights with a \emph{dynamic, per-case weight assignment} based on an information-richness heuristic. The mechanism is implemented in a dedicated \texttt{DynamicWeightCalculator} module (\texttt{models/dynamic\_weights.py}), which serves as the \emph{single source of truth} for all agent weights.
 
+\begin{lstlisting}[language=Python, caption={Base weights as single source of truth.}]
+# models/dynamic_weights.py - Single Source of Truth
+BASE_WEIGHTS: Dict[str, float] = {
+    # Radiologists
+    "radiologist_densenet": 1.0,   # CNN - strong visual classifier
+    "radiologist_resnet": 1.0,     # CNN - strong visual classifier
+    "radiologist_rulebased": 0.7,  # Heuristic - simpler but interpretable
+    # Pathologists
+    "pathologist_regex": 0.8,      # Regex - brittle but fast
+    "pathologist_spacy": 0.9,      # NLP/NER - more robust
+    "pathologist_context": 0.9,    # Negation/uncertainty - clinical value
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={RichnessScores dataclass for per-case information metrics.}]
+@dataclass
+class RichnessScores:
+    """
+    Per-case information richness scores for each modality.
+    Captures how much usable information the case provides.
+    """
+    radiology_richness: float = 0.5  # 0 = no/poor images, 1 = high-quality
+    pathology_richness: float = 0.5  # 0 = sparse report, 1 = detailed
+
+    # Sub-component breakdown for auditability
+    radiology_components: Dict[str, float] = field(default_factory=dict)
+    pathology_components: Dict[str, float] = field(default_factory=dict)
+\end{lstlisting}
+
 \subsubsection{Radiology Richness Score}
 
 For each case, a radiology richness score $R_\text{rad} \in [0,1]$ is computed as a weighted combination of three sub-components:
@@ -683,6 +1302,23 @@ R_\text{rad} = \alpha_1 \cdot S_\text{count} + \alpha_2 \cdot S_\text{PA} + \alp
 \end{equation}
 
 where $(\alpha_1, \alpha_2, \alpha_3) = (0.35, 0.35, 0.30)$ and:
+
+\begin{lstlisting}[language=Python, caption={DynamicWeightCalculator component weights.}]
+class DynamicWeightCalculator:
+    # Sub-component weights for radiology richness
+    RAD_WEIGHT_NUM_IMAGES = 0.35     # More views -> more information
+    RAD_WEIGHT_PA_VIEW = 0.35        # PA is most informative projection
+    RAD_WEIGHT_IMAGE_QUALITY = 0.30  # Higher quality -> reliable features
+
+    # Sub-component weights for pathology richness
+    PATH_WEIGHT_REPORT_LENGTH = 0.25     # Longer reports have more detail
+    PATH_WEIGHT_ENTITY_COUNT = 0.30      # More extracted entities -> richer
+    PATH_WEIGHT_SECTION_COMPLETENESS = 0.20  # More sections -> better coverage
+    PATH_WEIGHT_CERTAINTY = 0.25         # More affirmed mentions -> confidence
+
+    # Scaling bounds: weight = base * (FLOOR + (1-FLOOR) * richness)
+    SCALE_FLOOR = 0.5   # Minimum fraction of base weight
+\end{lstlisting}
 
 \begin{itemize}
     \item $S_\text{count}$: Image count score --- 0 images $\to$ 0, 1 image $\to$ 0.5, 2+ images $\to$ 0.8--1.0 (diminishing returns).
@@ -723,6 +1359,26 @@ w_i \cdot \bigl(\lambda + (1 - \lambda) \cdot R_\text{path}\bigr) & \text{if age
 
 where $\lambda = 0.5$ is a \emph{scale floor} parameter ensuring that $\hat{w}_i \in [0.5 \cdot w_i,\; w_i]$. The floor guarantees that no agent is ever silenced entirely: even when a modality's data is minimal, the corresponding agents still contribute half their base influence.
 
+\begin{lstlisting}[language=Python, caption={Dynamic weight scaling implementation.}]
+def compute_weights(self, case_metadata: Dict[str, Any]) -> tuple:
+    """Compute dynamic per-agent weights for a single case."""
+    base_weights = self._load_weights()
+    richness = self._compute_richness(case_metadata)
+
+    # Scale each agent's weight based on modality richness
+    dynamic_weights = {}
+    for agent_name, base_w in base_weights.items():
+        agent_type = self._get_agent_type(agent_name)
+        if agent_type == "radiologist":
+            scale = self.SCALE_FLOOR + (1-self.SCALE_FLOOR) * richness.radiology_richness
+        elif agent_type == "pathologist":
+            scale = self.SCALE_FLOOR + (1-self.SCALE_FLOOR) * richness.pathology_richness
+        else:
+            scale = 1.0  # Unknown type -> no scaling
+        dynamic_weights[agent_name] = round(base_w * scale, 4)
+    return dynamic_weights, rationale
+\end{lstlisting}
+
 \subsubsection{Integration with Prolog}
 
 Before computing consensus for each case, the orchestrator:
@@ -762,17 +1418,52 @@ P3 (Context)  & \cellcolor{yellow!25}0.800 & 0.941 & \cellcolor{green!20}0.819 &
 \label{tab:dynamic-weights-example}
 \end{table}
 
-\subsection{Continual Learning}
+\subsection{Retrospective Base-Weight Adjustment}
 \label{subsec:continual-learning}
 
-To further refine the multi-agent consensus, the system implements a continual learning mechanism that adapts the base weights of agents over time based on retrospective feedback. While the dynamic weight calculator (Section~\ref{subsec:dynamic-weights}) adjusts for case-specific data quality, continual learning adjusts for the long-term historical performance of each agent.
+While the dynamic weight calculator (Section~\ref{subsec:dynamic-weights}) adapts agent influence on a per-case basis, the system also includes a simple \emph{retrospective base-weight adjustment} that tracks long-term agent reliability. This mechanism is not continual learning in the machine-learning sense (i.e., incremental model retraining on non-stationary data with forgetting mitigation); rather, it is an online heuristic that nudges base weights toward agents whose predictions more frequently agree with confirmed diagnoses.
 
-After a definitive diagnosis is confirmed via consensus, the system updates the base weights stored in \texttt{data/learned\_weights.json} using a simple reinforcement update rule:
+After a definitive diagnosis is confirmed, the system updates the base weights stored in \texttt{data/learned\_weights.json} using a fixed-step reward/penalty rule:
 \begin{equation}
 w_i^{(t+1)} = \text{clamp}\left(w_i^{(t)} + \eta \cdot \delta_i,\; w_{\min},\; w_{\max}\right)
 \label{eq:continual-learning}
 \end{equation}
-where $\eta=0.01$ is the learning rate, and $\delta_i = +1$ if agent $i$ correctly predicted the confirmed binary label, or $-1$ if it was incorrect. The weights are clamped to $[0.2, 3.0]$ to prevent distinct agents from becoming dominant or irrelevant. This feedback loop allows the system to learn which agents are statistically more reliable across the population, independently of the per-case richness scores.
+where $\eta=0.01$ is a step size, and $\delta_i = +1$ if agent $i$ correctly predicted the confirmed binary label, or $-1$ if it was incorrect. The weights are clamped to $[0.2, 3.0]$ to prevent any single agent from becoming dominant or irrelevant. Because the update signal is a binary $\pm 1$ rather than a gradient derived from a loss function, and because no model parameters are retrained, this is best understood as an exponential-moving-average--style reliability tracker rather than a learning algorithm. It allows the system to gradually shift voting influence toward empirically more accurate agents across the case population, independently of the per-case richness scores.
+
+\begin{lstlisting}[language=Python, caption={Continual learning constants and update method.}]
+# Continual learning constants
+LEARNED_WEIGHTS_FILE = Path("data/learned_weights.json")
+LEARNING_RATE = 0.01
+MIN_WEIGHT = 0.2
+MAX_WEIGHT = 3.0
+
+def update_weights(self, findings: Dict[str, Any], ground_truth: int) -> Dict[str, float]:
+    """Update agent base weights based on feedback (Continual Learning)."""
+    current_weights = self._load_weights()
+    updated_weights = current_weights.copy()
+
+    for finding in agent_results:
+        agent_name = finding.get("agent_name")
+        pred_class = finding.get("predicted_class")
+        prob = finding.get("probability")
+        
+        if pred_class is None and prob is not None:
+            pred_class = 1 if prob >= 0.5 else 0
+        
+        if pred_class is None or agent_name not in updated_weights:
+            continue
+
+        old_w = updated_weights[agent_name]
+        # Update Rule: Correct -> +LR, Incorrect -> -LR
+        if pred_class == ground_truth:
+            new_w = min(MAX_WEIGHT, old_w + LEARNING_RATE)  # Reward
+        else:
+            new_w = max(MIN_WEIGHT, old_w - LEARNING_RATE)  # Penalize
+        updated_weights[agent_name] = round(new_w, 4)
+
+    self._save_weights(updated_weights)
+    return updated_weights
+\end{lstlisting}
 
 \subsection{Clinical Recommendations}
 \label{subsec:recommendations}
@@ -827,7 +1518,6 @@ The Case Analysis view (Figure~\ref{fig:ui-analysis}) serves as the primary work
 \begin{itemize}
     \item \textbf{Image Visualization:} High-resolution display of the X-ray with support for windowing and zooming.
     \item \textbf{Highlighed Findings:} The NLP agents highlight extracted entities (nodules, sizes, locations) directly in the report text, color-coded by certainty (affirmed vs. negated).
-    % \item \textbf{Agent Consensus Panel:} A sidebar panel (not shown) displays the voting breakdown of all 6 agents, the dynamic weights assigned to each, and the final Oncologist consensus decision with explanation.
 \end{itemize}
 
 \begin{figure}[ht]
@@ -905,14 +1595,6 @@ To establish trust in the multi-agent decisions, the UI exposes the internal rea
 \section{Evaluation}
 \label{sec:evaluation}
 
-% \subsection{Metrics}
-% \label{subsec:metrics}
-
-% Multi-agent consensus is evaluated by tracking:
-% \begin{itemize}
-%     \item agreement rates: unanimous, majority, and split decisions.
-%     \item Confidence calibration: the relationship between reported confidence and actual correctness.
-% \end{itemize}
 
 \subsection{Experimental Results}
 \label{subsec:results}
@@ -941,39 +1623,13 @@ Split Decisions & 2.2\% \\
 \label{tab:results}
 \end{table}
 
-% \begin{table}[ht]
-% \centering
-% \begin{tabular}{lcc}
-% \toprule
-%  & \textbf{Predicted Benign (0)} & \textbf{Predicted Malignant (1)} \\
-% \midrule
-% \textbf{Actual Benign (0)} ($n=422$) & 374 (TN) & 48 (FP) \\
-% \textbf{Actual Malignant (1)} ($n=78$) & 69 (FN) & 9 (TP) \\
-% \bottomrule
-% \end{tabular}
-% \caption{Binary confusion matrix (0=benign, 1=malignant) on the 500-case Evaluation Subset. The dataset is imbalanced: 84.4\% benign, 15.6\% malignant. Classification threshold: $P_\text{consensus} \ge 0.5$ for malignant.}
-% \label{tab:confusion}
-% \end{table}
-
 \subsubsection{Agent Agreement Analysis}
 
 The majority of cases (77.4\%) achieved majority agreement, meaning at least 4 of 6 agents agreed on the outcome. Split decisions occurred in 13 cases (2.2\%), where equal number of agents voted for each class or no clear majority emerged. Unanimous agreement (all 6 agents producing the same binary prediction) was observed (20.4\%). This is expected given the diversity of agent strategies.
 
-% \subsubsection{Confusion Matrix Analysis}
-
-% The confusion matrix (Table~\ref{tab:confusion}) reveals important characteristics of the system's behavior on this imbalanced dataset (422 benign, 78 malignant):
-
-% \begin{itemize}
-%     \item \textbf{Benign class specificity:} 374/422 = 88.6\%. The system correctly classifies the vast majority of benign cases, with 48 false positives.
-%     \item \textbf{Malignant class sensitivity:} 9/78 = 11.5\%. The system detects only 9 of 78 malignant cases, missing 69 (false negatives). This low sensitivity is a concern in a clinical screening context where missed malignancies carry high cost.
-%     \item \textbf{Class imbalance effect:} The 84.4/15.6 benign/malignant split means the overall 76.6\% accuracy is largely driven by correct benign predictions. The weighted F1 score (75.1\%) partially accounts for this by weighting per-class F1 by class frequency.
-% \end{itemize}
-
-% The low malignant-class sensitivity is attributable to two factors: (1) the TorchXRayVision DenseNet was pretrained for general thoracic pathology rather than specifically for the NLMCXR report-derived labels, and (2) the NLP-derived ground truth labels may themselves be noisy, since they are inferred from report text rather than expert radiologist consensus.
-
 \subsubsection{Impact of Calibrated Size Estimation}
 
-The replacement of the na\"ive pixel-dimension heuristic (\texttt{max(shape)/5}) with anatomically-calibrated blob detection (Equation~\ref{eq:blob-size}) improved the plausibility of the rule-based radiologist's size estimates. For instance, on CXR1000 (a case with three images at $512\times624$ resolution), the old heuristic produced 124.8\,mm for every view---a value exceeding the clinical range for any pulmonary nodule. The calibrated blob detector instead produced 5.1\,mm, 9.6\,mm, and 52.4\,mm for the three views, which are clinically meaningful values that trigger different Lung-RADS categories. The \texttt{size\_source} tag (\texttt{blob\_estimation}, \texttt{none\_detected}) provides transparency about each estimate's provenance.
+The replacement of the na\"ive pixel-dimension heuristic (\texttt{max(shape)/5}) with anatomically-calibrated blob detection (Equation~\ref{eq:blob-size}) improved the plausibility of the rule-based radiologist's size estimates. For instance, on CXR1000 (a case with three images at $512\times624$ resolution), the old heuristic produced 124.8\,mm for every view, a value exceeding the clinical range for any pulmonary nodule. The calibrated blob detector instead produced 5.1\,mm, 9.6\,mm, and 52.4\,mm for the three views, which are clinically meaningful values that trigger different Lung-RADS categories. The \texttt{size\_source} tag (\texttt{blob\_estimation}, \texttt{none\_detected}) provides transparency about each estimate's provenance.
 
 \subsubsection{Impact of Unknown-Size Handling}
 
@@ -1141,8 +1797,6 @@ The ablation framework is integrated into the main entry point (\texttt{main\_ex
 \texttt{--consensus} & Scaffolded & --- \\
 \texttt{--no-negex} & Scaffolded & --- \\
 \texttt{--no-dependency-parsing} & Scaffolded & --- \\
-% \texttt{--run-ablations} & Scaffolded & Lists 47 configs, no execution \\
-% \texttt{--verify-claims} & Scaffolded & Lists 8 claims, requires results \\
 \texttt{--single-agent} & Scaffolded & --- \\
 \bottomrule
 \end{tabular}
@@ -1150,7 +1804,7 @@ The ablation framework is integrated into the main entry point (\texttt{main\_ex
 \label{tab:cli-status}
 \end{table}
 
-\noindent\textbf{Implementation Note:} The scaffolded flags represent planned extensions that were beyond the scope of this 20-day project due to hardware and time constraints. The core multi-agent architecture and evaluation framework were prioritized; full implementation of single-agent isolation and component-specific ablations (e.g., NegEx, dependency parsing toggles) remains as future work.
+\noindent\textbf{Implementation Note:} The scaffolded flags represent planned extensions that were beyond the scope of this 20-day project due to hardware and time constraints. At ${\sim}60$\,seconds per case on CPU, a single 500-case evaluation run already requires ${\sim}500$\,minutes (${\approx}8.3$\,hours); executing the full ablation matrix (47 configurations) would require multiple such runs, totalling several days of compute. The core multi-agent architecture and evaluation framework were therefore prioritized; full implementation of single-agent isolation and component-specific ablations (e.g., NegEx, dependency parsing toggles) remains as future work.
 
 Example usage for functional flags:
 
@@ -1168,18 +1822,6 @@ python main_extended.py --evaluate --weight-mode static
 # Evaluate ALL cases (disable NLP richness filtering)
 python main_extended.py --evaluate --no-filter
 \end{lstlisting}
-
-% Results are output in multiple formats: Markdown tables for documentation, \LaTeX\ tables for academic papers, and JSON for programmatic analysis.
-
-% \subsubsection{Interpretation Guidelines}
-
-% The framework provides guidelines for interpreting ablation results:
-
-% \begin{itemize}
-%     \item \textbf{Complexity is justified if:} Multi-agent accuracy exceeds best single agent by $\geq 2\%$; dynamic weights outperform equal weights with statistical significance ($p < 0.05$); NLP components improve F1 with Cohen's $d > 0.2$ (small effect).
-%     \item \textbf{Consider simplification if:} Single agent achieves comparable accuracy; equal weights perform as well as dynamic; Prolog adds latency without accuracy gain; NLP components do not improve minority-class recall.
-% \end{itemize}
-
 
 \subsection{Empirical Claim Validation Results}
 \label{subsec:empirical-validation}
@@ -1234,34 +1876,8 @@ Radiologist Rules (R3) & Image & 0.260 & 13/50 \\
     
     \item \textbf{Ensemble provides modest improvement over best single agent:} The 6-agent ensemble (68.0\%) marginally outperforms the best individual agent, Pathologist-spaCy (56.0\%). This demonstrates that the consensus mechanism successfully aggregates diverse agent opinions.
     
-    % \item \textbf{Weight modes show equivalent performance:} Dynamic, static, and equal weighting all achieve identical accuracy (68.0\%) on this sample. This suggests that for cases with similar NLP richness, the weighting mode has minimal impact. The dynamic weighting mechanism is designed to adapt weights based on per-case data richness; on a filtered dataset with uniformly high NLP richness scores, this adaptation yields negligible gains.
-    
     \item \textbf{NLP agents outperform image agents:} The pathologist agents (NLP-based) consistently outperform radiologist agents (image-based) on this dataset. P2 (spaCy) achieves 56\% accuracy, while the best radiologist R2 (ResNet) achieves only 46\%. This highlights a key insight: on chest X-ray reports where the radiologist's clinical interpretation is available, NLP extraction of that interpretation provides more signal than re-analyzing the underlying images.
 \end{enumerate}
-
-% \subsubsection{Baseline Comparison}
-
-% The baseline evaluation framework confirmed the system's advantage over na\"ive predictors:
-
-% \begin{table}[ht]
-% \centering
-% \small
-% \begin{tabular}{lcc}
-% \toprule
-% \textbf{Baseline} & \textbf{Accuracy} & \textbf{vs. Ensemble} \\
-% \midrule
-% Majority Class & 0.550 & Ensemble +3pp \\
-% Random & 0.650 & Ensemble $-$7pp \\
-% Unweighted Vote & 0.550 & Ensemble +3pp \\
-% Static Weighted & 0.450 & Ensemble +13pp \\
-% \bottomrule
-% \end{tabular}
-% \caption{Baseline predictor comparison ($n=40$ cases with ground truth from baseline subset). The random baseline's higher accuracy reflects chance variance; the system consistently outperforms deterministic baselines.}
-% \label{tab:baseline-comparison}
-% \end{table}
-
-
-
 
 \subsection{Limitations}
 \label{subsec:limitations}
@@ -1269,11 +1885,9 @@ Radiologist Rules (R3) & Image & 0.260 & 13/50 \\
 \begin{itemize}
     \item Future work could validate the NLP extraction with expert radiologist annotations rather than relying solely on system-level binary outcomes.
     \item The evaluation on 500 reports with NLP-derived binary ground truth demonstrates pipeline functionality and multi-agent consensus behavior, but larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
-    % \item The dynamic weight sub-component coefficients ($\alpha_i$, $\beta_j$) and the scale floor $\lambda = 0.5$ were set heuristically. An empirical sensitivity analysis or learning these parameters from a validation set could further improve calibration.
     \item The NLP richness scoring thresholds (minimum score 3, six binary criteria) were designed based on empirical analysis of the dataset's score distribution. Different thresholds or weighted criteria could yield different evaluation subsets; the sensitivity of the final results to these choices has not been exhaustively studied.
     \item The anatomically-calibrated blob detection assumes a standard PA chest X-ray field of view of 300\,mm. This assumption is approximate: actual chest widths vary across patients, and the NLMCXR images do not include DICOM pixel-spacing metadata. Despite this limitation, the calibrated estimates are more plausible than the prior pixel-division heuristic.
     \item The 50\% weight reduction for agents with unknown size (Equation~\ref{eq:size-penalty}) is a fixed penalty. An adaptive penalty based on the fraction of agents that \emph{did} report size could provide finer-grained weight adjustment.
-    % \item Lung-RADS v1.1 was originally defined for LDCT screening, not chest X-rays; it is used here as an example of codifiable clinical rules rather than as a direct clinical application.
     \item The TorchXRayVision model was evaluated on CPU; GPU acceleration would significantly improve processing throughput beyond the current $\sim$60 sec/case.
 \end{itemize}
 
@@ -1302,9 +1916,6 @@ Key technical contributions include:
     \item An anatomically-calibrated blob detection method for the rule-based radiologist (Equation~\ref{eq:blob-size}), producing clinically plausible size estimates in millimeters by modeling the chest X-ray field of view, replacing a na\"ive pixel-dimension heuristic.
     \item A size-provenance framework in which all agents return \texttt{(size\_mm, size\_source)} tuples and the consensus engine applies a 50\% weight penalty (Equation~\ref{eq:size-penalty}) to agents with unknown or undetected sizes, preventing fabricated defaults from propagating into clinical recommendations.
 \end{itemize}
-
-% Future work could extend the system to CT imaging using the original Lung-RADS protocol, incorporate additional NLP agents for temporal reasoning (detecting changes over time), and validate the clinical utility of the explanations generated by the Oncologist agent through user studies with radiologists.
-
 
 \bibliographystyle{splncs04}
 \bibliography{bibliography}
