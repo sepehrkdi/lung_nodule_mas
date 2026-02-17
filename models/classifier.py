@@ -1,45 +1,5 @@
 """
-Lung Nodule Image Classifier
-=============================
-
-EDUCATIONAL PURPOSE - DEEP LEARNING FOR MEDICAL IMAGING:
-
-This module demonstrates computer vision concepts for medical image analysis:
-
-1. CONVOLUTIONAL NEURAL NETWORKS (CNNs):
-   - Learn hierarchical features from images
-   - Early layers: edges, textures
-   - Deep layers: shapes, structures
-   - Final layers: high-level semantic features
-
-2. TRANSFER LEARNING:
-   - Use pre-trained weights from ImageNet
-   - Fine-tune or freeze for new task
-   - Reduces need for large medical datasets
-
-3. DENSENET ARCHITECTURE:
-   - Dense connections between layers
-   - Feature reuse and gradient flow
-   - Efficient parameter usage
-   - Well-suited for medical imaging
-
-4. IMAGE PREPROCESSING:
-   - Normalization to [-1, 1] or [0, 1]
-   - Resizing to model input size
-   - Channel handling (grayscale → RGB)
-
-WHY DENSENET FOR MEDICAL IMAGING:
-- Strong feature extraction with fewer parameters
-- Good gradient flow through dense connections
-- Proven performance on medical imaging tasks
-- Available pre-trained on ImageNet
-
-LIMITATIONS (EDUCATIONAL):
-This is a simplified demonstration. Real medical AI would require:
-- Large validated datasets
-- Proper train/val/test splits
-- Clinical validation studies
-- Regulatory approval (FDA/CE marking)
+Lung nodule image classifier using DenseNet/ResNet via TorchXRayVision.
 """
 
 import numpy as np
@@ -93,27 +53,7 @@ def calibrate_xrv_probability(
     return float(np.clip(calibrated, 0.05, 0.95))
 
 class NoduleClassifier:
-    """
-    DenseNet-based lung nodule classifier.
-    
-    EDUCATIONAL PURPOSE - TRANSFER LEARNING:
-    
-    This classifier uses a pre-trained DenseNet121 model from ImageNet.
-    We adapt it for nodule classification through:
-    
-    1. Feature Extraction: Use DenseNet as a fixed feature extractor
-    2. The final layer features capture visual patterns
-    3. We map these to malignancy likelihood
-    
-    In this educational demo, we use a simplified approach:
-    - Extract visual features from the image
-    - Use statistical properties as a proxy for classification
-    - In production, you would fine-tune on labeled nodule data
-    
-    Usage:
-        classifier = NoduleClassifier()
-        result = classifier.classify(nodule_image)
-    """
+    """DenseNet-based lung nodule classifier using TorchXRayVision."""
     
     def __init__(self, device: Optional[str] = None):
         """
@@ -299,24 +239,6 @@ class NoduleClassifier:
     def classify(self, image: np.ndarray) -> Dict[str, Any]:
         """
         Classify a nodule image.
-        
-        EDUCATIONAL PURPOSE - CLASSIFICATION PIPELINE:
-        
-        This demonstrates the classification workflow:
-        1. Preprocess input image
-        2. Extract visual features
-        3. Generate classification scores
-        4. Estimate physical properties (size)
-        
-        In a production system, you would:
-        - Train a classifier on labeled nodule data
-        - Use proper validation metrics
-        - Provide calibrated probabilities
-        
-        For this demo, we use:
-        - Visual feature analysis
-        - Statistical properties of the image
-        - Heuristic size estimation
         
         Args:
             image: Nodule image as numpy array

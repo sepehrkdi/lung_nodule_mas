@@ -1,30 +1,5 @@
-// ============================================
 // Radiologist Agent Plans (AgentSpeak for SPADE-BDI)
-// ============================================
-//
-// EDUCATIONAL PURPOSE - AGENTSPEAK SYNTAX:
-//
-// AgentSpeak is a logic-based agent programming language.
-// Plans have the form:
-//   +trigger : context <- body.
-//
-// Triggers:
-//   +belief     - belief addition
-//   -belief     - belief deletion
-//   +!goal      - achievement goal adoption
-//   +?goal      - test goal
-//
-// Body actions:
-//   .internal_action(args)  - Python function call
-//   !subgoal                - adopt subgoal
-//   ?query                  - belief query
-//   +belief                 - add belief
-//   -belief                 - remove belief
-//
-// RADIOLOGIST ROLE:
 // Analyzes CT images using DenseNet121 CNN.
-// Internal actions call Python functions for ML inference.
-// ============================================
 
 // --------------------------------------------
 // Initial beliefs

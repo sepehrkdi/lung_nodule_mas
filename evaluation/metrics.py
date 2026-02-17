@@ -1,41 +1,7 @@
 """
-Evaluation Metrics for Lung Nodule Classification
-==================================================
+Evaluation metrics for lung nodule classification.
 
-EDUCATIONAL PURPOSE:
-
-This module demonstrates evaluation metrics for medical AI systems:
-
-1. CLASSIFICATION METRICS:
-   - Accuracy: Overall correctness
-   - Precision: True positives / predicted positives
-   - Recall (Sensitivity): True positives / actual positives
-   - F1 Score: Harmonic mean of precision and recall
-   - Specificity: True negatives / actual negatives
-
-2. BINARY EVALUATION:
-   - Benign (0) vs Malignant (1)
-   - Clinical relevance: detecting cancer
-
-3. ROC ANALYSIS:
-   - Receiver Operating Characteristic curve
-   - Area Under Curve (AUC)
-   - Optimal threshold selection
-
-5. CALIBRATION:
-   - Are probabilities well-calibrated?
-   - Reliability diagram
-
-WHY THESE METRICS MATTER FOR MEDICAL AI:
-
-In medical diagnosis:
-- False Negatives (missed cancers) can be fatal
-- False Positives cause unnecessary procedures
-- Balance depends on clinical context
-
-Lung-RADS aims for:
-- High Sensitivity (catch cancers)
-- Acceptable Specificity (not too many false alarms)
+Supports accuracy, precision, recall, F1, specificity, ROC/AUC analysis.
 """
 
 import numpy as np
@@ -63,22 +29,7 @@ class ClassificationMetrics:
 
 
 class EvaluationMetrics:
-    """
-    Evaluation metrics for lung nodule classification.
-    
-    EDUCATIONAL PURPOSE:
-    
-    This class computes comprehensive evaluation metrics:
-    
-    1. Binary Evaluation:
-       - Benign (0) vs Malignant (1)
-       - Clinical decision boundary at 0.5
-    
-    2. Ranking Metrics:
-       - ROC curve
-       - AUC score
-       - Probability calibration
-    """
+    """Evaluation metrics for lung nodule classification."""
     
     def __init__(self):
         """Initialize evaluator."""
@@ -539,21 +490,7 @@ class EntityMatch:
     
     
 class NLPMetrics:
-    """
-    Evaluation metrics for NLP entity extraction.
-    
-    EDUCATIONAL PURPOSE:
-    
-    Entity extraction evaluation requires special handling:
-    1. Entity boundaries may not match exactly
-    2. Partial credit for overlapping spans
-    3. Multiple entities per document
-    
-    Metrics:
-    - Entity-level Precision/Recall/F1
-    - Token-level Precision/Recall/F1
-    - Cohen's Kappa for certainty label agreement
-    """
+    """Evaluation metrics for NLP entity extraction."""
     
     def __init__(self, partial_credit: float = 0.5):
         """

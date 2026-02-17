@@ -1,18 +1,5 @@
 """
-NLP Module
-==========
-
-Natural Language Processing components for pathology report analysis.
-
-EDUCATIONAL PURPOSE - NLP CONCEPTS:
-- Tokenization: Breaking text into meaningful units
-- Named Entity Recognition (NER): Identifying medical entities
-- Pattern Matching: Regex-based extraction
-- Dependency Parsing: Grammatical structure analysis
-- Section Parsing: Splitting reports into FINDINGS/IMPRESSION
-- Negation Detection: NegEx-style trigger/scope analysis
-- Uncertainty Detection: Hedging language identification
-- Uncertainty Quantification: Graded aleatory vs epistemic uncertainty
+NLP module: extraction, parsing, negation detection, and uncertainty quantification.
 """
 
 from .extractor import MedicalNLPExtractor, ExtractionResult, ExtractedEntity, extract_from_report

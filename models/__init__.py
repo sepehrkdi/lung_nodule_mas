@@ -1,14 +1,5 @@
 """
-Models Module
-=============
-
-Pre-trained deep learning models for image classification,
-aggregation, and consensus mechanisms.
-
-EDUCATIONAL PURPOSE:
-- Transfer Learning: Using ImageNet pre-trained weights
-- CNN Architectures: DenseNet for medical imaging
-- Multi-Agent Consensus: Weighted voting and disagreement resolution
+Models module: classifiers, aggregation, consensus, and dynamic weights.
 """
 
 from .classifier import NoduleClassifier, classify_nodule

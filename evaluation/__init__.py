@@ -1,22 +1,5 @@
 """
-Evaluation Module
-=================
-
-Metrics and visualization for model and system evaluation.
-
-Provides:
-- Binary classification metrics (benign vs malignant)
-- Agent interaction analysis
-- Cross-validation framework
-- Statistical tests for model comparison
-- Ablation study framework
-- Claim verification
-
-EDUCATIONAL PURPOSE:
-- Classification Metrics: Accuracy, Precision, Recall, F1
-- ROC/AUC Analysis: Probability-based evaluation
-- Confusion Matrix: Binary performance visualization
-- Statistical Significance: McNemar's test, bootstrap CI
+Evaluation module: metrics, cross-validation, baselines, and statistical tests.
 """
 
 from .metrics import (

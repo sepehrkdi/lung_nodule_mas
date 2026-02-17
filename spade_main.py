@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 """
-SPADE-BDI Multi-Agent System for Lung Nodule Classification
-============================================================
-
-EDUCATIONAL PURPOSE:
-
-This module demonstrates a proper Multi-Agent System using SPADE-BDI,
-an AgentSpeak(L) interpreter that provides genuine BDI agent semantics.
-
-FRAMEWORK COMPLIANCE:
-- SPADE-BDI: Python-based BDI framework with AgentSpeak support
-- AgentSpeak(L): Proper plan execution with triggering events
-- XMPP: Standard communication protocol for agent messaging
-
-AGENT TYPES:
-- Multiple Radiologists: Independent image classification
-- Multiple Pathologists: Independent report analysis  
-- Single Oncologist: Weighted consensus with disagreement handling
+SPADE-BDI Multi-Agent System for lung nodule classification.
 
 Usage:
     python spade_main.py                    # Run with fallback data
     python spade_main.py --demo             # Quick demo mode
-    python spade_main.py --num-radiologists 3 --num-pathologists 2
     python spade_main.py --evaluate         # Full evaluation
 """
 
@@ -58,20 +41,7 @@ class ProcessingResult:
 
 
 class SPADEMedicalMAS:
-    """
-    SPADE-BDI Multi-Agent System for Lung Nodule Classification.
-    
-    EDUCATIONAL PURPOSE:
-    
-    This class demonstrates a proper BDI-based MAS using SPADE-BDI:
-    1. Multiple agents of same type for redundancy/consensus
-    2. Weighted voting for disagreement resolution
-    3. AgentSpeak plans for decision logic
-    4. Internal actions bridging symbolic plans with ML/NLP
-    
-    The system supports configurable numbers of radiologists and
-    pathologists to demonstrate multi-agent consensus.
-    """
+    """SPADE-BDI Multi-Agent System for lung nodule classification."""
     
     def __init__(
         self,
@@ -214,25 +184,7 @@ class SPADEMedicalMAS:
         return result.get("findings", result)
     
     async def process_nodule_async(self, nodule_id: str) -> ProcessingResult:
-        """
-        Process a single case through all agents asynchronously.
-        
-        EDUCATIONAL PURPOSE - PARALLEL AGENT EXECUTION:
-        
-        1. Load case data (images + metadata with real report)
-        2. Use real FINDINGS/IMPRESSION from radiology report
-        3. Run ALL radiologists in parallel (concurrent classification)
-        4. Run ALL pathologists in parallel (concurrent NLP)
-        5. Collect all findings
-        6. Send to oncologist for weighted consensus
-        7. Return final assessment
-        
-        Args:
-            nodule_id: Identifier for the case to process (case_id)
-            
-        Returns:
-            ProcessingResult with consensus classification
-        """
+        """Process a single case through all agents asynchronously."""
         start_time = time.time()
         self._log(f"Processing {nodule_id} with {len(self.radiologists)}R/{len(self.pathologists)}P agents...")
         

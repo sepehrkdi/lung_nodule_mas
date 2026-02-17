@@ -1,23 +1,7 @@
 """
-Prolog Engine for Lung Nodule Multi-Agent System
-=================================================
+Prolog engine wrapper for Lung-RADS and consensus knowledge bases.
 
-STRICT MODE - NO FALLBACKS
-
-This module provides the PySwip wrapper for executing Prolog queries
-against the Lung-RADS and Multi-Agent Consensus knowledge bases.
-
-REQUIREMENTS:
-    - SWI-Prolog must be installed on the system
-    - pyswip package must be installed (pip install pyswip)
-
-INSTALLATION:
-    Ubuntu/Debian: sudo apt-get install swi-prolog
-    macOS: brew install swi-prolog
-    
-EDUCATIONAL PURPOSE:
-    Demonstrates integration of symbolic AI (Prolog/First-Order Logic)
-    with Python for medical decision support.
+Requires SWI-Prolog and pyswip. Strict mode - no fallbacks.
 """
 
 import logging

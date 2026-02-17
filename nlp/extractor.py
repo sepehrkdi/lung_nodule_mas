@@ -1,38 +1,6 @@
 """
-Medical NLP Extractor
-=====================
-
-EDUCATIONAL PURPOSE - NATURAL LANGUAGE PROCESSING CONCEPTS:
-
-This module demonstrates fundamental NLP techniques for medical text analysis:
-
-1. TOKENIZATION:
-   Breaking text into meaningful units (words, sentences).
-   Medical text requires special handling for abbreviations (CT, mm, GGO).
-
-2. PART-OF-SPEECH (POS) TAGGING:
-   Identifying word types (noun, verb, adjective).
-   Helps find descriptive terms about nodules.
-
-3. NAMED ENTITY RECOGNITION (NER):
-   Identifying medical entities (diseases, anatomy, measurements).
-   scispaCy provides biomedical-trained NER models.
-
-4. PATTERN MATCHING (REGEX):
-   Extracting structured information using regular expressions.
-   Essential for measurements, staging, and specific terminology.
-
-5. DEPENDENCY PARSING:
-   Understanding grammatical relationships between words.
-   Helps connect modifiers to the entities they describe.
-
-NLP PIPELINE:
-    Raw Text → Tokenization → POS Tagging → NER → Pattern Extraction → Structured Output
-
-scispaCy MODELS:
-- en_core_sci_sm: General biomedical NLP
-- en_ner_bc5cdr_md: Disease/Chemical NER
-- en_ner_bionlp13cg_md: Cancer genetics NER
+NLP extraction pipeline for radiology reports.
+Uses spaCy/scispaCy for tokenization, NER, and dependency parsing.
 """
 
 import re
@@ -135,37 +103,7 @@ class ExtractionResult:
 
 
 class MedicalNLPExtractor:
-    """
-    NLP-based extractor for medical radiology reports.
-    
-    EDUCATIONAL PURPOSE - NLP PIPELINE DEMONSTRATION:
-    
-    This class implements a complete NLP pipeline:
-    
-    1. PREPROCESSING:
-       - Lowercasing (optional, preserves acronyms)
-       - Sentence segmentation
-       
-    2. TOKENIZATION:
-       - spaCy's rule-based tokenizer
-       - Handles medical abbreviations
-       
-    3. POS TAGGING:
-       - Identifies nouns (nodule, mass), adjectives (solid, spiculated)
-       
-    4. NER:
-       - scispaCy's trained models for biomedical entities
-       - Custom patterns for radiology-specific terms
-       
-    5. PATTERN MATCHING:
-       - Regex for measurements (15 mm, 1.5 cm)
-       - Templates for Lung-RADS categories
-       - Keywords for clinical impressions
-       
-    Usage:
-        extractor = MedicalNLPExtractor()
-        result = extractor.extract(report_text)
-    """
+    """NLP-based extractor for medical radiology reports."""
     
     # Regex patterns for extraction
     # EDUCATIONAL NOTE: Regex is a powerful tool for structured extraction

@@ -1,38 +1,5 @@
 """
-SPADE-BDI Base Agent Module
-===========================
-
-EDUCATIONAL PURPOSE - PROPER BDI IMPLEMENTATION:
-
-This module provides base classes for SPADE-BDI agents.
-SPADE (Smart Python Agent Development Environment) is a
-multi-agent platform based on XMPP for communication.
-
-SPADE-BDI extends SPADE with:
-- AgentSpeak(L) interpreter for plan execution
-- Proper belief-desire-intention cycle
-- Internal actions callable from AgentSpeak plans
-
-KEY CONCEPTS:
-
-1. XMPP Communication:
-   - Agents have JIDs (Jabber IDs): agent@xmppserver.com
-   - Messages are XML stanzas
-   - Supports presence, pub/sub, and more
-
-2. AgentSpeak Plans:
-   - Loaded from .asl files
-   - Triggered by beliefs or goals
-   - Call Python functions as internal actions
-
-3. Internal Actions:
-   - Python functions decorated with @agent.action
-   - Called from AgentSpeak as .action_name(args)
-   - Bridge between symbolic plans and subsymbolic processing
-4. Belief Representation:
-   - Beliefs are Prolog-like terms with annotations
-   - Stored in the agent's belief base
-   - Can be queried and updated by plans
+SPADE-BDI base agent module providing common interfaces for medical agents.
 """
 
 import asyncio

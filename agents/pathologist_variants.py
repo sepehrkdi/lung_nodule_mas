@@ -1,20 +1,7 @@
 """
-Specialized Pathologist Agents
-==============================
-
-EDUCATIONAL PURPOSE - DIVERSE NLP APPROACHES:
-
-This module implements two pathologist agents with different 
-text analysis strategies:
-
-1. PathologistRegex: Pattern matching with regular expressions
-2. PathologistSpacy: spaCy NER + semantic rules
-
-WHY DIFFERENT APPROACHES?
-- Regex is explicit and interpretable but brittle
-- spaCy handles variations and context better
-- Disagreement reveals ambiguous or complex cases
-- Demonstrates hybrid symbolic + statistical NLP
+Specialized pathologist agents with different NLP strategies:
+- PathologistRegex: Pattern matching with regular expressions
+- PathologistSpacy: spaCy NER + semantic rules
 """
 
 import asyncio
@@ -685,30 +672,7 @@ class PathologistSpacy(PathologistBase):
 # =============================================================================
 
 class PathologistContext(PathologistBase):
-    """
-    Pathologist-3: Context specialist for negation and uncertainty detection.
-    
-    EDUCATIONAL PURPOSE - CLINICAL NLP CONTEXT ANALYSIS:
-    
-    This agent focuses on understanding the CERTAINTY of statements:
-    - "No nodule" → NEGATED (entity is explicitly denied)
-    - "Possible nodule" → UNCERTAIN (hedged language)
-    - "12mm nodule" → AFFIRMED (positively stated)
-    
-    Uses NegEx-style algorithm (Chapman et al., 2001) with extensions
-    for uncertainty detection (Harkema et al., 2009 - ConText).
-    
-    The certainty labels produced by this agent are critical for the
-    Oncologist's conflict resolution, as negated/uncertain findings
-    should be weighted differently than affirmed findings.
-    
-    Approach:
-    1. Parse report into sections (FINDINGS, IMPRESSION)
-    2. Find medical entity mentions (nodule, mass, etc.)
-    3. Apply NegEx trigger/scope rules
-    4. Assign certainty labels per entity
-    5. Compute overall report certainty
-    """
+    """Pathologist-3: Context specialist for negation/uncertainty detection using NegEx."""
     
     AGENT_TYPE = "pathologist"
     APPROACH = "context"

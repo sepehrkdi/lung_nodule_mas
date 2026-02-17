@@ -1,39 +1,10 @@
 """
-Multi-Agent System Agents Module
-================================
+Multi-Agent System agents module.
 
-This module contains the BDI (Belief-Desire-Intention) agents for the
-lung nodule classification system.
-
-EDUCATIONAL PURPOSE - DISTRIBUTED AI CONCEPTS:
-- BDI Architecture: Beliefs, Desires, Intentions model (Bratman)
-- Agent Communication: Speech acts (Austin & Searle)
-- Multi-Agent Coordination: Parallel task execution with message passing
-- SPADE-BDI: Proper AgentSpeak(L) interpreter with XMPP communication
-
-Agents (Original - Custom BDI):
-    - RadiologistAgent: Analyzes CT images using pre-trained CNN
-    - PathologistAgent: Extracts findings from reports using NLP
-    - OncologistAgent: Combines findings using Prolog reasoning
-
-Agents (SPADE-BDI - Proper AgentSpeak Interpreter):
-    - SpadeRadiologistAgent: SPADE-BDI agent with DenseNet121
-    - SpadePathologistAgent: SPADE-BDI agent with scispaCy NLP
-    - SpadeOncologistAgent: SPADE-BDI agent with Prolog reasoning
-
-Specialized Variant Agents (Extended Architecture):
-    Radiologists (3 approaches):
-    - RadiologistDenseNet: DenseNet121 CNN architecture
-    - RadiologistResNet: ResNet50 CNN architecture  
-    - RadiologistRuleBased: Size/texture heuristic rules
-    
-    Pathologists (3 approaches):
-    - PathologistRegex: Regular expression pattern matching
-    - PathologistSpacy: spaCy NER + semantic rules
-    - PathologistContext: Contextual analysis for negation and uncertainty
-
-Note: The SPADE-BDI agents provide proper AgentSpeak(L) plan execution
-      as required for academic BDI demonstrations.
+Contains BDI agents for lung nodule classification:
+- Radiologist agents (DenseNet, ResNet, Rule-based)
+- Pathologist agents (Regex, spaCy, Context)
+- Oncologist agent (consensus coordination)
 """
 
 

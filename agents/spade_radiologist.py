@@ -1,18 +1,5 @@
 """
-SPADE-BDI Radiologist Agent
-============================
-
-EDUCATIONAL PURPOSE - BDI AGENT WITH COMPUTER VISION:
-
-This module implements the Radiologist agent using SPADE-BDI.
-The agent uses DenseNet121 for image classification, with the
-ML code called as internal actions from AgentSpeak plans.
-
-SPADE-BDI INTEGRATION:
-- Plans in .asl file define WHAT to do
-- Internal actions in Python define HOW to do it
-- Beliefs track classification results
-- Messages sent via XMPP to other agents
+SPADE-BDI Radiologist agent using DenseNet121 for image classification.
 """
 
 import asyncio

@@ -1,27 +1,5 @@
-// ============================================
 // Oncologist Agent Plans (AgentSpeak for SPADE-BDI)
-// ============================================
-//
-// EDUCATIONAL PURPOSE - PROLOG IN BDI AGENTS:
-//
-// The Oncologist agent demonstrates Symbolic AI integration.
-// It uses Prolog for First-Order Logic (FOL) reasoning.
-//
-// PROLOG CONCEPTS DEMONSTRATED:
-// - Unification: Pattern matching with variables
-// - Backtracking: Exploring solution space
-// - Resolution: Logical inference from rules
-// - findall/3: Collecting all solutions
-//
-// Internal actions call PySwip to query the Prolog KB.
-//
-// ONCOLOGIST ROLE:
-// Synthesizes findings from Radiologist and Pathologist
-// using logical reasoning to determine:
-// - Lung-RADS category
-// - TNM staging
-// - Clinical recommendations
-// ============================================
+// Synthesizes findings using Prolog reasoning.
 
 // --------------------------------------------
 // Initial beliefs
