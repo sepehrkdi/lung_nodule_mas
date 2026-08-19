@@ -1,11 +1,11 @@
 # BDI Multi-Agent System for Lung Nodule Classification from Chest X-ray Reports
 
-> **⚠️ Educational Project — Not for Clinical Use.** Graduate course project
+> **⚠️ Educational Project - Not for Clinical Use.** Graduate course project
 > (Natural Language Processing + Symbolic & Data-driven AI, University of
 > Genoa). This system is not a medical device; its outputs must never inform
 > clinical decisions.
 
-**University of Genoa — NLP and SDAI Project**
+**University of Genoa - NLP and SDAI Project**
 **Author:** Sepehr Khodadadi Hosseinabadi ([thisissepehrkhd@gmail.com](mailto:thisissepehrkhd@gmail.com))
 **Repository:** [github.com/sepehrkdi/multi-agent-clinical-decision-support](https://github.com/sepehrkdi/multi-agent-clinical-decision-support)
 
@@ -19,7 +19,7 @@ This project implements a **Belief-Desire-Intention (BDI) Multi-Agent System (MA
 
 ## Key Contributions
 
-1. A BDI multi-agent system with **7 agent instances across 3 agent types** — 3 computer-vision "radiologist" agents, 3 clinical-NLP "pathologist" agents, and a consensus "oncologist" agent — coordinated by an asyncio orchestrator (an optional SPADE/XMPP runner with FIPA-ACL-style messaging is provided in `spade_main.py` but is not on the evaluated path).
+1. A BDI multi-agent system with **7 agent instances across 3 agent types** - 3 computer-vision "radiologist" agents, 3 clinical-NLP "pathologist" agents, and a consensus "oncologist" agent - coordinated by an asyncio orchestrator (an optional SPADE/XMPP runner with FIPA-ACL-style messaging is provided in `spade_main.py` but is not on the evaluated path).
 2. A clinical-NLP pipeline: section-weighted report splitting, attribute extraction with measurement normalization, **dependency-anchored frame building** (scispaCy, multi-pass traversal handling clausal modifiers and participial chains), and NegEx/ConText-style negation and uncertainty detection.
 3. A **Prolog-based consensus mechanism** (SWI-Prolog via PySwip): weighted voting, disagreement detection, six conflict-resolution rules, and explanation generation.
 4. **Graded uncertainty quantification** separating aleatory uncertainty (inherent text ambiguity) from epistemic uncertainty (knowledge gaps), combined in quadrature into continuous scores rather than categorical labels.
@@ -85,7 +85,7 @@ The CNN-based agents (R1, R2) utilize the `TorchXRayVision` library employing th
 d_mm = (2√(A_px / π) / H_px) × 300
 ```
 
-On real NLMCXR images, this produces estimates of 5.1mm, 9.6mm, and 52.4mm for different views — clinically plausible values compared to the 124.8mm produced by the old heuristic.
+On real NLMCXR images, this produces estimates of 5.1mm, 9.6mm, and 52.4mm for different views - clinically plausible values compared to the 124.8mm produced by the old heuristic.
 
 ### Pathologist Agents (NLP)
 
@@ -97,7 +97,7 @@ The term "Pathologist" is used metaphorically for agents that analyze textual ev
 | **P2** | spaCy/NER | 0.9 | Dependency parsing, frame building (scispaCy) |
 | **P3** | NegEx/Context | 0.85 | Negation and uncertainty detection |
 
-**Explicit Unknown-Size Handling.** All Pathologist agents return `(size_mm, size_source)` tuples. When no measurement is detected, agents return `(None, "unknown")` — the consensus engine then reduces these agents' weights by 50%.
+**Explicit Unknown-Size Handling.** All Pathologist agents return `(size_mm, size_source)` tuples. When no measurement is detected, agents return `(None, "unknown")` - the consensus engine then reduces these agents' weights by 50%.
 
 ### Oncologist Agent (Consensus)
 
@@ -140,10 +140,10 @@ Four categories forming the minimum set required by the Lung-RADS classification
 
 To resolve the "bag-of-words" problem in multi-finding reports, Pathologist-2 uses a **four-pass traversal** strategy:
 
-1. **Pass 1 — Direct Modifiers:** BFS traversal of anchor's subtree for adjectives, numeric modifiers, compounds.
-2. **Pass 2 — Clausal Modifiers:** Identifies clausal dependents (`acl`, `relcl`, `appos`, `advcl`) for measurement and characterization extraction.
-3. **Pass 3 — Participial Chain Scanning:** Linear scan for participial verbs and measurements in comma-separated phrases.
-4. **Pass 4 — Appositive Fallback:** Sentence-wide scan for unclaimed measurements.
+1. **Pass 1 - Direct Modifiers:** BFS traversal of anchor's subtree for adjectives, numeric modifiers, compounds.
+2. **Pass 2 - Clausal Modifiers:** Identifies clausal dependents (`acl`, `relcl`, `appos`, `advcl`) for measurement and characterization extraction.
+3. **Pass 3 - Participial Chain Scanning:** Linear scan for participial verbs and measurements in comma-separated phrases.
+4. **Pass 4 - Appositive Fallback:** Sentence-wide scan for unclaimed measurements.
 
 Output is a list of structured `NoduleFinding` objects with: `anchor_text`, `size_mm`, `size_source`, `texture`, `location`, `margins`, `calcification`, `characterization`, `is_negated`, `is_uncertain`, and `extraction_paths` for interpretability.
 
@@ -185,15 +185,15 @@ Confidence = max(0, 1 - 3σ)
 
 A three-stage pipeline:
 
-1. **Stage 1 — Detection (σ > 0.08):** Flags disagreement when agent probability std. dev. exceeds 0.08 (triggers on ≥16% probability gap).
-2. **Stage 2 — Conflict Resolution:** Pattern-specific rules:
+1. **Stage 1 - Detection (σ > 0.08):** Flags disagreement when agent probability std. dev. exceeds 0.08 (triggers on ≥16% probability gap).
+2. **Stage 2 - Conflict Resolution:** Pattern-specific rules:
    - *Visual–Text Conflict* (P_CV > 0.65 and P_NLP < 0.35): Average probabilities, flag for radiology review
    - *Text Override* (P_NLP > 0.65 and P_CV < 0.35): Override with pathologist probability
    - *Pathologist Override* (P_NLP ≥ 0.60 and 0.35 ≤ P_CV ≤ 0.65): Prevent dilution of textual evidence
    - *CNN–NLP Agreement* (|P_CNN - P_NLP| < 0.2): 60/40 weighted combination
    - *Rule-Based Tiebreaker:* R3 as deciding agent
    - *Conservative Default:* Flag for multidisciplinary review
-3. **Stage 3 — Classification (threshold 0.5):** Benign if P < 0.5, Malignant if P ≥ 0.5.
+3. **Stage 3 - Classification (threshold 0.5):** Benign if P < 0.5, Malignant if P ≥ 0.5.
 
 ### Dynamic Per-Case Weight Assignment
 
@@ -350,18 +350,18 @@ python main_extended.py --evaluate --no-filter
 ### Evaluation Status
 
 This repository ships the evaluation *framework* (metrics, baselines,
-stratified cross-validation, statistical tests, ablation runner — see
+stratified cross-validation, statistical tests, ablation runner - see
 `evaluation/`), not headline results. The course-time validation is documented
 in the graded LaTeX report under `report/`, which is preserved unchanged as
-the academic record. A rigorous, adequately-powered evaluation — in particular
-the dynamic-vs-static-vs-equal weighting ablation — remains future work.
+the academic record. A rigorous, adequately-powered evaluation - in particular
+the dynamic-vs-static-vs-equal weighting ablation - remains future work.
 
 ---
 
 ## Dataset
 
 This project uses the **IU/Open-I Indiana University Chest X-ray Collection**
-(Demner-Fushman et al., 2016 — *Preparing a collection of radiology
+(Demner-Fushman et al., 2016 - *Preparing a collection of radiology
 examinations for distribution and retrieval*, JAMIA 23(2)).
 - **Source**: [Open-I NIH](https://openi.nlm.nih.gov/)
 - **Content**: 7,470 paired images and reports (publicly available, de-identified).
@@ -468,4 +468,4 @@ multi-agent-clinical-decision-support/
 - **Universal Dependencies**: Nivre et al. (2016). Universal Dependencies v1.
 
 ---
-*Educational Project — Not for Clinical Use*
+*Educational Project - Not for Clinical Use*
