@@ -29,3 +29,16 @@ data/NLMCXR/**/*.png
 data/NLMCXR/**/*.jpg
 data/NLMCXR/**/*.jpeg
 data/NLMCXR/*
+
+# LaTeX build artifacts
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.synctex.gz
+report/report.pdf
+
+# Local course-submission bundles and slides (not published)
+Khodadadi*.zip
+presentation/
