@@ -5,7 +5,7 @@ FastAPI Backend for Lung Nodule Multi-Agent System
 Provides REST API endpoints for:
 - Listing and retrieving nodule data
 - Running multi-agent analysis with polling for real-time updates
-- Serving CT images
+- Serving X-ray images
 - Generating reports
 - Computing evaluation metrics
 """

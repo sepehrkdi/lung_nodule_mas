@@ -4,7 +4,7 @@ Case Analysis Page
 
 Main analysis page with:
 - Nodule selection
-- CT image display
+- X-ray image display
 - Real-time agent updates via polling
 - Consensus result display
 """
@@ -189,7 +189,7 @@ def render_case_analysis_page():
     col_left, col_right = st.columns([1, 1])
     
     with col_left:
-        # CT Image
+        # X-ray Image
         render_image_viewer(
             selected_nodule,
             api_base_url=API_BASE_URL,

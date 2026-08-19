@@ -2,6 +2,7 @@
 SPADE-BDI base agent module providing common interfaces for medical agents.
 """
 
+import os
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List, Callable
@@ -39,9 +40,11 @@ class XMPPConfig:
     port: int = 5222
     domain: str = "localhost"
     
-    # Default credentials (for demo)
-    # In production, use proper authentication
-    password: str = "secret"
+    # Placeholder credential for the optional local SPADE/XMPP runner
+    # (spade_main.py); requires a localhost XMPP server and is NOT used by
+    # the evaluated asyncio pipeline. Override via XMPP_PASSWORD if you
+    # ever point this at a real server.
+    password: str = os.environ.get("XMPP_PASSWORD", "secret")
     
     def get_jid(self, agent_name: str) -> str:
         """Get full JID for an agent."""

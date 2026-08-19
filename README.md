@@ -1,8 +1,13 @@
 # BDI Multi-Agent System for Lung Nodule Classification from Chest X-ray Reports
 
+> **⚠️ Educational Project — Not for Clinical Use.** Graduate course project
+> (Natural Language Processing + Symbolic & Data-driven AI, University of
+> Genoa). This system is not a medical device; its outputs must never inform
+> clinical decisions.
+
 **University of Genoa — NLP and SDAI Project**
-**Author:** Sepehr Khodadadi Hosseinabadi ([6660699@studenti.unige.it](mailto:6660699@studenti.unige.it))
-**Repository:** [github.com/sepehrkdi/lung_nodule_mas](https://github.com/sepehrkdi/lung_nodule_mas)
+**Author:** Sepehr Khodadadi Hosseinabadi ([thisissepehrkhd@gmail.com](mailto:thisissepehrkhd@gmail.com))
+**Repository:** [github.com/sepehrkdi/multi-agent-clinical-decision-support](https://github.com/sepehrkdi/multi-agent-clinical-decision-support)
 
 This project implements a **Belief-Desire-Intention (BDI) Multi-Agent System (MAS)** for extracting and fusing diagnostic evidence from chest X-ray images and radiology reports. It combines three AI paradigms within a multi-agent architecture:
 
@@ -14,18 +19,11 @@ This project implements a **Belief-Desire-Intention (BDI) Multi-Agent System (MA
 
 ## Key Contributions
 
-1. A BDI multi-agent system with **7 agent instances** across 3 agent types, communicating via FIPA-ACL message passing.
-2. An evaluation methodology where NLP agents must infer a diagnosis from observational data (`FINDINGS`) while being evaluated against the radiologist's explicit diagnosis (`IMPRESSION`).
-3. A custom NLP pipeline implementing: report section splitting with section weighting, entity and attribute extraction, measurement normalization, and NegEx-style negation and uncertainty detection.
-4. A **dependency-anchored frame building** module with multi-pass traversal that handles long-distance dependencies in complex clinical constructions, utilizing clausal modifiers (`acl`, `relcl`, `appos`) and participial chain scanning.
-5. **Graded uncertainty quantification** that distinguishes aleatory uncertainty (inherent text ambiguity) from epistemic uncertainty (knowledge gaps), providing continuous scores rather than categorical labels.
-6. A **Prolog-based consensus mechanism** that performs weighted voting, disagreement detection, conflict resolution, and binary classification with explanation generation.
-7. A **dynamic, per-case weight assignment** mechanism that adjusts agent reliability weights based on the information richness of the available radiology images and pathology reports.
-8. A multi-factor **NLP-richness scoring** function that combines MeSH metadata, entity detection, negation awareness, and structural completeness for evaluation case selection.
-9. An **anatomically-calibrated size estimation** method using blob detection with a chest X-ray field-of-view model, replacing naïve pixel-dimension heuristics.
-10. A **size-provenance framework** where agents return `(size_mm, size_source)` tuples and the consensus engine applies a 50% weight penalty to agents with unknown or undetected sizes.
-11. A **continual learning** mechanism that adapts agent base weights based on retrospective diagnostic feedback.
-12. An end-to-end evaluation on real clinical reports using NLP-derived binary ground truth for system-level classification.
+1. A BDI multi-agent system with **7 agent instances across 3 agent types** — 3 computer-vision "radiologist" agents, 3 clinical-NLP "pathologist" agents, and a consensus "oncologist" agent — coordinated by an asyncio orchestrator (an optional SPADE/XMPP runner with FIPA-ACL-style messaging is provided in `spade_main.py` but is not on the evaluated path).
+2. A clinical-NLP pipeline: section-weighted report splitting, attribute extraction with measurement normalization, **dependency-anchored frame building** (scispaCy, multi-pass traversal handling clausal modifiers and participial chains), and NegEx/ConText-style negation and uncertainty detection.
+3. A **Prolog-based consensus mechanism** (SWI-Prolog via PySwip): weighted voting, disagreement detection, six conflict-resolution rules, and explanation generation.
+4. **Graded uncertainty quantification** separating aleatory uncertainty (inherent text ambiguity) from epistemic uncertainty (knowledge gaps), combined in quadrature into continuous scores rather than categorical labels.
+5. **Dynamic per-case agent weighting** driven by the information richness of the available image/report pair, plus a continual-learning update of agent base weights from retrospective feedback.
 
 ---
 
@@ -220,27 +218,22 @@ where η=0.01, δ=+1 if correct, -1 if incorrect, clamped to [0.2, 3.0].
 
 The system features a **Streamlit-based Dashboard** for interactive analysis and explainability.
 
-### 1. Dashboard Overview
-A dedicated dashboard tracks system performance, showing real-time metrics (Accuracy, Precision, Recall) and agreement statistics across the evaluation set.
-
-![Dashboard](report/figures/ui_dashboard.png)
-
-### 2. Case Analysis
+### 1. Case Analysis
 The core interface allows deep inspection of individual cases, visualizing both the X-ray image and the radiology report side-by-side. NLP agents highlight extracted entities directly in the report text, color-coded by certainty.
 
 ![Case Analysis](report/figures/ui_case_analysis.png)
 
-### 3. Agent Results
+### 2. Agent Results
 Each agent (3 Radiologists, 3 Pathologists) displays its individual findings, confidence, and computed dynamic weight.
 
 ![Agent Results](report/figures/ui_agent_results.png)
 
-### 4. Consensus & Decision Making
+### 3. Consensus & Decision Making
 The Oncologist agent aggregates these findings into a final diagnosis, providing a malignancy probability and a clinical recommendation.
 
 ![Consensus](report/figures/ui_consensus.png)
 
-### 5. Explainability Features
+### 4. Explainability Features
 To build trust, the system exposes its internal reasoning:
 
 **Dynamic Weight Assignment**: Quantifies how data richness (e.g., image quality, report detail) influences each agent's vote.
@@ -250,6 +243,10 @@ To build trust, the system exposes its internal reasoning:
 **Agent Thinking Process**: A step-by-step log of the BDI reasoning loop (Perception → Deliberation → Intention).
 
 ![Thinking Process](report/figures/ui_agent_thinking.png)
+
+*All chest X-ray images and report excerpts in the screenshots are from the
+NIH Open-I Indiana University Chest X-ray Collection (publicly available,
+de-identified), courtesy of the U.S. National Library of Medicine.*
 
 ---
 
@@ -263,8 +260,8 @@ To build trust, the system exposes its internal reasoning:
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/sepehrkdi/lung_nodule_mas.git
-cd lung_nodule_mas
+git clone https://github.com/sepehrkdi/multi-agent-clinical-decision-support.git
+cd multi-agent-clinical-decision-support
 
 # Create virtual environment
 python -m venv venv
@@ -282,7 +279,7 @@ pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.1/e
 ## Usage
 
 ### 1. Extended Demo (Recommended)
-Run the full 6-agent system on sample cases with detailed logging.
+Run the full system (six voting agents plus the consensus oncologist) on sample cases with detailed logging.
 ```bash
 python main_extended.py --demo
 ```
@@ -350,63 +347,24 @@ python main_extended.py --evaluate --no-filter
 3. **Symbolic Layer Ablations:** Prolog consensus vs. pure Python consensus
 4. **NLP Component Ablations:** NegEx contribution, dependency parsing value
 
-### Claim Verification Matrix
+### Evaluation Status
 
-| Claim | Verification Criterion |
-|-------|----------------------|
-| Multi-agent > Single-agent | Accuracy difference > 0 |
-| Dynamic > Static weights | Accuracy difference > 0 |
-| Prolog ≈ Python consensus | \|ΔAcc\| < 0.01 |
-| NegEx contribution | ΔF1 > 0 |
-| Dependency parsing value | ΔF1 > 0 |
-| Ensemble improves recall | Recall difference > 0 |
-| System beats majority baseline | Accuracy > 84.4% (class prior) |
-
----
-
-## Evaluation Results
-
-### System Performance (500-Case Evaluation Subset)
-
-| Metric | Score |
-|--------|-------|
-| **Binary Accuracy** | **76.6%** |
-| Weighted Precision | 73.7% |
-| Weighted Recall | 76.6% |
-| Weighted F1 Score | 75.1% |
-| Majority + Unanimous Agreement | 97.8% |
-| Split Decisions | 2.2% |
-| Processing Time | ~60 sec/case (CPU) |
-
-### Empirical Claim Validation (50-Case Balanced Sample)
-
-| Claim | Comparison | Values | Verdict |
-|-------|-----------|--------|---------|
-| Ensemble > Majority Baseline | Accuracy | 0.68 > 0.44 | **PASS** |
-| Ensemble > Best Single Agent | Accuracy | 0.68 > 0.56 | **PASS** |
-| Dynamic ≥ Static Weights | Accuracy | 0.73 ≥ 0.68 | **PASS** |
-| Dynamic ≥ Equal Weights | Accuracy | 0.73 ≥ 0.63 | **PASS** |
-
-### Per-Agent Accuracy Breakdown
-
-| Agent | Modality | Accuracy |
-|-------|----------|:--------:|
-| Pathologist spaCy (P2) | NLP | 56.0% |
-| Pathologist Regex (P1) | NLP | 52.0% |
-| Radiologist ResNet (R2) | Image | 46.0% |
-| Radiologist DenseNet (R1) | Image | 44.0% |
-| Radiologist Rules (R3) | Image | 26.0% |
-| **Ensemble (6 agents)** | **Multi-modal** | **68.0%** |
-
-> NLP-based pathologist agents consistently outperform image-based radiologist agents, indicating that clinical report text contains more discriminative information than re-analyzing the underlying X-ray images.
+This repository ships the evaluation *framework* (metrics, baselines,
+stratified cross-validation, statistical tests, ablation runner — see
+`evaluation/`), not headline results. The course-time validation is documented
+in the graded LaTeX report under `report/`, which is preserved unchanged as
+the academic record. A rigorous, adequately-powered evaluation — in particular
+the dynamic-vs-static-vs-equal weighting ablation — remains future work.
 
 ---
 
 ## Dataset
 
-This project uses the **IU/Open-I Indiana University Chest X-ray Collection**.
+This project uses the **IU/Open-I Indiana University Chest X-ray Collection**
+(Demner-Fushman et al., 2016 — *Preparing a collection of radiology
+examinations for distribution and retrieval*, JAMIA 23(2)).
 - **Source**: [Open-I NIH](https://openi.nlm.nih.gov/)
-- **Content**: 7,470 paired images and reports.
+- **Content**: 7,470 paired images and reports (publicly available, de-identified).
 - **Evaluation Subset**: Top 500 cases ranked by NLP richness score (threshold ≥ 3).
 
 ### Download & Setup
@@ -447,7 +405,9 @@ Cases with score ≥ 3 (77% of dataset) are eligible for the Evaluation Subset.
 
 ## Limitations
 
-- The evaluation relies on NLP-derived binary ground truth; larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
+- The system has only undergone a small-scale, course-time evaluation; no performance claims are made here, and the framework's weighting-mode comparison (dynamic vs. static vs. equal) was inconclusive at that sample size.
+- Confidence scores are not calibrated and must not be used for triage.
+- The evaluation relies on NLP-derived binary ground truth extracted from IMPRESSION sections, which introduces circularity in favor of the text-based agents; larger-scale validation with expert-annotated ground truth would strengthen statistical conclusions.
 - NLP richness scoring thresholds were designed based on empirical analysis; sensitivity to these choices has not been exhaustively studied.
 - The anatomically-calibrated blob detection assumes a standard PA chest X-ray FOV of 300mm. Actual chest widths vary and NLMCXR images lack DICOM pixel-spacing metadata.
 - The 50% weight reduction for agents with unknown size is a fixed penalty; an adaptive penalty could provide finer-grained adjustment.
@@ -458,7 +418,7 @@ Cases with score ≥ 3 (77% of dataset) are eligible for the Evaluation Subset.
 ## Project Structure
 
 ```
-lung_nodule_mas/
+multi-agent-clinical-decision-support/
 ├── agents/             # BDI Agent implementations
 │   ├── spade_radiologist.py
 │   ├── spade_pathologist.py
@@ -498,6 +458,7 @@ lung_nodule_mas/
 ---
 
 ## References
+- **IU/Open-I Collection**: Demner-Fushman et al. (2016). Preparing a collection of radiology examinations for distribution and retrieval. *JAMIA* 23(2).
 - **SPADE-BDI**: [https://github.com/javipalanca/spade_bdi](https://github.com/javipalanca/spade_bdi)
 - **TorchXRayVision**: Cohen et al. (2022). [https://github.com/mlmed/torchxrayvision](https://github.com/mlmed/torchxrayvision)
 - **scispaCy**: Neumann et al. (2019). [https://allenai.github.io/scispacy/](https://allenai.github.io/scispacy/)

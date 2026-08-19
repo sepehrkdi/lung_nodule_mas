@@ -19,7 +19,7 @@ def render_image_viewer(
     show_controls: bool = True
 ):
     """
-    Render the CT image viewer component.
+    Render the X-ray image viewer component.
     
     Args:
         nodule_id: The nodule ID to display
@@ -27,7 +27,7 @@ def render_image_viewer(
         is_synthetic: Whether the image is synthetic
         show_controls: Whether to show colormap/upscale controls
     """
-    st.subheader("🫁 CT Image")
+    st.subheader("🫁 X-ray Image")
     
     # Controls
     if show_controls:
@@ -85,7 +85,7 @@ def render_image_placeholder(nodule_id: str):
         color: #8a8aa0;
     ">
         <div style="font-size: 3em; margin-bottom: 10px;">🫁</div>
-        <div style="font-size: 1.1em;">CT Image</div>
+        <div style="font-size: 1.1em;">X-ray Image</div>
         <div style="font-size: 0.9em; margin-top: 5px;">Nodule {nodule_id}</div>
         <div style="font-size: 0.8em; margin-top: 15px; color: #6a6a8a;">
             Start the API server to view images
@@ -109,7 +109,7 @@ def render_image_from_array(
     """
     import numpy as np
     
-    st.subheader("🫁 CT Image")
+    st.subheader("🫁 X-ray Image")
     
     if is_synthetic:
         st.info("ℹ️ **Synthetic Image** - Generated for demonstration purposes")
